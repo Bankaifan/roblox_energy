@@ -1,0 +1,153 @@
+name: validate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+  # Fallback used by agent-dev / agent-fix when no run exists for a bot-pushed head SHA.
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  validate:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ vars.PYTHON_VERSION || '3.x' }}
+      - name: Install pinned tools
+        env:
+          EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
+        run: bash tools/ci/install_tools.sh
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      # An agent PR carries its workflow changes as .agents/workflow-patches/*.patch until workflow-apply applies them
+      # after the security review; check the tree as it will be after that (working tree only, nothing is pushed).
+      - name: Apply pending workflow patches for the checks
+        run: |
+          for p in .agents/workflow-patches/*.patch; do
+            [ -e "$p" ] || continue
+            git apply "$p" || { echo "::error::$p does not apply"; exit 1; }
+            echo "applied $p for the checks"
+          done
+      - name: Checks (ruff, pytest, actionlint, zizmor, repo checks)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          # check_test_evidence: empty outside pull_request, then the check is skipped
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          # "true" deselects slow tests (they run nightly); unset means false (design 0009)
+          NIGHTLY_HEAVY_TESTS: ${{ vars.NIGHTLY_HEAVY_TESTS || 'false' }}
+          # workflow_dispatch: check_pr_form reads title/body with `gh pr view`
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: make check
+
+  # Decides whether agent-smoke is needed. A paths-filter step (not workflow-level `paths`),
+  # so the required check `agent-smoke` always reports: skipped counts as success.
+  changes:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    outputs:
+      agents: ${{ steps.filter.outputs.agents }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          agents=false
+          if [ "$EVENT" = "pull_request" ] \
+            && git diff --name-only "$BASE_SHA...$HEAD_SHA" | grep -Eq '^(\.github/workflows/|\.github/actions/|tools/ci/)'; then
+            agents=true
+          fi
+          echo "agents=$agents" >> "$GITHUB_OUTPUT"
+
+  # Proves the agent plumbing still works with this PR's workflow versions: both app tokens
+  # can be created and used, and the Claude OAuth secret exists. No model call, no PR code run.
+  agent-smoke:
+    needs: changes
+    if: needs.changes.outputs.agents == 'true'
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    steps:
+      - name: Fail if a required repo variable is unset
+        env:
+          AUTHOR_CLIENT_ID: ${{ vars.AUTHOR_CLIENT_ID }}
+          APPROVER_CLIENT_ID: ${{ vars.APPROVER_CLIENT_ID }}
+        run: |
+          for n in AUTHOR_CLIENT_ID APPROVER_CLIENT_ID; do
+            [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+          done
+      - id: pre
+        env:
+          ACTOR: ${{ github.actor }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          AUTHOR_CLIENT_ID: ${{ vars.AUTHOR_CLIENT_ID }}
+          AUTHOR_APP_KEY: ${{ secrets.AUTHOR_APP_KEY }}
+          APPROVER_CLIENT_ID: ${{ vars.APPROVER_CLIENT_ID }}
+          APPROVER_APP_KEY: ${{ secrets.APPROVER_APP_KEY }}
+        run: |
+          missing=""
+          for name in CLAUDE_CODE_OAUTH_TOKEN AUTHOR_APP_KEY APPROVER_APP_KEY; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          # Variables are readable in Dependabot runs too.
+          missing_vars=""
+          for name in AUTHOR_CLIENT_ID APPROVER_CLIENT_ID; do
+            if [ -z "${!name}" ]; then missing_vars="$missing_vars $name"; fi
+          done
+          if [ -n "$missing_vars" ]; then
+            echo "::error::Missing Actions variables:${missing_vars} (client IDs of the two apps; Settings > Secrets and variables > Actions > Variables)"
+            exit 1
+          fi
+          if [ -n "$missing" ]; then
+            if [ "$ACTOR" = "dependabot[bot]" ]; then
+              echo "::error::Dependabot PRs get no Actions secrets. Add these as Dependabot secrets (Settings > Secrets and variables > Dependabot):${missing}"
+            else
+              echo "::error::Missing secrets:${missing}"
+            fi
+            exit 1
+          fi
+      - id: author
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+          private-key: ${{ secrets.AUTHOR_APP_KEY }}
+          permission-metadata: read
+      - id: approver
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.APPROVER_CLIENT_ID }}
+          private-key: ${{ secrets.APPROVER_APP_KEY }}
+          permission-metadata: read
+      - name: Call the API with both tokens
+        env:
+          AUTHOR_TOKEN: ${{ steps.author.outputs.token }}
+          APPROVER_TOKEN: ${{ steps.approver.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          for who in AUTHOR APPROVER; do
+            var="${who}_TOKEN"
+            names=$(GH_TOKEN="${!var}" gh api /installation/repositories --jq '.repositories[].full_name')
+            if ! printf '%s\n' "$names" | grep -qxF "$REPO"; then
+              echo "::error::$who app is not installed on $REPO"
+              exit 1
+            fi
+            echo "$who app token ok"
+          done

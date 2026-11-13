@@ -1,0 +1,37 @@
+{
+	"name": "PowerGrid",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"Shared": {
+				"$path": "src/shared"
+			},
+			"Tests": {
+				"$path": "tests"
+			}
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"Server": {
+				"$path": "src/server"
+			}
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"Client": {
+					"$path": "src/client"
+				}
+			}
+		}
+	},
+	"globIgnorePaths": [
+		"tests/agent",
+		"tests/agent/**",
+		"tests/**/*.py",
+		"tests/**/*.json",
+		"**/__pycache__"
+	]
+}

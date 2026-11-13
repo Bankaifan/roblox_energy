@@ -1,0 +1,11 @@
+# Only the outsider boundary and the gate itself need Daniel (decided 2026-11-10): who may change these rules, and which issues and texts
+# the agents trust. Every other security change is gated by the AI security reviewer (status `security-review`).
+/.github/CODEOWNERS @Bankaifan
+/.github/rulesets/ @Bankaifan
+/tools/trusted_issues.py @Bankaifan
+/tools/agent_guard.py @Bankaifan
+/tools/guard_mark.py @Bankaifan
+/tools/ci/risk.py @Bankaifan
+/.github/workflows/risk.yml @Bankaifan
+/tools/exec_log.py @Bankaifan
+/.agents/checks.json @Bankaifan
