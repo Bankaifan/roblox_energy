@@ -76,7 +76,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: python3 tools/scout_titles.py
       - id: claude
-        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         if: steps.pre.outputs.work == 'true'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
