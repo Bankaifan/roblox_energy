@@ -1,0 +1,524 @@
+"""Failure watch module (design 0008, sections 4.1-4.5), driven by a stateful fake gh."""
+import datetime
+import json
+
+import failure_watch as fw
+import guard_mark
+
+KEY = "k" * 32
+NOW = datetime.datetime(2026, 11, 10, 12, 0, tzinfo=datetime.UTC)
+SINCE = NOW - datetime.timedelta(hours=1)
+
+
+def mkrun(rid, wf="ci.yml", conclusion="failure", branch="main", fork=False):
+    return {"id": rid, "path": f".github/workflows/{wf}", "conclusion": conclusion, "head_branch": branch,
+            "html_url": f"https://github.com/o/r/actions/runs/{rid}", "created_at": "2026-11-10T11:30:00+00:00",
+            "head_repository": {"fork": fork}}
+
+
+def mkjobs(job="build", step="test", conclusion="failure"):
+    return {"jobs": [{"name": job, "conclusion": conclusion,
+                      "steps": [{"name": step, "conclusion": conclusion}] if step else []}]}
+
+
+class Fake:
+    def __init__(self):
+        self.runs, self.jobs, self.issues, self.comments, self.calls = [], {}, {}, {}, []
+        self.listed, self.timeline, self.pulls, self.logs = {}, [], [], {}
+
+    def add_issue(self, title, body, state="OPEN", labels=()):
+        n = len(self.issues) + 1
+        self.issues[n] = {"number": n, "title": title, "state": state, "body": guard_mark.sign(title, body, KEY),
+                          "labels": [{"name": x} for x in labels]}
+        return n
+
+    def __call__(self, *a):
+        self.calls.append(a)
+        if a[0] == "api":
+            return self.api(a[1])
+        if a[:2] == ("run", "list"):
+            return json.dumps(self.listed.get(a[3], []))
+        if a[:2] == ("run", "view"):
+            return self.logs.get(int(a[2]), "")
+        if a[0] == "label":
+            return ""
+        if a[:2] == ("issue", "list"):
+            want = a[3]
+            return json.dumps([i for i in self.issues.values() if want == "all" or i["state"] == "OPEN"])
+        if a[:2] == ("issue", "create"):
+            n = len(self.issues) + 1
+            self.issues[n] = {"number": n, "title": a[3], "state": "OPEN", "body": a[a.index("--body") + 1],
+                              "labels": [{"name": a[a.index("--label") + 1]}]}
+            return f"https://github.com/o/r/issues/{n}\n"
+        n = int(a[2])
+        i = self.issues[n]
+        if a[:2] == ("issue", "view"):
+            return json.dumps({"body": i["body"], "comments": self.comments.get(n, [])})
+        if a[:2] == ("issue", "comment"):
+            self.comments.setdefault(n, []).append({"body": a[4]})
+        elif a[:2] == ("issue", "edit"):
+            self.edit(i, a)
+        elif a[:2] == ("issue", "close"):
+            i["state"] = "CLOSED"
+        elif a[:2] == ("issue", "reopen"):
+            i["state"] = "OPEN"
+        return ""
+
+    def edit(self, i, a):
+        if "--body" in a:
+            i["body"] = a[a.index("--body") + 1]
+        if "--add-label" in a:
+            i["labels"].append({"name": a[a.index("--add-label") + 1]})
+        if "--remove-label" in a:
+            i["labels"] = [x for x in i["labels"] if x["name"] != a[a.index("--remove-label") + 1]]
+
+    def api(self, path):
+        if "/jobs" in path:
+            return json.dumps(self.jobs[int(path.split("/runs/")[1].split("/")[0])])
+        one = [r for r in self.runs if path.endswith(f"/runs/{r['id']}")]
+        if one:
+            return json.dumps(one[0])
+        if "/timeline" in path:
+            return json.dumps(self.timeline)
+        if "/pulls" in path:
+            return json.dumps(self.pulls)
+        return json.dumps({"workflow_runs": self.runs})
+
+    def creates(self):
+        return [a for a in self.calls if a[:2] == ("issue", "create")]
+
+    def labels(self, n):
+        return {x["name"] for x in self.issues[n]["labels"]}
+
+
+def tick(fake, overdue=(), now=NOW):
+    return fw.watch(SINCE, now, list(overdue), KEY, fake)
+
+
+def failing(fake, rid, wf="ci.yml", job="build", step="test", branch="main"):
+    fake.runs.append(mkrun(rid, wf, branch=branch))
+    fake.jobs[rid] = mkjobs(job, step)
+
+
+def title(sig="ci.yml / build / test"):
+    return fw.TITLE_PREFIX + sig
+
+
+def body(failures=1, rid=1, reopened=0, closed="none"):
+    return fw.make_body("ci.yml / build / test", failures, f"https://github.com/o/r/actions/runs/{rid}", closed, reopened)
+
+
+# --- collect -------------------------------------------------------------------------------------
+
+def test_collect_keeps_real_failures_and_drops_the_rest():
+    f = Fake()
+    f.runs = [mkrun(1, conclusion="failure"), mkrun(2, conclusion="timed_out"), mkrun(3, conclusion="startup_failure"),
+              mkrun(4, conclusion="cancelled"), mkrun(5, conclusion="skipped"), mkrun(6, conclusion="success"),
+              mkrun(7, wf="validate.yml", branch="agent/9-x"), mkrun(8, wf="agent-review.yml", branch="agent/9-x"),
+              mkrun(9, wf="status.yml"), mkrun(10, fork=True), mkrun(11, wf="validate.yml", branch="main"),
+              mkrun(12, wf="validate.yml", branch="alert-autofix-8"), mkrun(13, wf="validate.yml", branch="fix/578-x"),
+              mkrun(14, wf="validate.yml", branch="release/next")]
+    assert [r["id"] for r in fw.collect(SINCE, NOW, f)] == [1, 2, 3, 4, 11]
+
+
+def test_collect_parametrised_self_excludes_only_the_callers_workflow():
+    f = Fake()
+    f.runs = [mkrun(1, wf="status.yml"), mkrun(2, wf="watch.yml")]
+    assert [r["id"] for r in fw.collect(SINCE, NOW, f, "watch.yml")] == [1]
+    assert [r["id"] for r in fw.collect(SINCE, NOW, f, "status.yml")] == [2]
+
+
+def test_failed_status_run_opens_an_issue_and_the_callers_own_runs_are_ignored():
+    f = Fake()
+    failing(f, 1, wf="status.yml")
+    failing(f, 2, wf="watch.yml")
+    actions, _ = fw.watch(SINCE, NOW, [], KEY, f, "watch.yml")
+    assert actions == ["opened failure issue #1"] and f.issues[1]["title"] == title("status.yml / build / test")
+
+
+# --- cancelled and startup_failure ---------------------------------------------------------------
+
+def cancelled(f, rid, wf="orchestrator.yml", job="gate", steps=(), branch="main"):
+    f.runs.append(mkrun(rid, wf, "cancelled", branch))
+    f.jobs[rid] = {"jobs": [{"name": job, "conclusion": "cancelled",
+                             "steps": [{"name": s, "conclusion": "cancelled"} for s in steps]}]}
+
+
+def test_cancelled_job_without_steps_opens_a_cancelled_class_issue():
+    f = Fake()
+    cancelled(f, 1, wf="ci.yml", job="gate")  # the #136 shape: displaced by concurrency, never started
+    actions, _ = tick(f)
+    assert actions == ["opened failure issue #1"]
+    assert f.issues[1]["title"] == title("ci.yml / gate / cancelled")
+
+
+def test_orchestrator_run_displaced_by_a_newer_run_is_expected():
+    """Issue #440: a pending run replaced in the concurrency group ends cancelled, with or without steps."""
+    f = Fake()
+    cancelled(f, 1, job="orchestrate")
+    cancelled(f, 2, job="orchestrate", steps=("sleep",))
+    f.runs.append(mkrun(3, "orchestrator.yml", "success"))
+    cancelled(f, 4, wf="orchestrator.yml", job="orchestrate", branch="other")  # no newer run on that branch
+    actions, _ = tick(f)
+    assert [i["title"] for i in f.issues.values()] == [title("orchestrator.yml / orchestrate / cancelled")]
+    assert len(actions) == 1
+
+
+def test_replaced_pending_run_with_a_newer_run_is_expected_for_any_workflow():
+    """Issue #482: job-level cancel without steps, or no job at all, plus a newer run: no issue."""
+    f = Fake()
+    cancelled(f, 1, wf="dispatch.yml", job="go")
+    f.runs.append(mkrun(2, "status.yml", "cancelled"))
+    f.jobs[2] = {"jobs": []}
+    f.runs.append(mkrun(3, "dispatch.yml", None))  # queued newer run
+    f.runs.append(mkrun(4, "status.yml", "success"))
+    actions, _ = tick(f)
+    assert actions == [] and f.issues == {}
+
+
+def test_replaced_pending_run_without_a_newer_run_is_a_failure():
+    f = Fake()
+    cancelled(f, 1, wf="dispatch.yml", job="go")
+    cancelled(f, 2, wf="watch.yml", job="w")
+    f.runs.append(mkrun(3, "other.yml", "success"))  # newer, but another workflow
+    tick(f)
+    assert sorted(i["title"] for i in f.issues.values()) == [
+        title("dispatch.yml / go / cancelled"), title("watch.yml / w / cancelled")]
+
+
+def test_open_cancelled_issue_whose_last_run_is_expected_is_closed():
+    f = Fake()
+    cancelled(f, 1, wf="dispatch.yml", job="go")
+    f.runs.append(mkrun(2, "dispatch.yml", "success"))
+    f.runs[0]["created_at"] = "2026-11-09T00:00:00+00:00"  # outside the window: not collected again
+    sig = "dispatch.yml / go / cancelled"
+    f.add_issue(title(sig), fw.make_body(sig, 97, "https://github.com/o/r/actions/runs/1"))
+    f.add_issue(title("ci.yml / build / test"), body())  # other family stays open
+    fw.watch(NOW, NOW, [], KEY, f)
+    assert f.issues[1]["state"] == "CLOSED" and f.issues[2]["state"] == "OPEN"
+
+
+def test_open_no_job_cancelled_issue_whose_last_run_is_expected_is_closed():
+    """Issue #484: `status.yml / - / -` (cancelled run without any job) is closed once a newer run exists."""
+    f = Fake()
+    f.runs.append(mkrun(1, "status.yml", "cancelled"))
+    f.jobs[1] = {"jobs": []}
+    f.runs[0]["created_at"] = "2026-11-09T00:00:00+00:00"
+    f.runs.append(mkrun(2, "status.yml", "success"))
+    sig = "status.yml / - / -"
+    f.add_issue(title(sig), fw.make_body(sig, 16, "https://github.com/o/r/actions/runs/1"))
+    actions, _ = fw.watch(NOW, NOW, [], KEY, f)
+    assert f.issues[1]["state"] == "CLOSED" and actions == ["closed expected-cancel issue #1"]
+
+
+def test_startup_failure_has_step_dash():
+    f = Fake()
+    f.runs.append(mkrun(1, "ci.yml", "startup_failure"))
+    f.jobs[1] = {"jobs": []}
+    tick(f)
+    assert f.issues[1]["title"] == title("ci.yml / - / -")
+
+
+def test_unexpected_cancel_with_started_steps_opens_an_issue_with_the_step():
+    f = Fake()
+    cancelled(f, 1, wf="ci.yml", job="build", steps=("test",))
+    tick(f)
+    assert f.issues[1]["title"] == title("ci.yml / build / test")
+
+
+def test_expected_cancel_table():
+    f = Fake()
+    cancelled(f, 1, wf="agent-review.yml", job="review", steps=("run",), branch="feature")
+    cancelled(f, 2, wf="validate.yml", job="check", steps=("run",), branch="main")
+    f.runs.append(mkrun(3, "validate.yml", "success", "main"))  # newer run for the same branch
+    cancelled(f, 4, wf="validate.yml", job="check", steps=("run",), branch="main")  # no newer run: unexpected
+    cancelled(f, 5, wf="agent-review.yml", job="review", steps=())  # never started: not expected
+    actions, _ = tick(f)
+    assert sorted(i["title"] for i in f.issues.values()) == [
+        title("agent-review.yml / review / cancelled"), title("validate.yml / check / run")]
+    assert len(actions) == 2
+
+
+def test_security_review_cancelled_by_a_newer_run_is_expected():
+    """Issue #520: agent-security-review.yml cancels the review of a superseded run (cancel-in-progress)."""
+    f = Fake()
+    cancelled(f, 1, wf="agent-security-review.yml", job="security-review", steps=("Run claude",), branch="main")
+    f.runs.append(mkrun(2, "agent-security-review.yml", "success", "main"))
+    tick(f)
+    assert f.issues == {}
+
+
+def test_lone_security_review_cancel_still_opens_an_issue():
+    f = Fake()
+    cancelled(f, 1, wf="agent-security-review.yml", job="security-review", steps=("Run claude",), branch="main")
+    tick(f)
+    assert [i["title"] for i in f.issues.values()] == [title("agent-security-review.yml / security-review / Run claude")]
+
+
+def test_newer_run_lookup_counts_queued_runs_so_it_must_not_filter_by_status():
+    f = Fake()
+    cancelled(f, 1, wf="validate.yml", job="check", steps=("run",), branch="feature")
+    f.runs.append(mkrun(2, "validate.yml", None, "feature"))  # queued replacement, no conclusion yet
+    assert fw.newer_run(f.runs[0], f) is True
+    assert all("status=" not in c[1] for c in f.calls if c[0] == "api")
+
+
+def test_hostile_job_name_of_a_cancelled_job_is_sanitised():
+    f = Fake()
+    cancelled(f, 1, job="x\n@admin [img](http://evil)")
+    tick(f)
+    issue = f.issues[1]
+    text = issue["title"] + guard_mark.split(issue["body"])[0]
+    assert "\n" not in issue["title"] and "@" not in text and "[" not in text and "`" not in text
+
+
+def test_collect_looks_back_at_most_24_hours_and_overlaps_five_minutes():
+    f = Fake()
+    fw.collect(NOW - datetime.timedelta(days=5), NOW, f)
+    fw.collect(SINCE, NOW, f)
+    paths = [c[1] for c in f.calls]
+    assert "created=%3E%3D2026-11-09T12:00:00Z" in paths[0]
+    assert "created=%3E%3D2026-11-10T10:55:00Z" in paths[1]
+
+
+# --- signature -------------------------------------------------------------------------------------
+
+def test_signature_sanitises_cuts_and_defaults_missing_step():
+    f = Fake()
+    f.jobs[1] = mkjobs("deploy", "Run `rm -rf /` <script>" + "x" * 80)
+    sig = fw.signature(mkrun(1), f)
+    wf, job, step = sig.split(" / ")
+    assert wf == "ci.yml" and job == "deploy"
+    assert len(step) == 60 and "`" not in step and "<" not in step
+    f.jobs[2] = mkjobs("runner", None)
+    assert fw.signature(mkrun(2), f).endswith(" / runner / -")
+
+
+def test_hostile_step_name_cannot_inject_into_title_or_body():
+    f = Fake()
+    failing(f, 1, step="x\n@admin ![img](http://evil)")
+    tick(f)
+    issue = f.issues[1]
+    text = issue["title"] + guard_mark.split(issue["body"])[0]
+    assert "\n" not in issue["title"] and "@" not in text
+    assert "[" not in text and "]" not in text and "`" not in text  # no markdown link, mention or code possible
+
+
+# --- dedup, cap, priority --------------------------------------------------------------------------
+
+def test_new_failure_opens_one_signed_issue_and_second_failure_updates_it():
+    f = Fake()
+    failing(f, 1)
+    actions, _ = tick(f)
+    assert actions == ["opened failure issue #1"]
+    issue = f.issues[1]
+    assert issue["title"] == title() and guard_mark.verify(issue["title"], issue["body"], KEY)
+    assert "Failures: 1" in issue["body"] and "prio:2" in f.labels(1)
+    failing(f, 2)
+    actions, _ = tick(f)
+    assert actions == ["updated failure issue #1"] and len(f.creates()) == 1
+    assert "Failures: 2" in f.issues[1]["body"] and guard_mark.verify(issue["title"], issue["body"], KEY)
+
+
+def test_same_run_in_overlap_is_not_counted_twice():
+    f = Fake()
+    failing(f, 1)
+    tick(f)
+    assert tick(f)[0] == []
+    assert "Failures: 1" in f.issues[1]["body"]
+
+
+def test_no_key_does_nothing():
+    f = Fake()
+    failing(f, 1)
+    assert fw.watch(SINCE, NOW, [], "", f) == ([], SINCE)
+    assert f.calls == []
+
+
+def test_flood_cap_opens_five_defers_the_rest_and_updates_are_free():
+    f = Fake()
+    f.add_issue(title("ci.yml / build / old"), fw.make_body("ci.yml / build / old", 1, "https://github.com/o/r/actions/runs/0"))
+    for n in range(1, 8):
+        failing(f, n, step=f"s{n}")
+    f.runs[0]["created_at"] = "2026-11-10T11:40:00+00:00"
+    failing(f, 8, step="old")
+    f.runs[-1]["created_at"] = "2026-11-10T11:35:00+00:00"
+    actions, since = tick(f)
+    assert len(f.creates()) == 5
+    assert "failure watch: 2 signatures deferred" in actions
+    assert "updated failure issue #1" in actions
+    assert since == datetime.datetime(2026, 11, 10, 11, 30, tzinfo=datetime.UTC)
+
+
+def test_priority_prio1_on_third_failure_and_for_merge_gates():
+    f = Fake()
+    for rid in (1, 2, 3):
+        failing(f, rid)
+        tick(f)
+    assert "prio:1" in f.labels(1) and "prio:2" not in f.labels(1)
+    g = Fake()
+    for n, wf in enumerate(("risk.yml", "agent-security-review.yml", "validate.yml"), 1):
+        failing(g, n, wf=wf)
+    tick(g)
+    assert all("prio:1" in g.labels(n) for n in (1, 2, 3))
+    h = Fake()
+    failing(h, 1, wf="ci.yml", branch="feature")
+    tick(h)
+    assert "prio:2" in h.labels(1)
+
+
+def test_validate_failure_on_a_pr_branch_opens_no_issue():
+    f = Fake()
+    failing(f, 1, wf="validate.yml", branch="feature")
+    tick(f)
+    assert not f.issues  # the PR's own check carries it; only main opens an issue (#410)
+
+
+# --- auto-close ------------------------------------------------------------------------------------
+
+def green(f, rid=50, branch="main", job="build", conclusion="success"):
+    f.listed["ci.yml"] = [{"conclusion": "success", "url": f"https://github.com/o/r/actions/runs/{rid}",
+                           "headBranch": branch, "databaseId": rid}]
+    f.jobs[rid] = mkjobs(job, "test", conclusion)
+
+
+def test_success_of_the_same_job_closes_the_issue():
+    f = Fake()
+    n = f.add_issue(title(), body())
+    green(f)
+    actions, _ = tick(f)
+    assert actions == ["closed failure issue #1"] and f.issues[n]["state"] == "CLOSED"
+    assert "succeeded." in f.comments[n][0]["body"]
+    assert "Closed by: https://github.com/o/r/actions/runs/50" in f.issues[n]["body"]
+    assert guard_mark.verify(f.issues[n]["title"], f.issues[n]["body"], KEY)
+
+
+def test_success_without_the_job_or_older_or_on_other_branch_does_not_close():
+    for kw in ({"job": "other"}, {"branch": "feature"}, {"rid": 0}):
+        f = Fake()
+        f.add_issue(title(), body(rid=1))
+        green(f, **kw)
+        assert tick(f)[0] == [] and f.issues[1]["state"] == "OPEN"
+
+
+def test_overdue_issue_is_closed_when_not_overdue_and_kept_when_overdue():
+    f = Fake()
+    t = "Overdue scheduled run: scout"
+    f.add_issue(t, "x")
+    f.add_issue("Overdue scheduled run: rule keeper", "x")
+    f.add_issue("Overdue scheduled run: weekly summary", "x")
+    f.add_issue("Overdue scheduled run: orchestrator", "stranger")
+    f.issues[4]["body"] = "stranger"  # unsigned: left alone
+    actions, _ = tick(f, overdue=["rule keeper"])
+    assert f.issues[1]["state"] == "CLOSED" and f.issues[3]["state"] == "CLOSED"
+    assert f.issues[2]["state"] == "OPEN" and f.issues[4]["state"] == "OPEN"
+    assert actions == ["closed overdue issue #1", "closed overdue issue #3"]
+
+
+# --- reopen and escalation ---------------------------------------------------------------------------
+
+def test_failure_after_close_reopens_with_counter_and_pr_link():
+    f = Fake()
+    f.add_issue(title(), body(failures=2, rid=1), state="CLOSED", labels=["prio:2"])
+    f.timeline = [{"event": "closed", "commit_id": "abc"}]
+    f.pulls = [{"html_url": "https://github.com/o/r/pull/9"}]
+    failing(f, 2)
+    actions, _ = tick(f)
+    issue = f.issues[1]
+    assert actions == ["reopened failure issue #1"] and issue["state"] == "OPEN"
+    assert "Failures: 3" in issue["body"] and "Reopened: 1" in issue["body"]
+    assert "Closed by: https://github.com/o/r/pull/9" in issue["body"]
+    assert "Same failure again after the fix in https://github.com/o/r/pull/9" in f.comments[1][0]["body"]
+    assert guard_mark.verify(issue["title"], issue["body"], KEY) and "needs-human" not in f.labels(1)
+
+
+def test_third_recurrence_escalates_to_needs_human_once():
+    f = Fake()
+    f.add_issue(title(), body(failures=5, rid=1, reopened=2), state="CLOSED", labels=["prio:1"])
+    failing(f, 2)
+    tick(f)
+    assert "needs-human" in f.labels(1) and "Reopened: 3" in f.issues[1]["body"]
+    note = f.comments[1][-1]["body"]
+    assert "<!-- decision: yes=restart-issue no=close-issue -->" in note
+    failing(f, 3)
+    tick(f)  # still open: only a counter bump, no second label and no second note
+    assert [x["name"] for x in f.issues[1]["labels"]].count("needs-human") == 1
+    assert len(f.comments[1]) == 2 and guard_mark.verify(f.issues[1]["title"], f.issues[1]["body"], KEY)
+
+
+def test_unsigned_lookalike_issue_is_ignored_for_state():
+    f = Fake()
+    n = f.add_issue(title(), body())
+    f.issues[n]["body"] = "Failures: 99"
+    failing(f, 2)
+    tick(f)
+    assert len(f.creates()) == 1
+
+
+def test_no_log_text_in_any_body():
+    f = Fake()
+    failing(f, 1)
+    tick(f)
+    core = guard_mark.split(f.issues[1]["body"])[0]
+    assert core == fw.make_body("ci.yml / build / test", 1, "https://github.com/o/r/actions/runs/1")
+
+
+# --- turn cap (issue #562) -------------------------------------------------------------------------
+
+CAP_LOG = ("build\tRun claude\tAction failed with error: Claude reported a successful result after 64 turns, "
+           "exceeding the configured maximum of 60\n")
+
+
+def test_agent_run_at_the_turn_cap_opens_no_issue_and_no_rerun_and_reports_the_turns():
+    f = Fake()
+    failing(f, 1, wf="agent-dev.yml")
+    f.logs[1] = CAP_LOG
+    actions, _ = tick(f)
+    assert actions == ["run 1: turn cap, 64 turns over the maximum of 60: no issue, no rerun"]
+    assert f.issues == {} and f.creates() == []
+
+
+def test_turn_cap_also_covers_agent_fix_and_an_open_issue_is_left_alone():
+    f = Fake()
+    f.add_issue(title("agent-fix.yml / build / test"), fw.make_body("agent-fix.yml / build / test", 2, "x"))
+    failing(f, 1, wf="agent-fix.yml")
+    f.logs[1] = CAP_LOG.replace("64", "104")
+    actions, _ = tick(f)
+    assert actions == ["run 1: turn cap, 104 turns over the maximum of 60: no issue, no rerun"]
+    assert f.issues[1]["state"] == "OPEN" and f.issues[1]["title"] == title("agent-fix.yml / build / test")
+    assert "Failures: 2" in f.issues[1]["body"] and f.creates() == []
+
+
+def test_other_claude_errors_and_other_workflows_keep_todays_rules():
+    f = Fake()
+    failing(f, 1, wf="agent-dev.yml")
+    f.logs[1] = "Action failed with error: Claude Code process exited with code 1\n"
+    failing(f, 2, wf="ci.yml")
+    f.logs[2] = CAP_LOG  # same text outside the agent workflows: not a turn cap
+    tick(f)
+    assert sorted(i["title"] for i in f.issues.values()) == [
+        title("agent-dev.yml / build / test"), title("ci.yml / build / test")]
+    assert not [c for c in f.calls if c[:2] == ("run", "view") and c[2] == "2"]
+
+
+def test_unreadable_log_keeps_todays_rules():
+    def no_log(*a):
+        raise OSError("gh: log not available")
+
+    assert fw.turn_cap("agent-dev.yml", 1, "failure", no_log) is None
+    assert fw.turn_cap("agent-dev.yml", None, "failure", no_log) is None
+    assert fw.turn_cap("agent-dev.yml", 1, "cancelled", no_log) is None
+    f = Fake()
+    failing(f, 1, wf="agent-dev.yml")  # no log entry: the fake returns empty text, so no cap
+    tick(f)
+    assert len(f.creates()) == 1
+
+
+def test_turn_cap_reads_the_numbers_only():
+    f = Fake()
+    f.logs[1] = CAP_LOG
+    assert fw.turn_cap("agent-dev.yml", 1, "failure", f) == (64, 60)
+    f.logs[2] = "Claude reported a successful result after 70 turns, exceeding the configured maximum of 60"
+    assert fw.turn_cap("agent-dev.yml", 2, "failure", f) == (70, 60)
+    f.logs[3] = "Claude reported a successful result after 70 turns"
+    assert fw.turn_cap("agent-dev.yml", 3, "failure", f) is None

@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # One grouped PR for all GitHub Actions. Dependabot keeps full-SHA pins and rewrites the `# vX.Y.Z` comment.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+  # Add "pip" / "npm" etc. here once the project has a manifest.
