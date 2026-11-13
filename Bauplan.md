@@ -391,7 +391,7 @@ Versionen sind die neuesten Tags der Projekte am 13.11.2026 \[B\].
 
 Nicht gewählt: Wally 0.3.2 (unnötig) und jest-lua 3.10.0. Unsere Tests prüfen reine Rechenlogik, dafür reicht ein kleiner eigener Testläufer unter Lune \[A\].
 
-**MCP-Regel.** Verbunden wird über Assistant, Manage MCP Servers, „Enable Studio as MCP server“ und Quick connect für Claude Code \[B\]. Auf deinem Windows-Rechner startet der Server über cmd.exe /c %LOCALAPPDATA%\\Roblox\\mcp.bat, Quick connect trägt das selbst ein \[B\]. Erlaubt sind die lesenden und spielenden Werkzeuge: `get_studio_state`, `start_stop_play`, `get_console_output`, `screen_capture`, `character_navigation`, `user_keyboard_input`, `user_mouse_input`, `search_game_tree`, `inspect_instance`, `script_read`, `script_grep` sowie `execute_luau` zum Auslesen im laufenden Test. Verboten sind `multi_edit`, `insert_asset`, alle `generate_*`, `upload_image` und `save_place`.
+**MCP-Regel.** Verbunden wird über Assistant, Manage MCP Servers, „Enable Studio as MCP server“ und Quick connect für Claude Code \[B\]. Auf deinem Windows-Rechner startet der Server über cmd.exe /c "cd /d %LOCALAPPDATA%\Roblox && .\mcp.bat", Quick connect trägt das selbst ein \[B\]. Erlaubt sind die lesenden und spielenden Werkzeuge: `get_studio_state`, `start_stop_play`, `get_console_output`, `screen_capture`, `character_navigation`, `user_keyboard_input`, `user_mouse_input`, `search_game_tree`, `inspect_instance`, `script_read`, `script_grep` sowie `execute_luau` zum Auslesen im laufenden Test. Verboten sind `multi_edit`, `insert_asset`, alle `generate_*`, `upload_image` und `save_place`.
 
 ### Module
 
