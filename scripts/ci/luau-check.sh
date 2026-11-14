@@ -24,7 +24,10 @@ if [ "$missing" = 1 ]; then
   rokit install --no-trust-check
 fi
 
-stylua --check src tests scripts
-selene src tests scripts
+stylua --check src tests scripts sim
+selene src tests scripts sim
 lune run scripts/run-tests
+# Balance report (Bauplan section 2): regenerated here, and the committed docs/balance must match it.
+lune run scripts/balance
+git diff --exit-code -- docs/balance
 rojo build default.project.json -o "$(mktemp -d)/PowerGrid.rbxl"
