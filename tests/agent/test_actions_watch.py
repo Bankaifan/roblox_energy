@@ -180,6 +180,7 @@ def _listed():
     return re.findall(r"^\s+- (\S+)$", block, re.MULTILINE)
 
 
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_workflow_run_list_covers_every_other_workflow():
     names = {re.search(r"^name: (\S+)$", p.read_text(encoding="utf-8"), re.MULTILINE).group(1)
              for p in (ROOT / ".github/workflows").glob("*.yml") if p.name != "watch.yml"}

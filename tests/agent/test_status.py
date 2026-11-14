@@ -112,6 +112,7 @@ def test_non_required_reds_are_listed_not_blocking():
     assert "red but not required" not in st.pr_line(pr(7, statusCheckRollup=green), "Bankaifan")
 
 
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_required_contexts_reads_ruleset(tmp_path):
     path = tmp_path / "main.json"
     rules = [{"type": "deletion"},
@@ -121,6 +122,7 @@ def test_required_contexts_reads_ruleset(tmp_path):
     assert st.required_contexts(str(path)) == {"validate", "risk"}
 
 
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_required_contexts_null_cases(tmp_path):
     assert st.required_contexts(str(tmp_path / "missing.json")) is None
     broken = tmp_path / "broken.json"

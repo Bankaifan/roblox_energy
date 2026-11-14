@@ -2,6 +2,8 @@
 import re
 from pathlib import Path
 
+import pytest
+
 TEXT = (Path(__file__).resolve().parent.parent.parent / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
 
 
@@ -12,11 +14,13 @@ def block(name):
     return TEXT[start:start + 1 + nxt.start()] if nxt else TEXT[start:]
 
 
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_job_names_are_exactly_the_required_ones():
     jobs = TEXT[TEXT.index("\njobs:\n"):]
     assert re.findall(r"^  ([a-z-]+):$", jobs, re.MULTILINE) == ["validate", "changes", "agent-smoke"]
 
 
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_triggers_are_pull_request_push_to_main_and_dispatch():
     on = TEXT[TEXT.index("\non:\n"):TEXT.index("\npermissions:")]
     assert "pull_request:" in on
