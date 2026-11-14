@@ -6,7 +6,7 @@ PREFILTER = (ROOT / "tools" / "prefilter.py").read_text(encoding="utf-8")
 WORKFLOW = (ROOT / ".github" / "workflows" / "orchestrator.yml").read_text(encoding="utf-8")
 ROLE = (ROOT / ".agents" / "roles" / "orchestrator.md").read_text(encoding="utf-8")
 ADR = (ROOT / "docs" / "decisions" / "0012-orchestrator-events.md").read_text(encoding="utf-8")
-README = (ROOT / "README.md").read_text(encoding="utf-8")
+VARIABLES = (ROOT / "docs" / "variables.md").read_text(encoding="utf-8")  # where operators look up repo variables
 
 
 def reasons():
@@ -38,6 +38,6 @@ def test_adr_names_the_triggers_that_exist_in_the_workflow():
 
 def test_switch_is_documented_where_operators_look():
     assert "vars.ORCHESTRATOR_EVENTS == 'on'" in WORKFLOW
-    for text in (ROLE, ADR, README):
+    for text in (ROLE, ADR, VARIABLES):
         assert "ORCHESTRATOR_EVENTS" in text
     assert "`ORCHESTRATOR_EVENTS=off`" in ADR

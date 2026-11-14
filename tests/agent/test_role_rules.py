@@ -1,5 +1,7 @@
 import pathlib
 
+import pytest
+
 ROLES = pathlib.Path(__file__).parent.parent.parent / ".agents" / "roles"
 
 
@@ -53,6 +55,7 @@ def test_parking_rules_name_marker_and_answer_effects():
 FOUR_CASES = "who or what is trusted, token or app permissions, CODEOWNERS paths, or what leaves the repo"
 
 
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_design_study_is_required_only_for_the_four_cases():
     root = ROLES.parent.parent
     sources = ((root / "AGENTS.md").read_text(encoding="utf-8"),
