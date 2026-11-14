@@ -18,9 +18,12 @@ local DIMMED_TEXT = 0.3
 local DIMMED_BACKGROUND = 0.6
 -- The panel is at most this wide; on a narrow screen it shrinks to the screen width instead.
 local PANEL_MAX_WIDTH = 300
--- Captions shrink to MIN_TEXT and wrap onto a second line rather than being cut off at the edge.
-local MIN_TEXT = 12
-local MAX_TEXT = 18
+-- Every row and button uses the same fixed text size. Long text wraps onto a second line and the row grows with it.
+local ROW_TEXT = 14
+local ROW_MIN_HEIGHT = 36
+-- Inner padding: left and right it keeps text off the edge and off the scrollbar; top and bottom it gives wrapped lines air.
+local ROW_SIDE_PADDING = 8
+local ROW_VERTICAL_PADDING = 4
 local SUFFIXES = { "", "K", "M", "B", "T" }
 local STORAGE_MODES = {
 	{ id = "charge", caption = "Charge" },
@@ -31,39 +34,45 @@ local RULE_NAMES = { charge = "charge cheap", sell = "sell high" }
 -- Placeholder rule thresholds: charge while the price factor is at most 0.8, sell while it is at least 1.2.
 local CHARGE_BELOW = 0.8
 local SELL_ABOVE = 1.2
--- The fixed detail area under the upgrade list (name, effect, reason, Buy), and the border of the selected row.
+-- The fixed detail area under the upgrade list (name, effect, reason, Buy), the gap above Buy, and the border of the selected row.
 local DETAIL_HEIGHT = 160
+local DETAIL_GAP = 4
 local SELECTED_BORDER = 3
 local SELECTED_COLOR = Color3.fromRGB(255, 200, 0)
 
--- Scales the text between MIN_TEXT and MAX_TEXT and wraps it, so a long caption fits the panel width.
-local function fitText(text: GuiObject)
-	local limit = Instance.new("UITextSizeConstraint")
-	limit.MinTextSize = MIN_TEXT
-	limit.MaxTextSize = MAX_TEXT
-	limit.Parent = text
+-- Gives a row or button the shared look: fixed text size, wrapped text, inner padding, and a height that grows with the text.
+local function fitRow(control: GuiObject)
+	control.Size = UDim2.new(1, 0, 0, ROW_MIN_HEIGHT)
+	control.AutomaticSize = Enum.AutomaticSize.Y
+	local minHeight = Instance.new("UISizeConstraint")
+	minHeight.MinSize = Vector2.new(0, ROW_MIN_HEIGHT)
+	minHeight.Parent = control
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, ROW_SIDE_PADDING)
+	padding.PaddingRight = UDim.new(0, ROW_SIDE_PADDING)
+	padding.PaddingTop = UDim.new(0, ROW_VERTICAL_PADDING)
+	padding.PaddingBottom = UDim.new(0, ROW_VERTICAL_PADDING)
+	padding.Parent = control
 end
 
 local function label(parent: Instance, order: number): TextLabel
 	local text = Instance.new("TextLabel")
-	text.Size = UDim2.new(1, 0, 0, 36)
 	text.BackgroundTransparency = 0.3
-	text.TextScaled = true
+	text.TextSize = ROW_TEXT
 	text.TextWrapped = true
 	text.LayoutOrder = order
-	fitText(text)
+	fitRow(text)
 	text.Parent = parent
 	return text
 end
 
 local function button(parent: Instance, caption: string, order: number, onClick: () -> ()): TextButton
 	local control = Instance.new("TextButton")
-	control.Size = UDim2.new(1, 0, 0, 40)
 	control.Text = caption
-	control.TextScaled = true
+	control.TextSize = ROW_TEXT
 	control.TextWrapped = true
 	control.LayoutOrder = order
-	fitText(control)
+	fitRow(control)
 	control.Parent = parent
 	control.Activated:Connect(onClick)
 	return control
@@ -123,6 +132,8 @@ function Hud.build(net: Instance)
 	frame.CanvasSize = UDim2.new()
 	frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	frame.ScrollBarThickness = 6
+	-- The scrollbar takes its own strip beside the rows, so it never covers their text.
+	frame.ScrollBarInset = Enum.ScrollBarInset.ScrollBar
 	local widthLimit = Instance.new("UISizeConstraint")
 	widthLimit.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
 	widthLimit.Parent = frame
@@ -164,19 +175,33 @@ function Hud.build(net: Instance)
 	local detailWidth = Instance.new("UISizeConstraint")
 	detailWidth.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
 	detailWidth.Parent = detail
+	detail.Parent = gui
+	-- Name, effect and reason scroll inside the detail area when they wrap long; Buy stays pinned to its bottom edge.
+	local detailText = Instance.new("ScrollingFrame")
+	detailText.Size = UDim2.new(1, 0, 1, -(ROW_MIN_HEIGHT + DETAIL_GAP))
+	detailText.BackgroundTransparency = 1
+	detailText.CanvasSize = UDim2.new()
+	detailText.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	detailText.ScrollBarThickness = 6
+	detailText.ScrollBarInset = Enum.ScrollBarInset.ScrollBar
+	detailText.Parent = detail
 	local detailLayout = Instance.new("UIListLayout")
 	detailLayout.Padding = UDim.new(0, 4)
 	detailLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	detailLayout.Parent = detail
-	detail.Parent = gui
-	local detailName = label(detail, 1)
-	local detailEffect = label(detail, 2)
-	local detailReason = label(detail, 3)
+	detailLayout.Parent = detailText
+	local detailName = label(detailText, 1)
+	local detailEffect = label(detailText, 2)
+	local detailReason = label(detailText, 3)
 	local detailBuy = button(detail, "Buy", 4, function()
 		if selected ~= nil and latest ~= nil and latest.nodes[selected].state == "affordable" then
 			send("BuyNode", { node = Upgrades.run[selected].id })
 		end
 	end)
+	detailBuy.AutomaticSize = Enum.AutomaticSize.None
+	detailBuy.TextTruncate = Enum.TextTruncate.AtEnd
+	detailBuy.AnchorPoint = Vector2.new(0, 1)
+	detailBuy.Position = UDim2.fromScale(0, 1)
+	detailBuy.Size = UDim2.new(1, 0, 0, ROW_MIN_HEIGHT)
 
 	-- Why a locked upgrade is locked: the plant or the upgrade it needs.
 	local function requirementOf(node: any): string
