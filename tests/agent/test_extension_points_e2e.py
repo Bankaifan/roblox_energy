@@ -157,6 +157,7 @@ def test_checks_file_adds_its_name_to_the_template_set(tmp_path):
 
 
 @pytest.mark.slow
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_fresh_downstream_with_the_project_files_passes_make_check(tmp_path, clean_env):
     sha = _git(ROOT, "rev-parse", "HEAD").strip()
     dst = tmp_path / "downstream"

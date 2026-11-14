@@ -1,5 +1,5 @@
 # Working rules
-Project: <one sentence>. Current state: HANDOVER.md. Decisions: docs/decisions/. Roles: .agents/roles/.
+Current state: HANDOVER.md. Decisions: docs/decisions/. Roles: .agents/roles/.
 Project rules: `AGENTS.project.md` (optional, not managed); the Limits below win.
 
 ## Limits (not negotiable)
