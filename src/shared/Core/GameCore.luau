@@ -455,20 +455,66 @@ function GameCore.offline(state: State, seconds: number, env: Env): State
 	return result
 end
 
+-- Run node states for the HUD, in the order of Config.upgrades.run: "bought"; "locked" (a prerequisite is missing);
+-- "open" (prerequisites met, the coins do not cover the cost); "affordable".
+local function nodeStates(state: State, env: Env): { any }
+	local nodes = {}
+	for index, node in env.config.upgrades.run do
+		local planted = node.requiresPlant == nil or state.plants[node.requiresPlant] >= 1
+		local chained = node.requiresNode == nil or state.nodes[node.requiresNode] == true
+		local status = "affordable"
+		if state.nodes[node.id] then
+			status = "bought"
+		elseif not (planted and chained) then
+			status = "locked"
+		elseif node.cost > state.coins then
+			status = "open"
+		end
+		nodes[index] = { id = node.id, cost = node.cost, state = status }
+	end
+	return nodes
+end
+
+-- Storage for the HUD: the stage (0 until U17), the mode, the rule slots (U21) and the rule in each slot.
+local function storageView(state: State, env: Env): { [string]: any }
+	local slots = ruleSlots(state, env)
+	local rules = {}
+	for slot = 1, slots do
+		local rule = state.rules[slot]
+		if rule ~= nil then
+			rules[slot] = { id = rule.id, th = rule.th, on = rule.on }
+		end
+	end
+	return { stage = storageStage(state, env), mode = state.storage.mode, ruleSlots = slots, rules = rules }
+end
+
 -- What the HUD shows, so the client does no game logic: each plant's next price and whether the coins cover it,
--- the crank energy per click, and the next grid expansion with the run earnings (nil after the last level).
+-- the run nodes, the storage, the crank energy per click, and the next grid expansion with the run earnings,
+-- its sparks and whether it is allowed now (nil after the last level).
 function GameCore.view(state: State, env: Env): { [string]: any }
 	local plants = {}
 	for _, plant in env.config.plants do
 		local cost = env.formulas.cost(plant.baseCost, state.plants[plant.id])
 		plants[plant.id] = { cost = cost, affordable = cost <= state.coins }
 	end
-	local goal: { [string]: number }? = nil
+	local goal: { [string]: any }? = nil
 	local step = env.config.prestige[state.level + 1]
 	if step ~= nil then
-		goal = { level = step.level, required = step.requiredRevenue, earned = state.runEarned }
+		goal = {
+			level = step.level,
+			required = step.requiredRevenue,
+			earned = state.runEarned,
+			sparks = step.sparks,
+			allowed = state.runEarned >= step.requiredRevenue,
+		}
 	end
-	return { plants = plants, crank = crankEnergy(state, env), goal = goal }
+	return {
+		plants = plants,
+		nodes = nodeStates(state, env),
+		storage = storageView(state, env),
+		crank = crankEnergy(state, env),
+		goal = goal,
+	}
 end
 
 return GameCore

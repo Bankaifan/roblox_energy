@@ -69,4 +69,34 @@ return function(t, load)
 	local last = fresh()
 	last.level = 10
 	t.equal(GameCore.view(last, env(2, 1)).goal, nil, "no goal after the last expansion")
+	t.equal(goal.sparks, 5, "grid level 1 gives 5 sparks")
+	t.equal(goal.allowed, false, "4 Mio. earned are not enough for level 1")
+	earning.runEarned = 10000000
+	t.truthy(GameCore.view(earning, env(2, 1)).goal.allowed, "10 Mio. earned allow level 1")
+
+	-- Run nodes: locked without the plant or node before, open when the coins are short, affordable, bought.
+	local nodes = view.nodes
+	t.equal(nodes[1].state, "locked", "U01 needs a balcony panel")
+	t.equal(nodes[12].state, "open", "U12 costs 50: 20 coins are not enough")
+	local rich = fresh()
+	rich.coins = 100000
+	rich.plants[1] = 1
+	rich.nodes.U12 = true
+	local richNodes = GameCore.view(rich, env(2, 1)).nodes
+	t.equal(richNodes[1].state, "affordable", "U01 is affordable with a panel and 100000 coins")
+	t.equal(richNodes[1].cost, 150, "U01 costs 150")
+	t.equal(richNodes[12].state, "bought", "U12 is bought")
+	t.equal(richNodes[13].state, "affordable", "U13 needs U12 and 2000 coins")
+
+	-- Storage: stage 0 until U17; the rule slots need U21 and show the rule in each slot.
+	t.equal(view.storage.stage, 0, "no storage stage before U17")
+	t.equal(view.storage.ruleSlots, 0, "no rule slots without U21")
+	local stored = fresh()
+	stored.nodes.U17 = true
+	stored.nodes.U21 = true
+	stored.rules[2] = { id = "sell", th = 1.2, on = true }
+	local storage = GameCore.view(stored, env(2, 1)).storage
+	t.equal(storage.stage, 1, "U17 is storage stage 1")
+	t.equal(storage.ruleSlots, 2, "U21 gives two rule slots")
+	t.equal(storage.rules[2].id, "sell", "the sell rule shows in slot 2")
 end
