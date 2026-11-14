@@ -31,6 +31,10 @@ local RULE_NAMES = { charge = "charge cheap", sell = "sell high" }
 -- Placeholder rule thresholds: charge while the price factor is at most 0.8, sell while it is at least 1.2.
 local CHARGE_BELOW = 0.8
 local SELL_ABOVE = 1.2
+-- The fixed detail area under the upgrade list (name, effect, reason, Buy), and the border of the selected row.
+local DETAIL_HEIGHT = 160
+local SELECTED_BORDER = 3
+local SELECTED_COLOR = Color3.fromRGB(255, 200, 0)
 
 -- Scales the text between MIN_TEXT and MAX_TEXT and wraps it, so a long caption fits the panel width.
 local function fitText(text: GuiObject)
@@ -112,8 +116,8 @@ function Hud.build(net: Instance)
 	gui.ResetOnSpawn = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local frame = Instance.new("ScrollingFrame")
-	-- Fills the screen minus the margin, at most PANEL_MAX_WIDTH wide; the list scrolls.
-	frame.Size = UDim2.new(1, -32, 1, -32)
+	-- Fills the screen minus the margin and the detail area, at most PANEL_MAX_WIDTH wide; the list scrolls.
+	frame.Size = UDim2.new(1, -32, 1, -(48 + DETAIL_HEIGHT))
 	frame.Position = UDim2.fromOffset(16, 16)
 	frame.BackgroundTransparency = 1
 	frame.CanvasSize = UDim2.new()
@@ -147,6 +151,91 @@ function Hud.build(net: Instance)
 	end
 	-- The latest view from the server; buttons check it before they send.
 	local latest: any = nil
+	-- The upgrade the player tapped (an index into Upgrades.run), and the row buttons to highlight it.
+	local selected: number? = nil
+	local nodeButtons: { [number]: TextButton } = {}
+
+	-- Fixed detail area under the list: it is a sibling of the scrolled frame, so it stays visible on a phone.
+	local detail = Instance.new("Frame")
+	detail.AnchorPoint = Vector2.new(0, 1)
+	detail.Position = UDim2.new(0, 16, 1, -16)
+	detail.Size = UDim2.new(1, -32, 0, DETAIL_HEIGHT)
+	detail.BackgroundTransparency = 1
+	local detailWidth = Instance.new("UISizeConstraint")
+	detailWidth.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
+	detailWidth.Parent = detail
+	local detailLayout = Instance.new("UIListLayout")
+	detailLayout.Padding = UDim.new(0, 4)
+	detailLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	detailLayout.Parent = detail
+	detail.Parent = gui
+	local detailName = label(detail, 1)
+	local detailEffect = label(detail, 2)
+	local detailReason = label(detail, 3)
+	local detailBuy = button(detail, "Buy", 4, function()
+		if selected ~= nil and latest ~= nil and latest.nodes[selected].state == "affordable" then
+			send("BuyNode", { node = Upgrades.run[selected].id })
+		end
+	end)
+
+	-- Why a locked upgrade is locked: the plant or the upgrade it needs.
+	local function requirementOf(node: any): string
+		if node.requiresPlant ~= nil then
+			for _, plant in Plants do
+				if plant.id == node.requiresPlant then
+					return plant.name
+				end
+			end
+		end
+		for _, other in Upgrades.run do
+			if other.id == node.requiresNode then
+				return `{other.id} {other.name}`
+			end
+		end
+		return "a prerequisite"
+	end
+
+	-- Shows the selected upgrade: name and cost, effect text, state or reason, and its Buy button.
+	local function showDetail()
+		local index = selected
+		if index == nil or latest == nil then
+			detailName.Text = "Tap an upgrade to see what it does"
+			detailEffect.Text = ""
+			detailReason.Text = ""
+			detailBuy.Text = "Buy"
+			dim(detailBuy, false)
+			return
+		end
+		local node = Upgrades.run[index]
+		local item = latest.nodes[index]
+		detailName.Text = `{node.id} {node.name}: {short(node.cost)} coins`
+		detailEffect.Text = node.info
+		if item.state == "bought" then
+			detailReason.Text = "Bought"
+		elseif item.state == "locked" then
+			detailReason.Text = `Locked: needs {requirementOf(node)}`
+		elseif item.state == "open" then
+			detailReason.Text = "Not enough coins yet"
+		else
+			detailReason.Text = "Affordable"
+		end
+		detailBuy.Text = if item.state == "affordable" then `Buy {node.name}` else "Buy"
+		dim(detailBuy, item.state == "affordable")
+	end
+
+	-- The selected row has a coloured border; the others have none.
+	local function highlightRows()
+		for index, control in nodeButtons do
+			control.BorderSizePixel = if index == selected then SELECTED_BORDER else 0
+			control.BorderColor3 = SELECTED_COLOR
+		end
+	end
+
+	local function selectNode(index: number)
+		selected = index
+		highlightRows()
+		showDetail()
+	end
 
 	local crank = button(frame, "Crank", nextOrder(), function()
 		send("Crank")
@@ -160,12 +249,10 @@ function Hud.build(net: Instance)
 
 	local upgradeTitle = label(frame, nextOrder())
 	upgradeTitle.Text = "Upgrades (this run)"
-	local nodeButtons: { [number]: TextButton } = {}
+	-- A row only selects its upgrade; the Buy button in the detail area buys it.
 	for index, node in Upgrades.run do
 		nodeButtons[index] = button(frame, node.id, nextOrder(), function()
-			if latest ~= nil and latest.nodes[index].state == "affordable" then
-				send("BuyNode", { node = node.id })
-			end
+			selectNode(index)
 		end)
 	end
 
@@ -273,6 +360,7 @@ function Hud.build(net: Instance)
 			storage.Text = `Storage {format(change.charge)}`
 			shop(change.view)
 			storageSection(change.view)
+			showDetail()
 		end,
 		env = function(change: any)
 			env.Text = `{labelOf(Phases, change.phase)} / {labelOf(Weather, change.weather)}`
