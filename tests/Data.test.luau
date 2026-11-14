@@ -86,7 +86,7 @@ return function(t, load)
 	run.nodes = { U01 = true, U12 = true }
 	run.pnodes = { P1 = true, P2 = true }
 	run.storage = { charge = 40.5, mode = "charge" }
-	run.rules = { [1] = { id = "charge", th = 0.7, on = true }, [2] = { id = "sell", th = 1.2, on = false } }
+	run.rules = { ["1"] = { id = "charge", th = 0.7, on = true }, ["2"] = { id = "sell", th = 1.2, on = false } }
 	run.lastSeen = 1700000000
 	run.playSeconds = 3600
 	run.sessions = 4
@@ -123,14 +123,25 @@ return function(t, load)
 	broken.lifetimeEarned = math.huge
 	broken.plants = { -1, 0 / 0, 2, 0, 0, 0 }
 	broken.storage = { charge = -3, mode = "charge" }
-	broken.rules = { [1] = { id = "charge", th = 0 / 0, on = true } }
+	broken.rules = { ["1"] = { id = "charge", th = 0 / 0, on = true } }
 	broken.lastSeen = -1
 	local cleaned = Data.migrate(broken, Steps)
 	t.truthy(countsOnly(cleaned), "no negative, NaN or infinite number after a load")
 	t.equal(cleaned.coins, 0, "negative coins become 0")
 	t.equal(cleaned.plants[1], 0, "a negative plant count becomes 0")
 	t.equal(cleaned.plants[3], 2, "a valid plant count is kept")
-	t.equal(cleaned.rules[1], nil, "a rule with a NaN threshold is dropped")
+	t.equal(cleaned.rules["1"], nil, "a rule with a NaN threshold is dropped")
+
+	-- Slot 3 set before slot 2: the saved profile has no numeric keys (ProfileStore refuses gaps), and the slots come back.
+	local gapState = Data.toState(Data.template())
+	gapState.rules = { [3] = { id = "sell", th = 1, on = true } }
+	local gapProfile = Data.fromState(gapState)
+	t.equal(gapProfile.rules[3], nil, "a saved rule has no numeric key")
+	t.equal(gapProfile.rules["3"].id, "sell", "a saved rule is keyed by its slot as a string")
+	local gapBack = Data.toState(Data.migrate(gapProfile, Steps))
+	t.equal(gapBack.rules[2], nil, "slot 2 stays empty")
+	t.equal(gapBack.rules[3].id, "sell", "slot 3 comes back as slot 3")
+	t.truthy(same(gapBack.rules[3], gapState.rules[3]), "the slot 3 rule comes back exactly")
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
@@ -199,4 +210,9 @@ return function(t, load)
 	near(GameCore.offline(p2p4, seconds, env(false)).coins, formula(p2p4, seconds, 4, 0.75), "P2 and P4 together")
 	near(GameCore.offline(base, seconds, env(true)).coins, formula(base, seconds, 6, 0.5), "Langzeit-Zähler: 6 hours")
 	t.equal(GameCore.offline(base, 59, env(false)).coins, 0, "under a minute pays nothing")
+
+	-- Away time at the join: now minus the last save; a clock that went back or a profile never saved gives 0.
+	t.equal(Data.awaySeconds(1000, 1500), 500, "away time is now minus the last save")
+	t.equal(Data.awaySeconds(1000, 900), 0, "a clock that went back gives 0")
+	t.equal(Data.awaySeconds(0, 1500), 0, "a profile never saved is away for 0 seconds")
 end

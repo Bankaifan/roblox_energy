@@ -208,23 +208,47 @@ function Data.migrate(profile: any, steps: Steps): (Profile?, string?)
 	return reconcile(current), nil
 end
 
--- The GameCore state of a profile: the fields a run stores, copied.
+-- The GameCore state of a profile: the fields a run stores, copied. The rules keys become slot numbers again.
 function Data.toState(profile: Profile): Profile
 	local state = {}
 	for _, key in STATE_FIELDS do
 		state[key] = deepCopy(profile[key])
 	end
+	local rules: { [number]: any } = {}
+	for key, rule in profile.rules do
+		local slot = tonumber(key)
+		if slot ~= nil then
+			rules[slot] = deepCopy(rule)
+		end
+	end
+	state.rules = rules
 	return state
 end
 
 -- A profile from a GameCore state. The other fields come from `base` (a profile), or from the template.
+-- The rules are stored with string keys ("1", "2", ...): ProfileStore refuses numeric tables with gaps, and a
+-- player may set slot 3 before slot 2.
 function Data.fromState(state: Profile, base: Profile?): Profile
 	local profile = deepCopy(base or template())
 	for _, key in STATE_FIELDS do
 		profile[key] = deepCopy(state[key])
 	end
+	local rules: { [string]: any } = {}
+	for slot, rule in state.rules do
+		rules[tostring(slot)] = deepCopy(rule)
+	end
+	profile.rules = rules
 	profile.v = VERSION
 	return profile
+end
+
+-- Seconds since the last save, from the server clock; never negative. A profile never saved (lastSeen 0) is away for 0.
+-- The cap on offline income is applied by GameCore.offline.
+function Data.awaySeconds(lastSeen: number, now: number): number
+	if lastSeen <= 0 then
+		return 0
+	end
+	return math.max(0, now - lastSeen)
 end
 
 return Data
