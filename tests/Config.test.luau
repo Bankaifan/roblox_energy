@@ -71,6 +71,9 @@ return function(t, load)
 	for _, plant in Plants do
 		t.truthy(type(plant.name) == "string" and plant.name ~= "", `plant {plant.id}: name`)
 	end
+	for _, node in Upgrades.run do
+		t.truthy(type(node.name) == "string" and node.name ~= "", `{node.id}: name`)
+	end
 	for _, list in { Phases, Weather } do
 		for _, entry in list do
 			t.truthy(type(entry.label) == "string" and entry.label ~= "", `{entry.id}: label`)
