@@ -13,7 +13,14 @@ local Weather = require(Config:WaitForChild("Weather") :: ModuleScript) :: any
 
 local Hud = {}
 
-local DIMMED = 0.6 -- transparency of a button the player cannot use right now
+-- A control the player cannot use right now: its text stays readable, its background fades.
+local DIMMED_TEXT = 0.3
+local DIMMED_BACKGROUND = 0.6
+-- The panel is at most this wide; on a narrow screen it shrinks to the screen width instead.
+local PANEL_MAX_WIDTH = 300
+-- Captions shrink to MIN_TEXT and wrap onto a second line rather than being cut off at the edge.
+local MIN_TEXT = 12
+local MAX_TEXT = 18
 local SUFFIXES = { "", "K", "M", "B", "T" }
 local STORAGE_MODES = {
 	{ id = "charge", caption = "Charge" },
@@ -25,32 +32,43 @@ local RULE_NAMES = { charge = "charge cheap", sell = "sell high" }
 local CHARGE_BELOW = 0.8
 local SELL_ABOVE = 1.2
 
+-- Scales the text between MIN_TEXT and MAX_TEXT and wraps it, so a long caption fits the panel width.
+local function fitText(text: GuiObject)
+	local limit = Instance.new("UITextSizeConstraint")
+	limit.MinTextSize = MIN_TEXT
+	limit.MaxTextSize = MAX_TEXT
+	limit.Parent = text
+end
+
 local function label(parent: Instance, order: number): TextLabel
 	local text = Instance.new("TextLabel")
-	text.Size = UDim2.new(1, 0, 0, 28)
+	text.Size = UDim2.new(1, 0, 0, 36)
 	text.BackgroundTransparency = 0.3
 	text.TextScaled = true
+	text.TextWrapped = true
 	text.LayoutOrder = order
+	fitText(text)
 	text.Parent = parent
 	return text
 end
 
 local function button(parent: Instance, caption: string, order: number, onClick: () -> ()): TextButton
 	local control = Instance.new("TextButton")
-	control.Size = UDim2.new(1, 0, 0, 32)
+	control.Size = UDim2.new(1, 0, 0, 40)
 	control.Text = caption
 	control.TextScaled = true
+	control.TextWrapped = true
 	control.LayoutOrder = order
+	fitText(control)
 	control.Parent = parent
 	control.Activated:Connect(onClick)
 	return control
 end
 
--- Dims a button the player cannot use right now; it still shows its caption.
+-- Dims a control the player cannot use right now; it still shows its caption, readable.
 local function dim(control: TextButton, usable: boolean)
-	local transparency = if usable then 0 else DIMMED
-	control.TextTransparency = transparency
-	control.BackgroundTransparency = transparency
+	control.TextTransparency = if usable then 0 else DIMMED_TEXT
+	control.BackgroundTransparency = if usable then 0 else DIMMED_BACKGROUND
 end
 
 local function format(value: number): string
@@ -94,12 +112,16 @@ function Hud.build(net: Instance)
 	gui.ResetOnSpawn = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local frame = Instance.new("ScrollingFrame")
-	frame.Size = UDim2.fromOffset(300, 560)
+	-- Fills the screen minus the margin, at most PANEL_MAX_WIDTH wide; the list scrolls.
+	frame.Size = UDim2.new(1, -32, 1, -32)
 	frame.Position = UDim2.fromOffset(16, 16)
 	frame.BackgroundTransparency = 1
 	frame.CanvasSize = UDim2.new()
 	frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	frame.ScrollBarThickness = 6
+	local widthLimit = Instance.new("UISizeConstraint")
+	widthLimit.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
+	widthLimit.Parent = frame
 	frame.Parent = gui
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 4)
