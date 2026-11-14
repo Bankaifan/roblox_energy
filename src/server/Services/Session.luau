@@ -6,7 +6,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameCore = require(Shared:WaitForChild("Core"):WaitForChild("GameCore") :: ModuleScript) :: any
 local Formulas = require(Shared:WaitForChild("Core"):WaitForChild("Formulas") :: ModuleScript) :: any
 local Env = require(script.Parent.Env)
-local Plot = require(script.Parent.Plot)
+local PlotService = require(script.Parent.PlotService)
 
 local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
@@ -54,13 +54,17 @@ function Session.start(player: Player)
 	if states[player] ~= nil then
 		return
 	end
+	-- No free plot means the server is full; the player is turned away before a run starts.
+	if not PlotService.create(player, config.plants) then
+		player:Kick("The server is full. Try another server.")
+		return
+	end
 	states[player] = freshRun()
-	Plot.create(player, config.plants)
 end
 
 function Session.stop(player: Player)
 	states[player] = nil
-	Plot.remove(player)
+	PlotService.remove(player)
 end
 
 -- Ready: the client gets the current phase and weather, then the whole run.
@@ -98,7 +102,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 	for player, state in states do
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
-		Plot.update(player, nextState.plants)
+		PlotService.update(player, nextState.plants)
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,
