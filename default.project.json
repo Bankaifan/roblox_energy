@@ -32,6 +32,7 @@
 		"tests/agent/**",
 		"tests/**/*.py",
 		"tests/**/*.json",
+		"tests/Balance.test.luau",
 		"**/__pycache__"
 	]
 }
