@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.12] - 2026-11-14
+- Plots: each player gets their own plot, up to 8 per server; a plot is freed when its player leaves. A ninth player is told the server is full.
+
+## [0.11] - 2026-11-14
+- Saving: each player's run is saved on the server (ProfileStore, session lock), restored on rejoin, and the time away is paid as offline income. A profile that cannot be loaded is not played; the player is told to rejoin.
+
+## [0.10] - 2026-11-14
+- HUD: all rows share one text size and wrap onto a second line instead of shrinking; inner padding keeps text off the edge and the scrollbar on narrow screens.
+
+## [0.9] - 2026-11-14
+- HUD: every upgrade has a short effect text. Tapping a row selects it; a fixed detail area shows its name, effect, cost and lock reason, and its Buy button buys it.
+
 ## [0.8] - 2026-11-14
 - HUD: the panel fits narrow screens (at most 300 px wide, scrolls), captions shrink to 12 px and wrap instead of being cut off, and unaffordable rows stay readable.
 
