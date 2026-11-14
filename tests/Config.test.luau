@@ -80,6 +80,14 @@ return function(t, load)
 		end
 	end
 
+	-- Every upgrade node has a short English effect text for the HUD detail area
+	for _, list in { Upgrades.run, Upgrades.permanent } do
+		for _, node in list do
+			t.truthy(type(node.info) == "string" and node.info ~= "", `{node.id}: info`)
+			t.truthy(#node.info <= 60, `{node.id}: info longer than 60 characters`)
+		end
+	end
+
 	-- Rising values
 	assertRising(Plants, "baseCost", "plants")
 	assertRising(Prestige, "requiredRevenue", "grid expansion")
