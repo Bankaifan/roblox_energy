@@ -103,6 +103,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,
 			charge = nextState.storage.charge,
+			view = GameCore.view(nextState, env),
 		})
 	end
 end

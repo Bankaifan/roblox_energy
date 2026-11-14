@@ -8,7 +8,7 @@
 --   formulas: Core/Formulas. Passed in, because core modules do not require each other.
 export type Phase = { id: string, duration: number, solar: number, price: number }
 export type Weather = { id: string, share: number, solar: number, wind: number, price: number }
-export type Plant = { id: number, kind: string, baseCost: number, nominalPower: number }
+export type Plant = { id: number, name: string, kind: string, baseCost: number, nominalPower: number }
 export type Prestige = { level: number, requiredRevenue: number, multiplier: number, sparks: number }
 export type Rule = { id: string, th: number, on: boolean }
 export type State = {
@@ -243,7 +243,8 @@ function GameCore.tick(state: State, env: Env, dt: number): State
 	return result
 end
 
-local function crank(state: State, env: Env): boolean
+-- Energy per crank click: 1 (with U12: 3), plus 2 % of the production per second with U13.
+local function crankEnergy(state: State, env: Env): number
 	local effects = env.config.effects
 	local energy = effects.crankBase
 	if state.nodes.U12 then
@@ -252,6 +253,11 @@ local function crank(state: State, env: Env): boolean
 	if state.nodes.U13 then
 		energy += effects.crankShare * production(state, env, env.phase, env.weather)
 	end
+	return energy
+end
+
+local function crank(state: State, env: Env): boolean
+	local energy = crankEnergy(state, env)
 	local price = env.formulas.price(env.phase, env.weather, market(state, env, env.phase))
 	local revenue = energy * price
 	if not isFinite(revenue) then
@@ -447,6 +453,22 @@ function GameCore.offline(state: State, seconds: number, env: Env): State
 	local away = math.min(seconds, hours * 3600)
 	credit(result, rate * market(state, env, nil) * away * efficiency)
 	return result
+end
+
+-- What the HUD shows, so the client does no game logic: each plant's next price and whether the coins cover it,
+-- the crank energy per click, and the next grid expansion with the run earnings (nil after the last level).
+function GameCore.view(state: State, env: Env): { [string]: any }
+	local plants = {}
+	for _, plant in env.config.plants do
+		local cost = env.formulas.cost(plant.baseCost, state.plants[plant.id])
+		plants[plant.id] = { cost = cost, affordable = cost <= state.coins }
+	end
+	local goal: { [string]: number }? = nil
+	local step = env.config.prestige[state.level + 1]
+	if step ~= nil then
+		goal = { level = step.level, required = step.requiredRevenue, earned = state.runEarned }
+	end
+	return { plants = plants, crank = crankEnergy(state, env), goal = goal }
 end
 
 return GameCore

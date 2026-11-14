@@ -67,6 +67,16 @@ return function(t, load)
 		end
 	end
 
+	-- The HUD shows English names and labels from Config
+	for _, plant in Plants do
+		t.truthy(type(plant.name) == "string" and plant.name ~= "", `plant {plant.id}: name`)
+	end
+	for _, list in { Phases, Weather } do
+		for _, entry in list do
+			t.truthy(type(entry.label) == "string" and entry.label ~= "", `{entry.id}: label`)
+		end
+	end
+
 	-- Rising values
 	assertRising(Plants, "baseCost", "plants")
 	assertRising(Prestige, "requiredRevenue", "grid expansion")
