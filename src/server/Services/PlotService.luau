@@ -1,7 +1,10 @@
 --!strict
--- One plot per player, built from basic parts (Bauplan, section 5: no assets). One column per plant,
--- the height of a column follows the number of that plant.
-local Plot = {}
+-- Assigns one plot per player, at most MAX_PLOTS on a server, built from basic parts (Bauplan, section 5: no assets).
+-- One column per plant; the height of a column follows the number of that plant. A plot is freed when its player leaves.
+local PlotService = {}
+
+-- One server holds 8 players (Bauplan, section 4), so 8 plots.
+local MAX_PLOTS = 8
 
 local COLORS: { [string]: Color3 } = {
 	Solar = Color3.fromRGB(255, 200, 60),
@@ -23,9 +26,9 @@ local function plotsFolder(): Folder
 	return folder
 end
 
-local function freeSlot(): number
-	local slot = 1
-	while true do
+-- The lowest slot no player holds, or nil when all MAX_PLOTS slots are taken.
+local function freeSlot(): number?
+	for slot = 1, MAX_PLOTS do
 		local taken = false
 		for _, record in plots do
 			taken = taken or record.slot == slot
@@ -33,8 +36,8 @@ local function freeSlot(): number
 		if not taken then
 			return slot
 		end
-		slot += 1
 	end
+	return nil
 end
 
 local function block(parent: Instance, name: string, size: Vector3, color: Color3, position: Vector3): BasePart
@@ -48,8 +51,15 @@ local function block(parent: Instance, name: string, size: Vector3, color: Color
 	return part
 end
 
-function Plot.create(player: Player, plants: { any })
+-- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
+function PlotService.create(player: Player, plants: { any }): boolean
+	if plots[player] ~= nil then
+		return true
+	end
 	local slot = freeSlot()
+	if slot == nil then
+		return false
+	end
 	local origin = Vector3.new(slot * 60, 0, 0)
 	local model = Instance.new("Model")
 	model.Name = player.Name
@@ -61,11 +71,12 @@ function Plot.create(player: Player, plants: { any })
 	end
 	model.Parent = plotsFolder()
 	plots[player] = { slot = slot, origin = origin, model = model, columns = columns }
-	Plot.update(player, {})
+	PlotService.update(player, {})
+	return true
 end
 
 -- Column heights from the plant counts (index = plant id). Capped at 100 plants per column.
-function Plot.update(player: Player, counts: { number })
+function PlotService.update(player: Player, counts: { number })
 	local record = plots[player]
 	if record == nil then
 		return
@@ -77,7 +88,8 @@ function Plot.update(player: Player, counts: { number })
 	end
 end
 
-function Plot.remove(player: Player)
+-- Destroys the player's plot and frees its slot for the next player.
+function PlotService.remove(player: Player)
 	local record = plots[player]
 	if record ~= nil then
 		record.model:Destroy()
@@ -85,4 +97,4 @@ function Plot.remove(player: Player)
 	end
 end
 
-return Plot
+return PlotService
