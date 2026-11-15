@@ -123,7 +123,7 @@ function Hud.build(net: Instance)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Hud"
 	gui.ResetOnSpawn = false
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	gui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
 	local frame = Instance.new("ScrollingFrame")
 	-- Fills the screen minus the margin and the detail area, at most PANEL_MAX_WIDTH wide; the list scrolls.
 	frame.Size = UDim2.new(1, -32, 1, -(48 + DETAIL_HEIGHT))
@@ -133,7 +133,7 @@ function Hud.build(net: Instance)
 	frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	frame.ScrollBarThickness = 6
 	-- The scrollbar takes its own strip beside the rows, so it never covers their text.
-	frame.ScrollBarInset = Enum.ScrollBarInset.ScrollBar
+	frame.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
 	local widthLimit = Instance.new("UISizeConstraint")
 	widthLimit.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
 	widthLimit.Parent = frame
@@ -183,7 +183,7 @@ function Hud.build(net: Instance)
 	detailText.CanvasSize = UDim2.new()
 	detailText.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	detailText.ScrollBarThickness = 6
-	detailText.ScrollBarInset = Enum.ScrollBarInset.ScrollBar
+	detailText.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
 	detailText.Parent = detail
 	local detailLayout = Instance.new("UIListLayout")
 	detailLayout.Padding = UDim.new(0, 4)
