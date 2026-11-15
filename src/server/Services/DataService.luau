@@ -21,7 +21,7 @@ local DataService = {}
 local profiles: { [Player]: any } = {}
 local unsaved = 0
 
--- Writes the run into the profile. The other fields (purchases, grants, settings ...) are kept.
+-- Writes the run into the profile. The other fields (purchases, passes, boosters, settings ...) are kept.
 local function write(profile: any, state: any)
 	profile.Data = Data.fromState(state, profile.Data)
 	profile.Data.lastSeen = os.time()
