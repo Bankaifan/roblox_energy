@@ -10,6 +10,7 @@ local Plants = require(Config:WaitForChild("Plants") :: ModuleScript) :: any
 local Phases = require(Config:WaitForChild("Phases") :: ModuleScript) :: any
 local Upgrades = require(Config:WaitForChild("Upgrades") :: ModuleScript) :: any
 local Weather = require(Config:WaitForChild("Weather") :: ModuleScript) :: any
+local BoostView = require(script.Parent.BoostView)
 
 local Hud = {}
 
@@ -155,6 +156,8 @@ function Hud.build(net: Instance)
 	local storage = label(frame, nextOrder())
 	local grid = label(frame, nextOrder())
 	local env = label(frame, nextOrder())
+	-- The Sunshine Hour button and banner, right under the weather line.
+	local boost = BoostView.build(frame, nextOrder)
 	local goal = label(frame, nextOrder())
 
 	local function send(name: string, payload: any?)
@@ -386,9 +389,11 @@ function Hud.build(net: Instance)
 			shop(change.view)
 			storageSection(change.view)
 			showDetail()
+			boost.delta(change)
 		end,
 		env = function(change: any)
 			env.Text = `{labelOf(Phases, change.phase)} / {labelOf(Weather, change.weather)}`
+			boost.env(change)
 		end,
 	}
 end

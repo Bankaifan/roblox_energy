@@ -9,6 +9,7 @@ local Formulas = require(Shared:WaitForChild("Core"):WaitForChild("Formulas") ::
 local Env = require(script.Parent.Env)
 local PlotService = require(script.Parent.PlotService)
 local DataService = require(script.Parent.DataService)
+local BoostService = require(script.Parent.BoostService)
 
 local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
@@ -30,8 +31,9 @@ local loading: { [Player]: { remotes: { [string]: RemoteEvent }? } } = {}
 local welcomes: { [Player]: { away: number, coins: number } } = {}
 local Session = {}
 
-local function envFor(phase: any, weather: any): any
-	return { phase = phase, weather = weather, longMeter = false, config = config, formulas = Formulas }
+-- `boost` is the player's Sunshine / Turbo factor this second (BoostService.multiplierFor); nil means none.
+local function envFor(phase: any, weather: any, boost: number?): any
+	return { phase = phase, weather = weather, longMeter = false, config = config, formulas = Formulas, boost = boost }
 end
 
 -- Join: the profile loads first, so nobody plays without a saved profile. Then the offline income of the time away
@@ -74,6 +76,7 @@ function Session.stop(player: Player)
 	local state = states[player]
 	states[player] = nil
 	welcomes[player] = nil
+	BoostService.forget(player)
 	DataService.release(player, state)
 	PlotService.remove(player)
 end
@@ -100,7 +103,7 @@ function Session.ready(remotes: { [string]: RemoteEvent }, player: Player)
 		return
 	end
 	local phase, weather = Env.current()
-	remotes.Env:FireClient(player, { phase = phase.id, weather = weather.id })
+	remotes.Env:FireClient(player, Env.payload(phase, weather))
 	remotes.Snapshot:FireClient(player, state)
 	local welcome = welcomes[player]
 	welcomes[player] = nil
@@ -116,7 +119,7 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 		return
 	end
 	local phase, weather = Env.update(remotes)
-	local nextState, ok = GameCore.apply(state, action, envFor(phase, weather))
+	local nextState, ok = GameCore.apply(state, action, envFor(phase, weather, BoostService.multiplierFor(player)))
 	if not ok then
 		return
 	end
@@ -130,8 +133,9 @@ end
 -- Once per second: every run gets one step of `dt` seconds.
 function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 	local phase, weather = Env.update(remotes)
-	local env = envFor(phase, weather)
 	for player, state in states do
+		-- Each player has their own factor: the Sunshine Hour is for everyone, the Turbo Feed-in is the owner's.
+		local env = envFor(phase, weather, BoostService.multiplierFor(player))
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
 		DataService.sync(player, nextState)
@@ -140,6 +144,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,
 			charge = nextState.storage.charge,
+			turbo = BoostService.turboRemaining(player),
 			view = GameCore.view(nextState, env),
 		})
 	end
