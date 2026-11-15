@@ -1,8 +1,12 @@
 --!strict
 -- Welcome screen (Bauplan.md, "Willkommen-Bildschirm"): after the join it shows the time away and the offline coins the
 -- server has already credited, with one Collect button. It holds no game state; the numbers come from the Welcome message.
--- Labels are English, as in the HUD. Fixed text size, wrapped text and padding keep it readable at 360 px wide.
+-- Labels come from the Locale tables in the language the HUD uses. Fixed text size, wrapped text and padding keep it
+-- readable at 360 px wide.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
+local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 
 local WelcomeScreen = {}
 
@@ -43,16 +47,17 @@ local function row(parent: Instance, order: number, size: number): TextLabel
 end
 
 -- The time away in the largest unit that fits: "45 min", "2 h 5 min". The welcome only shows from one minute on.
-local function duration(seconds: number): string
+local function duration(seconds: number, lang: string): string
 	local minutes = math.floor(seconds / 60)
 	if minutes < 60 then
-		return `{minutes} min`
+		return Locale.t("duration.minutes", lang, { minutes = minutes })
 	end
-	return `{math.floor(minutes / 60)} h {minutes % 60} min`
+	return Locale.t("duration.hours", lang, { hours = math.floor(minutes / 60), minutes = minutes % 60 })
 end
 
--- Builds the screen, hidden until the first Welcome. Returns the handler for the Welcome message.
-function WelcomeScreen.build(): (any) -> ()
+-- Builds the screen, hidden until the first Welcome. `language` gives the language the HUD uses. Returns the handler
+-- for the Welcome message, which paints the screen in that language.
+function WelcomeScreen.build(language: () -> string): (any) -> ()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Welcome"
 	gui.ResetOnSpawn = false
@@ -83,12 +88,10 @@ function WelcomeScreen.build(): (any) -> ()
 	panel.Parent = gui
 
 	local title = row(panel, 1, TITLE_TEXT)
-	title.Text = "Welcome back"
 	local away = row(panel, 2, ROW_TEXT)
 	local coins = row(panel, 3, ROW_TEXT)
 
 	local collect = Instance.new("TextButton")
-	collect.Text = "Collect"
 	collect.TextSize = ROW_TEXT
 	collect.TextWrapped = true
 	collect.LayoutOrder = 4
@@ -99,8 +102,11 @@ function WelcomeScreen.build(): (any) -> ()
 	end)
 
 	return function(welcome: any)
-		away.Text = `You were away {duration(welcome.away)}`
-		coins.Text = `Offline coins: +{string.format("%.0f", welcome.coins)}`
+		local lang = language()
+		title.Text = Locale.t("welcome.title", lang)
+		collect.Text = Locale.t("welcome.collect", lang)
+		away.Text = Locale.t("welcome.away", lang, { duration = duration(welcome.away, lang) })
+		coins.Text = Locale.t("welcome.coins", lang, { coins = string.format("%.0f", welcome.coins) })
 		gui.Enabled = true
 	end
 end

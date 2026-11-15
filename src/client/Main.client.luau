@@ -6,7 +6,7 @@ local WelcomeScreen = require(script.Parent.WelcomeScreen)
 
 local net = ReplicatedStorage:WaitForChild("Net")
 local hud = Hud.build(net)
-local welcome = WelcomeScreen.build()
+local welcome = WelcomeScreen.build(hud.language)
 local snapshot = net:WaitForChild("Snapshot") :: RemoteEvent
 local delta = net:WaitForChild("Delta") :: RemoteEvent
 local env = net:WaitForChild("Env") :: RemoteEvent
