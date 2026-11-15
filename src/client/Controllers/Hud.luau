@@ -1,15 +1,15 @@
 --!strict
 -- HUD: shows the Snapshot, Delta and Env the server sends, and its buttons only send intents. No game rules here.
 -- Prices, affordability, the crank value, the upgrade nodes, storage, rules and the grid expansion come from
--- Delta.view (GameCore.view). A button checks that view before it sends; the server checks again. Labels are English.
+-- Delta.view (GameCore.view). A button checks that view before it sends; the server checks again. Every label comes
+-- from the Locale tables in the current language: the player's locale at the start, switched by the Language button.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Effects = require(Config:WaitForChild("Effects") :: ModuleScript) :: any
+local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local Plants = require(Config:WaitForChild("Plants") :: ModuleScript) :: any
-local Phases = require(Config:WaitForChild("Phases") :: ModuleScript) :: any
 local Upgrades = require(Config:WaitForChild("Upgrades") :: ModuleScript) :: any
-local Weather = require(Config:WaitForChild("Weather") :: ModuleScript) :: any
 local BoostView = require(script.Parent.BoostView)
 
 local Hud = {}
@@ -27,11 +27,10 @@ local ROW_SIDE_PADDING = 8
 local ROW_VERTICAL_PADDING = 4
 local SUFFIXES = { "", "K", "M", "B", "T" }
 local STORAGE_MODES = {
-	{ id = "charge", caption = "Charge" },
-	{ id = "sell", caption = "Sell" },
-	{ id = "auto", caption = "Auto" },
+	{ id = "charge", key = "mode.charge" },
+	{ id = "sell", key = "mode.sell" },
+	{ id = "auto", key = "mode.auto" },
 }
-local RULE_NAMES = { charge = "charge cheap", sell = "sell high" }
 -- Placeholder rule thresholds: charge while the price factor is at most 0.8, sell while it is at least 1.2.
 local CHARGE_BELOW = 0.8
 local SELL_ABOVE = 1.2
@@ -109,22 +108,18 @@ local function energy(value: number): string
 	return string.format("%.2f", value)
 end
 
--- The English label of a phase or weather id from its Config table.
-local function labelOf(list: { any }, id: string): string
-	for _, entry in list do
-		if entry.id == id then
-			return entry.label
-		end
-	end
-	return id
-end
-
--- Builds the HUD in the player's GUI. `net` is ReplicatedStorage.Net. Returns the handlers for the server messages.
+-- Builds the HUD in the player's GUI. `net` is ReplicatedStorage.Net. Returns the handlers for the server messages,
+-- and `language`, which gives the language in use (the welcome screen follows it).
 function Hud.build(net: Instance)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Hud"
 	gui.ResetOnSpawn = false
 	gui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
+	-- The language of every label: the player's locale at the start, then whatever the Language button chose.
+	local lang: string = Locale.resolve((Players.LocalPlayer :: Player).LocaleId)
+	local function t(key: string, args: { [string]: any }?): string
+		return Locale.t(key, lang, args)
+	end
 	local frame = Instance.new("ScrollingFrame")
 	-- Fills the screen minus the margin and the detail area, at most PANEL_MAX_WIDTH wide; the list scrolls.
 	frame.Size = UDim2.new(1, -32, 1, -(48 + DETAIL_HEIGHT))
@@ -151,13 +146,21 @@ function Hud.build(net: Instance)
 		return order
 	end
 
+	-- Changes the language and paints every label again. Declared here, written below once the labels exist.
+	local paint: () -> ()
+	local language = button(frame, "", nextOrder(), function()
+		lang = if lang == "en" then "de" else "en"
+		paint()
+	end)
 	local coins = label(frame, nextOrder())
 	local rate = label(frame, nextOrder())
 	local storage = label(frame, nextOrder())
 	local grid = label(frame, nextOrder())
 	local env = label(frame, nextOrder())
 	-- The Sunshine Hour button and banner, right under the weather line.
-	local boost = BoostView.build(frame, nextOrder)
+	local boost = BoostView.build(frame, nextOrder, function(): string
+		return lang
+	end)
 	local goal = label(frame, nextOrder())
 
 	local function send(name: string, payload: any?)
@@ -168,6 +171,10 @@ function Hud.build(net: Instance)
 	-- The upgrade the player tapped (an index into Upgrades.run), and the row buttons to highlight it.
 	local selected: number? = nil
 	local nodeButtons: { [number]: TextButton } = {}
+	-- The last Snapshot, Delta and Env, kept so a language change can paint them again without waiting for the server.
+	local lastSnapshot: any = nil
+	local lastDelta: any = nil
+	local lastEnv: any = nil
 
 	-- Fixed detail area under the list: it is a sibling of the scrolled frame, so it stays visible on a phone.
 	local detail = Instance.new("Frame")
@@ -195,7 +202,7 @@ function Hud.build(net: Instance)
 	local detailName = label(detailText, 1)
 	local detailEffect = label(detailText, 2)
 	local detailReason = label(detailText, 3)
-	local detailBuy = button(detail, "Buy", 4, function()
+	local detailBuy = button(detail, t("action.buy"), 4, function()
 		if selected ~= nil and latest ~= nil and latest.nodes[selected].state == "affordable" then
 			send("BuyNode", { node = Upgrades.run[selected].id })
 		end
@@ -206,49 +213,58 @@ function Hud.build(net: Instance)
 	detailBuy.Position = UDim2.fromScale(0, 1)
 	detailBuy.Size = UDim2.new(1, 0, 0, ROW_MIN_HEIGHT)
 
+	-- The name of a plant or upgrade node in the current language.
+	local function plantName(index: number): string
+		return t(`plant.{Plants[index].id}`)
+	end
+	local function nodeName(node: any): string
+		return t(`node.{node.id}.name`)
+	end
+
 	-- Why a locked upgrade is locked: the plant or the upgrade it needs.
 	local function requirementOf(node: any): string
 		if node.requiresPlant ~= nil then
 			for _, plant in Plants do
 				if plant.id == node.requiresPlant then
-					return plant.name
+					return t(`plant.{plant.id}`)
 				end
 			end
 		end
 		for _, other in Upgrades.run do
 			if other.id == node.requiresNode then
-				return `{other.id} {other.name}`
+				return `{other.id} {nodeName(other)}`
 			end
 		end
-		return "a prerequisite"
+		return t("reason.prerequisite")
 	end
 
 	-- Shows the selected upgrade: name and cost, effect text, state or reason, and its Buy button.
 	local function showDetail()
 		local index = selected
 		if index == nil or latest == nil then
-			detailName.Text = "Tap an upgrade to see what it does"
+			detailName.Text = t("detail.hint")
 			detailEffect.Text = ""
 			detailReason.Text = ""
-			detailBuy.Text = "Buy"
+			detailBuy.Text = t("action.buy")
 			dim(detailBuy, false)
 			return
 		end
 		local node = Upgrades.run[index]
 		local item = latest.nodes[index]
-		detailName.Text = `{node.id} {node.name}: {short(node.cost)} coins`
-		detailEffect.Text = node.info
+		detailName.Text = t("detail.title", { id = node.id, name = nodeName(node), cost = short(node.cost) })
+		detailEffect.Text = t(`node.{node.id}.info`)
 		if item.state == "bought" then
-			detailReason.Text = "Bought"
+			detailReason.Text = t("reason.bought")
 		elseif item.state == "locked" then
-			detailReason.Text = `Locked: needs {requirementOf(node)}`
+			detailReason.Text = t("reason.locked", { requirement = requirementOf(node) })
 		elseif item.state == "open" then
-			detailReason.Text = "Not enough coins yet"
+			detailReason.Text = t("reason.open")
 		else
-			detailReason.Text = "Affordable"
+			detailReason.Text = t("reason.affordable")
 		end
-		detailBuy.Text = if item.state == "affordable" then `Buy {node.name}` else "Buy"
-		dim(detailBuy, item.state == "affordable")
+		local affordable = item.state == "affordable"
+		detailBuy.Text = if affordable then t("action.buyNamed", { name = nodeName(node) }) else t("action.buy")
+		dim(detailBuy, affordable)
 	end
 
 	-- The selected row has a coloured border; the others have none.
@@ -265,18 +281,17 @@ function Hud.build(net: Instance)
 		showDetail()
 	end
 
-	local crank = button(frame, "Crank", nextOrder(), function()
+	local crank = button(frame, "", nextOrder(), function()
 		send("Crank")
 	end)
 	local buyButtons: { [number]: TextButton } = {}
 	for index in Plants do
-		buyButtons[index] = button(frame, `Buy {Plants[index].name}`, nextOrder(), function()
+		buyButtons[index] = button(frame, "", nextOrder(), function()
 			send("BuyPlant", { plant = index, qty = 1 })
 		end)
 	end
 
 	local upgradeTitle = label(frame, nextOrder())
-	upgradeTitle.Text = "Upgrades (this run)"
 	-- A row only selects its upgrade; the Buy button in the detail area buys it.
 	for index, node in Upgrades.run do
 		nodeButtons[index] = button(frame, node.id, nextOrder(), function()
@@ -287,7 +302,7 @@ function Hud.build(net: Instance)
 	local modeTitle = label(frame, nextOrder())
 	local modeButtons: { [string]: TextButton } = {}
 	for _, mode in STORAGE_MODES do
-		modeButtons[mode.id] = button(frame, mode.caption, nextOrder(), function()
+		modeButtons[mode.id] = button(frame, "", nextOrder(), function()
 			if latest ~= nil and latest.storage.stage >= 1 then
 				send("SetStorageMode", { mode = mode.id })
 			end
@@ -299,17 +314,17 @@ function Hud.build(net: Instance)
 	local ruleRows: { [number]: any } = {}
 	for slot = 1, Effects.ruleSlotsP8 do
 		local status = label(frame, nextOrder())
-		local charge = button(frame, `Slot {slot}: charge below {CHARGE_BELOW}`, nextOrder(), function()
+		local charge = button(frame, "", nextOrder(), function()
 			if latest ~= nil and slot <= latest.storage.ruleSlots then
 				send("SetRule", { slot = slot, rule = "charge", th = CHARGE_BELOW, on = true })
 			end
 		end)
-		local sell = button(frame, `Slot {slot}: sell high above {SELL_ABOVE}`, nextOrder(), function()
+		local sell = button(frame, "", nextOrder(), function()
 			if latest ~= nil and slot <= latest.storage.ruleSlots then
 				send("SetRule", { slot = slot, rule = "sell", th = SELL_ABOVE, on = true })
 			end
 		end)
-		local toggle = button(frame, `Slot {slot}: switch on or off`, nextOrder(), function()
+		local toggle = button(frame, "", nextOrder(), function()
 			local rule = if latest ~= nil then latest.storage.rules[slot] else nil
 			if rule ~= nil then
 				send("SetRule", { slot = slot, rule = rule.id, th = rule.th, on = not rule.on })
@@ -318,7 +333,7 @@ function Hud.build(net: Instance)
 		ruleRows[slot] = { status = status, charge = charge, sell = sell, toggle = toggle }
 	end
 
-	local expand = button(frame, "Grid expansion", nextOrder(), function()
+	local expand = button(frame, "", nextOrder(), function()
 		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
 			send("Prestige")
 		end
@@ -326,26 +341,30 @@ function Hud.build(net: Instance)
 
 	-- Captions and dimming from the server's view: prices, the crank value, the nodes and the grid expansion.
 	local function shop(view: any)
-		crank.Text = `Crank: +{energy(view.crank)} energy per click`
+		crank.Text = t("shop.crank", { energy = energy(view.crank) })
 		for index, control in buyButtons do
 			local item = view.plants[index]
-			control.Text = `Buy {Plants[index].name}: {short(item.cost)}`
+			control.Text = t("shop.plantPrice", { name = plantName(index), cost = short(item.cost) })
 			dim(control, item.affordable)
 		end
 		for index, control in nodeButtons do
 			local node = Upgrades.run[index]
 			local item = view.nodes[index]
-			control.Text = `{node.id} {node.name}: {short(item.cost)} ({item.state})`
+			control.Text = t("node.line", {
+				id = node.id,
+				name = nodeName(node),
+				cost = short(item.cost),
+				state = t("state." .. item.state),
+			})
 			dim(control, item.state == "affordable")
 		end
 		if view.goal ~= nil then
-			goal.Text =
-				`Next: Grid expansion at {short(view.goal.required)} run earnings (now {short(view.goal.earned)})`
-			expand.Text = `Grid expansion: +{view.goal.sparks} sparks`
+			goal.Text = t("goal.next", { required = short(view.goal.required), earned = short(view.goal.earned) })
+			expand.Text = t("goal.expand", { sparks = view.goal.sparks })
 			dim(expand, view.goal.allowed)
 		else
-			goal.Text = "Grid expansion: all levels done"
-			expand.Text = "Grid expansion: all levels done"
+			goal.Text = t("goal.done")
+			expand.Text = t("goal.done")
 			dim(expand, false)
 		end
 	end
@@ -353,11 +372,15 @@ function Hud.build(net: Instance)
 	-- Storage modes and rules from the server's view. Modes need U17; rule slots need U21 (shown per slot).
 	local function storageSection(view: any)
 		local stored = view.storage
-		modeTitle.Text = if stored.stage >= 1 then `Storage mode: {stored.mode}` else "Storage: needs U17"
+		if stored.stage >= 1 then
+			modeTitle.Text = t("storage.mode", { mode = t("mode." .. stored.mode) })
+		else
+			modeTitle.Text = t("storage.locked")
+		end
 		for _, mode in STORAGE_MODES do
 			dim(modeButtons[mode.id], stored.stage >= 1)
 		end
-		rulesTitle.Text = if stored.ruleSlots > 0 then "Rules" else "Rules: needs U21 Control Center"
+		rulesTitle.Text = if stored.ruleSlots > 0 then t("rules.title") else t("rules.locked")
 		for slot, row in ruleRows do
 			local visible = slot <= stored.ruleSlots
 			local rule = stored.rules[slot]
@@ -366,33 +389,87 @@ function Hud.build(net: Instance)
 			row.sell.Visible = visible
 			row.toggle.Visible = visible
 			if rule ~= nil then
-				local switch = if rule.on then "on" else "off"
-				row.status.Text = `Slot {slot}: {RULE_NAMES[rule.id]} at {rule.th}, {switch}`
+				local state = if rule.on then "state.on" else "state.off"
+				row.status.Text = t("rule.status", {
+					slot = slot,
+					rule = t("rule." .. rule.id),
+					threshold = rule.th,
+					state = t(state),
+				})
 			else
-				row.status.Text = `Slot {slot}: empty`
+				row.status.Text = t("rule.empty", { slot = slot })
 			end
 			dim(row.toggle, rule ~= nil)
 		end
 	end
 
+	-- Each server message, painted from its data. Only the handlers below pass messages to the Boost view.
+	local function applySnapshot(state: any)
+		coins.Text = t("hud.coins", { value = format(state.coins) })
+		storage.Text = t("hud.storage", { value = format(state.storage.charge) })
+		grid.Text = t("hud.gridLevel", { level = state.level })
+	end
+	local function applyDelta(change: any)
+		latest = change.view
+		coins.Text = t("hud.coins", { value = format(change.coins) })
+		rate.Text = t("hud.rate", { value = format(change.rate) })
+		storage.Text = t("hud.storage", { value = format(change.charge) })
+		shop(change.view)
+		storageSection(change.view)
+		showDetail()
+	end
+	local function applyEnv(change: any)
+		env.Text = t("phase." .. change.phase) .. " / " .. t("weather." .. change.weather)
+	end
+
+	-- Sets every caption in the current language, then paints the last server data in it. The server data is
+	-- painted again on purpose: shop, storage and env texts are not kept anywhere else.
+	paint = function()
+		language.Text = t("hud.language", { name = t("language." .. lang) })
+		crank.Text = t("action.crank")
+		for index, control in buyButtons do
+			control.Text = t("action.buyNamed", { name = plantName(index) })
+		end
+		upgradeTitle.Text = t("upgrades.title")
+		for _, mode in STORAGE_MODES do
+			modeButtons[mode.id].Text = t(mode.key)
+		end
+		for slot, row in ruleRows do
+			row.charge.Text = t("rule.slotCharge", { slot = slot, threshold = CHARGE_BELOW })
+			row.sell.Text = t("rule.slotSell", { slot = slot, threshold = SELL_ABOVE })
+			row.toggle.Text = t("rule.slotToggle", { slot = slot })
+		end
+		expand.Text = t("action.expand")
+		if lastSnapshot ~= nil then
+			applySnapshot(lastSnapshot)
+		end
+		if lastDelta ~= nil then
+			applyDelta(lastDelta)
+		end
+		if lastEnv ~= nil then
+			applyEnv(lastEnv)
+		end
+		showDetail()
+		boost.relabel()
+	end
+	paint()
+
 	return {
+		language = function(): string
+			return lang
+		end,
 		snapshot = function(state: any)
-			coins.Text = `Coins {format(state.coins)}`
-			storage.Text = `Storage {format(state.storage.charge)}`
-			grid.Text = `Grid level {state.level}`
+			lastSnapshot = state
+			applySnapshot(state)
 		end,
 		delta = function(change: any)
-			latest = change.view
-			coins.Text = `Coins {format(change.coins)}`
-			rate.Text = `Rate {format(change.rate)} / s`
-			storage.Text = `Storage {format(change.charge)}`
-			shop(change.view)
-			storageSection(change.view)
-			showDetail()
+			lastDelta = change
+			applyDelta(change)
 			boost.delta(change)
 		end,
 		env = function(change: any)
-			env.Text = `{labelOf(Phases, change.phase)} / {labelOf(Weather, change.weather)}`
+			lastEnv = change
+			applyEnv(change)
 			boost.env(change)
 		end,
 	}

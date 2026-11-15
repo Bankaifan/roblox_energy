@@ -1,13 +1,14 @@
 --!strict
 -- Boosters on screen (Bauplan.md, section 3): a golden sky while the Sunshine Hour runs, a banner with the buyer's name and
 -- the time left, and the Sunshine Hour button at the weather display. The button asks Roblox for the purchase prompt only
--- after a tap; the server decides what the purchase grants. Countdowns use the server clock. Labels are English.
+-- after a tap; the server decides what the purchase grants. Countdowns use the server clock. Labels come from Locale.
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Boost = require(Config:WaitForChild("Boost") :: ModuleScript) :: any
+local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 
 local BoostView = {}
 
@@ -23,8 +24,9 @@ local function clock(seconds: number): string
 end
 
 -- Builds the golden sky, the banner and the button. `frame` is the HUD list and `nextOrder` gives the next layout order,
--- so the button sits right under the weather line. Returns the handlers for the Env and Delta messages.
-function BoostView.build(frame: GuiObject, nextOrder: () -> number)
+-- so the button sits right under the weather line. `lang` gives the language in use. Returns the handlers for the Env
+-- and Delta messages, and `relabel`, which repaints the button and the banner after a language change.
+function BoostView.build(frame: GuiObject, nextOrder: () -> number, lang: () -> string)
 	local sky = Instance.new("ColorCorrectionEffect")
 	sky.Name = "SunshineHour"
 	sky.TintColor = GOLDEN
@@ -49,7 +51,6 @@ function BoostView.build(frame: GuiObject, nextOrder: () -> number)
 
 	-- The purchase button is hidden until a product ID is set in Config (Milestone 3): nothing is offered before that.
 	local button = Instance.new("TextButton")
-	button.Text = "Buy Sunshine Hour"
 	button.TextSize = BUTTON_TEXT
 	button.TextWrapped = true
 	button.LayoutOrder = nextOrder()
@@ -73,18 +74,25 @@ function BoostView.build(frame: GuiObject, nextOrder: () -> number)
 		sky.Enabled = running
 		local lines = {}
 		if running then
-			local line = `Sunshine Hour by {sunshineBuyer}: {clock(sunshineEnds - now)} left`
+			local line = Locale.t("boost.sunshine", lang(), { buyer = sunshineBuyer, time = clock(sunshineEnds - now) })
 			if sunshineQueued > 0 then
-				line ..= ` (queued {clock(sunshineQueued)})`
+				line ..= Locale.t("boost.queued", lang(), { time = clock(sunshineQueued) })
 			end
 			table.insert(lines, line)
 		end
 		if turboEnds > now then
-			table.insert(lines, `Your Turbo Feed-in: {clock(turboEnds - now)} left`)
+			table.insert(lines, Locale.t("boost.turbo", lang(), { time = clock(turboEnds - now) }))
 		end
 		banner.Text = table.concat(lines, "\n")
 		banner.Visible = #lines > 0
 	end
+
+	-- Repaints the button caption in the current language, then the banner.
+	local function relabel()
+		button.Text = Locale.t("boost.buy", lang())
+		refresh()
+	end
+	relabel()
 
 	task.spawn(function()
 		while true do
@@ -104,6 +112,7 @@ function BoostView.build(frame: GuiObject, nextOrder: () -> number)
 			turboEnds = workspace:GetServerTimeNow() + change.turbo
 			refresh()
 		end,
+		relabel = relabel,
 	}
 end
 

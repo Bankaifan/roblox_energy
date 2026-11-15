@@ -43,7 +43,7 @@ def test_detail_buy_stays_pinned_below_scrolling_text():
     assert re.search(r"local detailText = Instance\.new\(\"ScrollingFrame\"\)", code)
     assert re.search(r"detailText\.AutomaticCanvasSize = Enum\.AutomaticSize\.Y", code)
     assert re.search(r"detailText\.Size = UDim2\.new\(1, 0, 1, -\(ROW_MIN_HEIGHT \+ DETAIL_GAP\)\)", code)
-    assert re.search(r"local detailBuy = button\(detail, \"Buy\"", code)
+    assert re.search(r"local detailBuy = button\(detail, t\(\"action\.buy\"\)", code)
     assert re.search(r"detailBuy\.AutomaticSize = Enum\.AutomaticSize\.None", code)
     assert re.search(r"detailBuy\.AnchorPoint = Vector2\.new\(0, 1\)", code)
     assert re.search(r"detailBuy\.Position = UDim2\.fromScale\(0, 1\)", code)
