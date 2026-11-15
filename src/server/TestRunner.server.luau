@@ -29,6 +29,8 @@ end
 -- Server tests need server modules, so they live next to them (src/server) and are added here.
 local serverTest = script.Parent:WaitForChild("Services"):WaitForChild("DataService.test") :: ModuleScript
 table.insert(cases, { name = "DataService", fn = require(serverTest) })
+local sessionTest = script.Parent:WaitForChild("Services"):WaitForChild("Session.test") :: ModuleScript
+table.insert(cases, { name = "Session", fn = require(sessionTest) })
 
 local _, failed = Harness.run(cases, load)
 print(`[TestRunner] {if failed == 0 then "PASS" else "FAIL"}`)

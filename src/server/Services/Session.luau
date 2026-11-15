@@ -26,7 +26,8 @@ local config = {
 local states: { [Player]: any } = {}
 -- Players whose profile is still loading; `remotes` is set when their Ready arrives before the load ends.
 local loading: { [Player]: { remotes: { [string]: RemoteEvent }? } } = {}
-local gains: { [Player]: number } = {}
+-- The time away and the offline coins credited at the join. Sent once, with the first Ready after the join.
+local welcomes: { [Player]: { away: number, coins: number } } = {}
 local Session = {}
 
 local function envFor(phase: any, weather: any): any
@@ -61,7 +62,7 @@ function Session.start(player: Player)
 	end
 	local phase, weather = Env.current()
 	local credited = GameCore.offline(state, away, envFor(phase, weather))
-	gains[player] = credited.coins - state.coins
+	welcomes[player] = { away = away, coins = credited.coins - state.coins }
 	states[player] = credited
 	DataService.sync(player, credited)
 	if job.remotes ~= nil then
@@ -72,7 +73,7 @@ end
 function Session.stop(player: Player)
 	local state = states[player]
 	states[player] = nil
-	gains[player] = nil
+	welcomes[player] = nil
 	DataService.release(player, state)
 	PlotService.remove(player)
 end
@@ -86,12 +87,8 @@ function Session.close()
 	DataService.flush(25)
 end
 
--- The income credited for the time away at the join, for the welcome screen (M2-3). 0 when there was none.
-function Session.offlineGain(player: Player): number
-	return gains[player] or 0
-end
-
--- Ready: the client gets the current phase and weather, then the whole run.
+-- Ready: the client gets the current phase and weather, then the whole run. After the first Ready of a join it also gets
+-- the Welcome (time away and offline coins), when the time away reached the minimum that pays offline income.
 function Session.ready(remotes: { [string]: RemoteEvent }, player: Player)
 	local job = loading[player]
 	if job ~= nil then
@@ -105,6 +102,11 @@ function Session.ready(remotes: { [string]: RemoteEvent }, player: Player)
 	local phase, weather = Env.current()
 	remotes.Env:FireClient(player, { phase = phase.id, weather = weather.id })
 	remotes.Snapshot:FireClient(player, state)
+	local welcome = welcomes[player]
+	welcomes[player] = nil
+	if welcome ~= nil and welcome.away >= config.effects.offlineMinimumSeconds then
+		remotes.Welcome:FireClient(player, welcome)
+	end
 end
 
 -- One checked client action. GameCore.apply rejects anything it does not accept; then nothing changes.

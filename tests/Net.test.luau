@@ -1,5 +1,5 @@
 --!strict
--- Net (Bauplan.md, section 5): the 13 messages, the field checks of incoming messages and their limits.
+-- Net (Bauplan.md, section 5): the 14 messages, the field checks of incoming messages and their limits.
 return function(t, load)
 	local Net = load("Net")
 
@@ -7,7 +7,8 @@ return function(t, load)
 	for _ in Net.messages do
 		count += 1
 	end
-	t.equal(count, 13, "13 messages")
+	t.equal(count, 14, "14 messages")
+	t.equal(Net.messages.Welcome.direction, "server", "Welcome comes from the server")
 
 	local ok, clean = Net.check("BuyPlant", { plant = 3, qty = "max", extra = "ignored" })
 	t.truthy(ok, "a valid BuyPlant is accepted")

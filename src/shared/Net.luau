@@ -32,6 +32,7 @@ Net.messages = {
 	Snapshot = { direction = "server", fields = {} }, -- the whole run state of the player
 	Delta = { direction = "server", fields = { coins = "number", rate = "number", charge = "number" } },
 	Env = { direction = "server", fields = { phase = "string", weather = "string" } },
+	Welcome = { direction = "server", fields = { away = "number", coins = "number" } }, -- once per join, after Ready
 	PlotPublic = { direction = "server", fields = {} },
 	Notice = { direction = "server", fields = { text = "string" } },
 } :: { [string]: Message }
