@@ -139,13 +139,15 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
 		DataService.sync(player, nextState)
-		PlotService.update(player, nextState.plants)
+		local view = GameCore.view(nextState, env)
+		local storage = view.storage
+		PlotService.update(player, nextState.plants, { stage = storage.stage, control = storage.ruleSlots > 0 })
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,
 			charge = nextState.storage.charge,
 			turbo = BoostService.turboRemaining(player),
-			view = GameCore.view(nextState, env),
+			view = view,
 		})
 	end
 end
