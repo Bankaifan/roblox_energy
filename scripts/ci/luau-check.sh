@@ -19,7 +19,8 @@ if [ "$missing" = 1 ]; then
     chmod +x "$tmp/rokit"
     "$tmp/rokit" self-install
     export PATH="$HOME/.rokit/bin:$PATH"
-    if [ -n "${GH_TOKEN:-}" ]; then rokit authenticate github --token "$GH_TOKEN" --skip-verify; fi
+    # A token may already be stored (agent runners): that is fine, only a missing one matters.
+    if [ -n "${GH_TOKEN:-}" ]; then rokit authenticate github --token "$GH_TOKEN" --skip-verify || true; fi
   fi
   rokit install --no-trust-check
 fi
