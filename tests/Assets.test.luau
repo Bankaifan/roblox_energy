@@ -31,4 +31,19 @@ return function(t, load)
 	t.equal(#offsets, 5, "five offsets")
 	t.truthy(math.abs(offsets[5].x) <= 2 and math.abs(offsets[5].z) <= 2, "every copy stays inside the slot")
 	t.equal(Assets.fitScale(8, 2, 4, 0.5), 0.25, "the longest side is fitted, times the factor")
+
+	-- Furniture (issue #82): four pieces, clear of the plant row and of each other; missing file falls back.
+	for _, name in { "crank", "market", "control", "battery" } do
+		local piece = Assets.furniture[name]
+		t.truthy(piece ~= nil and piece.size > 0, `{name} has an entry`)
+		t.truthy(math.abs(piece.z) - piece.size / 2 > 2, `{name} stays off the plant row`)
+		local reach = math.max(math.abs(piece.x), math.abs(piece.z)) + piece.size / 2
+		t.truthy(reach <= 20, `{name} is on the ground`)
+	end
+	t.equal(Assets.useFurniture("market", { market = true }), true, "furniture entry and file: model")
+	t.equal(Assets.useFurniture("market", {}), false, "furniture file missing: nothing built")
+	t.equal(Assets.useFurniture("nope", { nope = true }), false, "furniture entry missing: nothing built")
+	t.equal(Assets.batteryUnits(0), 0, "no storage, no unit")
+	t.equal(Assets.batteryUnits(3), 3, "one unit per stage")
+	t.equal(Assets.batteryUnits(9), 4, "at most four units")
 end

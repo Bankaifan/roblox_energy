@@ -25,6 +25,8 @@ type Record = {
 	columns: { BasePart },
 	modelPlants: { boolean }, -- index -> built from a model (else the primitive column)
 	copies: { { Model } }, -- index -> the model copies shown now
+	control: Model?, -- the control center, built once U21 is owned
+	batteries: { Model }, -- one unit per storage stage
 }
 local plots: { [Player]: Record } = {}
 
@@ -88,6 +90,43 @@ local function updateCopies(record: Record, index: number, owned: number, centre
 	end
 end
 
+-- Places one furniture model on the plot (nothing when its file is missing: the plot keeps the current look).
+local function addFurniture(record: Record, name: string, turn: number?): Model?
+	local copy = PlantModels.furniture(name, record.origin, 1, turn)
+	if copy == nil then
+		return nil
+	end
+	if name == "market" then
+		PlantModels.cleanMarket(copy)
+		PlantModels.mountPanels(copy)
+	end
+	copy.Parent = record.model
+	return copy
+end
+
+-- Control center from U21, one battery unit per storage stage; both are rebuilt only when the number changes.
+local function updateFurniture(record: Record, extras: { stage: number, control: boolean })
+	if extras.control and record.control == nil then
+		record.control = addFurniture(record, "control", nil)
+	end
+	local wanted = Assets.batteryUnits(extras.stage)
+	if #record.batteries == wanted then
+		return
+	end
+	for _, unit in record.batteries do
+		unit:Destroy()
+	end
+	table.clear(record.batteries)
+	for level = 0, wanted - 1 do
+		local unit = PlantModels.battery(record.origin, 1, level)
+		if unit == nil then
+			break
+		end
+		unit.Parent = record.model
+		table.insert(record.batteries, unit)
+	end
+end
+
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
@@ -111,18 +150,31 @@ function PlotService.create(player: Player, plants: { any }): boolean
 			block(model, "Plant" .. index, Vector3.new(4, 0.2, 4), COLORS[plant.kind] or COLORS.Grundlast, origin)
 	end
 	model.Parent = plotsFolder()
-	plots[player] =
-		{ slot = slot, origin = origin, model = model, columns = columns, modelPlants = modelPlants, copies = copies }
+	local record: Record = {
+		slot = slot,
+		origin = origin,
+		model = model,
+		columns = columns,
+		modelPlants = modelPlants,
+		copies = copies,
+		control = nil,
+		batteries = {},
+	}
+	plots[player] = record
+	-- The crank and the market are built once per plot.
+	addFurniture(record, "crank", nil)
+	addFurniture(record, "market", nil)
 	PlotService.update(player, {})
 	return true
 end
 
 -- Column heights from the plant counts (index = plant id). Capped at 100 plants per column.
-function PlotService.update(player: Player, counts: { number })
+function PlotService.update(player: Player, counts: { number }, extras: { stage: number, control: boolean }?)
 	local record = plots[player]
 	if record == nil then
 		return
 	end
+	updateFurniture(record, extras or { stage = 0, control = false })
 	for index, column in record.columns do
 		local owned = math.min(counts[index] or 0, 100)
 		local centre = record.origin + Vector3.new((index - 3.5) * 5, 0, 0)

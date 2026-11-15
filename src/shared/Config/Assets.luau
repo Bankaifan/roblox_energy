@@ -17,6 +17,33 @@ Assets.plants = {
 	[6] = { file = "plant6_windturbine", scale = 1, cap = 8 },
 } :: { [number]: Entry }
 
+-- Plot furniture (issue #82): file, centre (x, z) relative to the plot centre and the longest footprint side in studs.
+-- The plants stand in x -14.5..14.5, z -2..2 on a 40 x 40 ground, so the furniture sits in z beyond 5 and clear of each other.
+export type Furniture = { file: string, x: number, z: number, size: number }
+Assets.furniture = {
+	crank = { file = "crank", x = 0, z = -10, size = 4 },
+	market = { file = "market", x = -10, z = 12, size = 12 },
+	control = { file = "control", x = 10, z = 12, size = 8 },
+	battery = { file = "battery", x = 15, z = -10, size = 3 },
+} :: { [string]: Furniture }
+
+-- Studs between stacked battery units (the unit's own height is added on top).
+Assets.BATTERY_GAP = 3
+-- Texture ids of the poster decals removed from the market (cola posters), and the part names removed whole.
+Assets.marketPosterTextures = { ["rbxassetid://7977205851"] = true }
+Assets.marketRemovedParts = { ["Floppa Cube"] = true, ["Floppa cube"] = true }
+
+-- True when the furniture piece has an entry and its file is present (`available` maps file name -> true).
+function Assets.useFurniture(name: string, available: { [string]: boolean }): boolean
+	local entry = Assets.furniture[name]
+	return entry ~= nil and available[entry.file] == true
+end
+
+-- Battery units shown for a storage stage (0 until U17, at most 4).
+function Assets.batteryUnits(stage: number): number
+	return math.max(0, math.min(math.floor(stage), 4))
+end
+
 -- The model entry for a plant, or nil.
 function Assets.entry(plantId: number): Entry?
 	return Assets.plants[plantId]
