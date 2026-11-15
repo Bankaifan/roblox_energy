@@ -12,7 +12,7 @@ To update: fetch the file from the new commit, replace the file and `LICENSE`, u
 
 ## Models (`assets/models/*.rbxmx`)
 
-Third-party free models (Creator Store, public domain), taken from the Studio place where Daniel inserted them and saved as text (`.rbxmx`). Scripts, sounds, lights, particles, body movers and legacy joints were removed before saving, all parts are anchored. No automatic check guards these files yet; issue #80 adds a Lune test that fails if a model file contains script or sound classes. Files were matched to the asset ids by name, size and structure, so check the look in Studio.
+Third-party free models (Creator Store, public domain), taken from the Studio place where Daniel inserted them and saved as text (`.rbxmx`). Scripts, sounds, lights, particles, body movers and legacy joints were removed before saving, all parts are anchored. `tests/Models.test.luau` (Lune) fails if a file contains a Script, LocalScript, ModuleScript or Sound, an unanchored part, or an asset reference outside visual content (mesh, texture, decal). Rojo maps the folder to `ServerStorage.Models`; `PlantModels` sanitises each clone at runtime. Files were matched to the asset ids by name, size and structure, so check the look in Studio.
 
 | File | Asset id | Asset name | Creator |
 | --- | --- | --- | --- |
