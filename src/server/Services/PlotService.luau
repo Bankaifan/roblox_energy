@@ -1,6 +1,12 @@
 --!strict
 -- Assigns one plot per player, at most MAX_PLOTS on a server, built from basic parts (Bauplan, section 5: no assets).
 -- One column per plant; the height of a column follows the number of that plant. A plot is freed when its player leaves.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
+local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
+local PlantModels = require(script.Parent.PlantModels)
+
 local PlotService = {}
 
 -- One server holds 8 players (Bauplan, section 4), so 8 plots.
@@ -12,7 +18,14 @@ local COLORS: { [string]: Color3 } = {
 	Grundlast = Color3.fromRGB(140, 140, 140),
 }
 
-type Record = { slot: number, origin: Vector3, model: Model, columns: { BasePart } }
+type Record = {
+	slot: number,
+	origin: Vector3,
+	model: Model,
+	columns: { BasePart },
+	modelPlants: { boolean }, -- index -> built from a model (else the primitive column)
+	copies: { { Model } }, -- index -> the model copies shown now
+}
 local plots: { [Player]: Record } = {}
 
 local function plotsFolder(): Folder
@@ -51,6 +64,30 @@ local function block(parent: Instance, name: string, size: Vector3, color: Color
 	return part
 end
 
+-- Shows min(owned, cap) model copies of a plant in its slot, rebuilt only when that number changes.
+local function updateCopies(record: Record, index: number, owned: number, centre: Vector3)
+	local entry = Assets.entry(index)
+	local wanted = Assets.visibleCopies(owned, if entry ~= nil then entry.cap else 0)
+	local shown = record.copies[index]
+	if #shown == wanted then
+		return
+	end
+	for _, copy in shown do
+		copy:Destroy()
+	end
+	table.clear(shown)
+	local cell, offsets = Assets.layout(wanted, Assets.SLOT)
+	for _, offset in offsets do
+		local copy = PlantModels.clone(index)
+		if copy == nil then
+			break
+		end
+		PlantModels.place(copy, index, cell, centre + Vector3.new(offset.x, 0, offset.z), 1.2)
+		copy.Parent = record.model
+		table.insert(shown, copy)
+	end
+end
+
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
@@ -65,12 +102,17 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	model.Name = player.Name
 	block(model, "Ground", Vector3.new(40, 1, 40), Color3.fromRGB(90, 140, 80), origin + Vector3.new(0, 0.5, 0))
 	local columns: { BasePart } = {}
+	local modelPlants: { boolean } = {}
+	local copies: { { Model } } = {}
 	for index, plant in plants do
+		modelPlants[index] = PlantModels.has(index)
+		copies[index] = {}
 		columns[index] =
 			block(model, "Plant" .. index, Vector3.new(4, 0.2, 4), COLORS[plant.kind] or COLORS.Grundlast, origin)
 	end
 	model.Parent = plotsFolder()
-	plots[player] = { slot = slot, origin = origin, model = model, columns = columns }
+	plots[player] =
+		{ slot = slot, origin = origin, model = model, columns = columns, modelPlants = modelPlants, copies = copies }
 	PlotService.update(player, {})
 	return true
 end
@@ -82,9 +124,17 @@ function PlotService.update(player: Player, counts: { number })
 		return
 	end
 	for index, column in record.columns do
-		local height = 0.2 + math.min(counts[index] or 0, 100) * 0.2
-		column.Size = Vector3.new(4, height, 4)
-		column.Position = record.origin + Vector3.new((index - 3.5) * 5, 1 + height / 2, 0)
+		local owned = math.min(counts[index] or 0, 100)
+		local centre = record.origin + Vector3.new((index - 3.5) * 5, 0, 0)
+		if record.modelPlants[index] then
+			column.Size = Vector3.new(4, 0.2, 4)
+			column.Position = centre + Vector3.new(0, 1.1, 0)
+			updateCopies(record, index, owned, centre)
+		else
+			local height = 0.2 + owned * 0.2
+			column.Size = Vector3.new(4, height, 4)
+			column.Position = centre + Vector3.new(0, 1 + height / 2, 0)
+		end
 	end
 end
 

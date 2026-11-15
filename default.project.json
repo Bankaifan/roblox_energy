@@ -17,6 +17,12 @@
 				"$path": "src/server"
 			}
 		},
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"Models": {
+				"$path": "assets/models"
+			}
+		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
@@ -33,6 +39,7 @@
 		"tests/**/*.py",
 		"tests/**/*.json",
 		"tests/Balance.test.luau",
+		"tests/Models.test.luau",
 		"**/__pycache__"
 	]
 }
