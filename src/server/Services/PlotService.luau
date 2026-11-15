@@ -1,7 +1,11 @@
 --!strict
 -- Assigns one plot per player, at most MAX_PLOTS on a server, built from basic parts (Bauplan, section 5: no assets).
 -- One column per plant; the height of a column follows the number of that plant. A plot is freed when its player leaves.
+local PlantModels = require(script.Parent.PlantModels)
+
 local PlotService = {}
+
+PlantModels.preload() -- returns at once; plots built before the load ends use primitives
 
 -- One server holds 8 players (Bauplan, section 4), so 8 plots.
 local MAX_PLOTS = 8
@@ -12,7 +16,7 @@ local COLORS: { [string]: Color3 } = {
 	Grundlast = Color3.fromRGB(140, 140, 140),
 }
 
-type Record = { slot: number, origin: Vector3, model: Model, columns: { BasePart } }
+type Record = { slot: number, origin: Vector3, model: Model, columns: { [number]: BasePart } }
 local plots: { [Player]: Record } = {}
 
 local function plotsFolder(): Folder
@@ -64,10 +68,18 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	local model = Instance.new("Model")
 	model.Name = player.Name
 	block(model, "Ground", Vector3.new(40, 1, 40), Color3.fromRGB(90, 140, 80), origin + Vector3.new(0, 0.5, 0))
-	local columns: { BasePart } = {}
+	local columns: { [number]: BasePart } = {}
 	for index, plant in plants do
-		columns[index] =
-			block(model, "Plant" .. index, Vector3.new(4, 0.2, 4), COLORS[plant.kind] or COLORS.Grundlast, origin)
+		-- A ready, sanitised asset model replaces the primitive column; otherwise the primitive is built as before.
+		local visual = PlantModels.clone(index, model)
+		if visual ~= nil then
+			local box, size = visual:GetBoundingBox()
+			local target = origin + Vector3.new((index - 3.5) * 5, 1 + size.Y / 2, 0)
+			visual:PivotTo(visual:GetPivot() + (target - box.Position))
+		else
+			columns[index] =
+				block(model, "Plant" .. index, Vector3.new(4, 0.2, 4), COLORS[plant.kind] or COLORS.Grundlast, origin)
+		end
 	end
 	model.Parent = plotsFolder()
 	plots[player] = { slot = slot, origin = origin, model = model, columns = columns }
