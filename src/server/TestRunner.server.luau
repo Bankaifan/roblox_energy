@@ -31,6 +31,8 @@ local serverTest = script.Parent:WaitForChild("Services"):WaitForChild("DataServ
 table.insert(cases, { name = "DataService", fn = require(serverTest) })
 local sessionTest = script.Parent:WaitForChild("Services"):WaitForChild("Session.test") :: ModuleScript
 table.insert(cases, { name = "Session", fn = require(sessionTest) })
+local boostTest = script.Parent:WaitForChild("Services"):WaitForChild("BoostService.test") :: ModuleScript
+table.insert(cases, { name = "BoostService", fn = require(boostTest) })
 
 local _, failed = Harness.run(cases, load)
 print(`[TestRunner] {if failed == 0 then "PASS" else "FAIL"}`)

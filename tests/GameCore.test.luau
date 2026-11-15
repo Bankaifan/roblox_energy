@@ -12,13 +12,14 @@ return function(t, load)
 	Config.effects = load("Config/Effects")
 
 	-- Phases: 1 Morgen, 2 Mittag, 3 Abend, 4 Nacht. Weather: 1 Sonnig, 2 Bewoelkt, 3 Windig, 4 Gewitter, 5 Flaute.
-	local function env(phase: number, weather: number, longMeter: boolean?)
+	local function env(phase: number, weather: number, longMeter: boolean?, boost: number?)
 		return {
 			phase = Config.phases[phase],
 			weather = Config.weathers[weather],
 			longMeter = longMeter == true,
 			config = Config,
 			formulas = Formulas,
+			boost = boost,
 		}
 	end
 
@@ -136,6 +137,16 @@ return function(t, load)
 	t.truthy(autoNoon.storage.charge > 0, "auto charges at the noon price")
 	local autoMorning = GameCore.tick(auto, env(1, 1), 1)
 	t.equal(autoMorning.storage.charge, 0, "auto does not charge at 1,2")
+
+	-- Boost (Core/Boost factor, passed in as env.boost): a factor of 2 doubles the generation, so the coins sold
+	-- in the same second double too. No storage here, so everything generated is sold. nil and 1 change nothing.
+	local boosted = fresh()
+	boosted.plants[3] = 10
+	local plain = GameCore.tick(boosted, env(2, 1), 1)
+	t.truthy(plain.coins > 0, "the plants sell something at noon")
+	near(GameCore.tick(boosted, env(2, 1, false, 2), 1).coins, 2 * plain.coins, "a boost of 2 doubles the coins")
+	t.equal(GameCore.tick(boosted, env(2, 1, false, 1), 1).coins, plain.coins, "a boost of 1 changes nothing")
+	t.equal(GameCore.tick(boosted, env(2, 1, false, nil), 1).coins, plain.coins, "no boost changes nothing")
 
 	-- Prestige: needs the run revenue, resets the run; P1 gives start coins, P5 keeps storage and rules.
 	local expansion = fresh()

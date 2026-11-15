@@ -32,7 +32,15 @@ export type Config = {
 	weathers: { Weather },
 	effects: any,
 }
-export type Env = { phase: Phase, weather: Weather, longMeter: boolean, config: Config, formulas: any }
+-- boost: the Sunshine Hour / Turbo Feed-in factor of this player this second (Core/Boost); nil or 1 = none.
+export type Env = {
+	phase: Phase,
+	weather: Weather,
+	longMeter: boolean,
+	config: Config,
+	formulas: any,
+	boost: number?,
+}
 
 local GameCore = {}
 
@@ -219,7 +227,7 @@ function GameCore.tick(state: State, env: Env, dt: number): State
 		return result
 	end
 	local phase, weather = env.phase, env.weather
-	local generated = production(state, env, phase, weather) * dt
+	local generated = production(state, env, phase, weather) * dt * (env.boost or 1)
 	local price = env.formulas.price(phase, weather, market(state, env, phase))
 	local capacity = env.formulas.storageCapacity(storageStage(state, env), middayOutput(state, env))
 	local efficiency = storageEfficiency(state, env)

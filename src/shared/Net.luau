@@ -30,8 +30,22 @@ Net.messages = {
 	SetCosmetic = { direction = "client", fields = { slot = "int", item = "string" }, limit = { max = 1, per = 1 } },
 	Ready = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
 	Snapshot = { direction = "server", fields = {} }, -- the whole run state of the player
-	Delta = { direction = "server", fields = { coins = "number", rate = "number", charge = "number" } },
-	Env = { direction = "server", fields = { phase = "string", weather = "string" } },
+	-- turbo: seconds of the owner's own Turbo Feed-in left (0 = off).
+	Delta = {
+		direction = "server",
+		fields = { coins = "number", rate = "number", charge = "number", turbo = "number" },
+	},
+	-- sunshineEnds is the server time the Sunshine Hour ends (0 = off); the client counts down from it.
+	Env = {
+		direction = "server",
+		fields = {
+			phase = "string",
+			weather = "string",
+			sunshineEnds = "number",
+			sunshineBuyer = "string",
+			sunshineQueued = "number",
+		},
+	},
 	Welcome = { direction = "server", fields = { away = "number", coins = "number" } }, -- once per join, after Ready
 	PlotPublic = { direction = "server", fields = {} },
 	Notice = { direction = "server", fields = { text = "string" } },
