@@ -10,6 +10,7 @@ local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: a
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
+local PlotGround = require(script.Parent.PlotGround)
 
 local PlotService = {}
 
@@ -108,7 +109,7 @@ local function updateUnits(record: Record, index: number, owned: number, tidy: b
 			break
 		end
 		local angle = if site.angle ~= nil then site.angle * record.facing else nil
-		PlantModels.place(copy, index, cell, sitePoint(record, site), 0, angle)
+		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y, angle)
 		copy.Parent = record.model
 		table.insert(shown, copy)
 	end
@@ -118,7 +119,7 @@ end
 local function addFurniture(record: Record, name: string, turn: number?): Model?
 	-- A plot that faces the other way turns its furniture around, so the market front still looks at the plot centre.
 	local around = if record.facing == -1 then 180 else 0
-	local copy = PlantModels.furniture(name, record.origin, 0, (turn or 0) + around, record.facing)
+	local copy = PlantModels.furniture(name, record.origin, record.origin.Y, (turn or 0) + around, record.facing)
 	if copy == nil then
 		return nil
 	end
@@ -196,7 +197,7 @@ local function updateFurniture(record: Record, extras: { stage: number, control:
 	end
 	table.clear(record.batteries)
 	for level = 0, wanted - 1 do
-		local unit = PlantModels.battery(record.origin, 0, level, record.facing)
+		local unit = PlantModels.battery(record.origin, record.origin.Y, level, record.facing)
 		if unit == nil then
 			break
 		end
@@ -216,10 +217,10 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		return false
 	end
 	local place = PlotLayout.slot(slot, Assets.PLOT_SPACING, Assets.PLOT_ROW_Z)
-	local origin = Vector3.new(place.x, 0, place.z)
+	local origin = Vector3.new(place.x, Assets.GROUND_Y, place.z)
 	local model = Instance.new("Model")
 	model.Name = player.Name
-	-- With streaming a client gets a plot whole or not at all. No grass slab: the ground is the terrain meadow.
+	-- With streaming a client gets a plot whole or not at all. No grass slab: the ground is terrain (PlotGround).
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local columns: { [number]: BasePart } = {}
 	local modelPlants: { boolean } = {}
@@ -251,9 +252,16 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		batteries = {},
 	}
 	plots[player] = record
-	-- The crank and the market are built once per plot.
+	PlotGround.paint(slot)
+	-- The crank and the market are built once per plot. A yellow disc under the crank marks it from afar.
 	local crank = addFurniture(record, "crank", nil)
 	if crank ~= nil then
+		local spot = Assets.furniture.crank
+		local centre = origin + Vector3.new(spot.x, 0, spot.z * place.facing)
+		local pad = block(model, "CrankPad", Vector3.new(0.2, 10, 10), COLORS.Solar, centre)
+		pad.Shape = Enum.PartType.Cylinder
+		pad.CFrame = CFrame.new(centre) * CFrame.Angles(0, 0, math.rad(90))
+		pad.CanCollide = false
 		addPrompt(player, crank, "CrankPrompt", "action.crank", function(who: Player)
 			if crankHandler ~= nil then
 				crankHandler(who)
@@ -298,11 +306,12 @@ function PlotService.update(
 	end
 end
 
--- Destroys the player's plot and frees its slot for the next player.
+-- Destroys the player's plot, turns its ground back into meadow and frees its slot for the next player.
 function PlotService.remove(player: Player)
 	local record = plots[player]
 	if record ~= nil then
 		record.model:Destroy()
+		PlotGround.restore(record.slot)
 		plots[player] = nil
 	end
 end

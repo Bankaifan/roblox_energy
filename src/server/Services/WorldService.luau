@@ -1,7 +1,7 @@
 --!strict
 -- The world around the plots (issue 85): terrain, water, props and the light mood, built at runtime from
 -- Core/Landscape and Core/DayCycle. Every prop is a handful of anchored parts without scripts; the part count is
--- capped by Landscape.MAX_PARTS. Plots are not touched: the ground under them is flat at height 0.
+-- capped by Landscape.MAX_PARTS. The ground under the plots is flat; PlotGround paints it per plot.
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,6 +17,7 @@ local Landscape = (require(Shared:WaitForChild("Core"):WaitForChild("Landscape")
 local DayCycle = require(Shared:WaitForChild("Core"):WaitForChild("DayCycle") :: ModuleScript) :: any
 local Phases = require(Shared:WaitForChild("Config"):WaitForChild("Phases") :: ModuleScript) :: any
 local Ambience = require(Shared:WaitForChild("Ambience") :: ModuleScript) :: any
+local PlotGround = require(script.Parent.PlotGround) :: any
 
 local WorldService = {}
 
@@ -463,6 +464,7 @@ function WorldService.build()
 	Lighting.ClockTime = clock
 	Ambience.apply(DayCycle.mood(clock))
 	buildTerrain()
+	PlotGround.ready()
 	buildProps()
 end
 

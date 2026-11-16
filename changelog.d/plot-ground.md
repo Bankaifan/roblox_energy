@@ -1,0 +1,1 @@
+- Each plot gets bare earth with a light frame instead of tall grass, units stand on the surface (y = 2), and a yellow disc marks the crank; the meadow returns when the player leaves.
