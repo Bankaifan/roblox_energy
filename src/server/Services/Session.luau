@@ -147,7 +147,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			stage = storage.stage,
 			control = storage.ruleSlots > 0,
 			fill = storage.fill,
-		}, nextState.land ~= nil and nextState.land.tools.rails == true)
+		}, nextState.land)
 		LandService.refresh(player, nextState)
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
