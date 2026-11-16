@@ -7,6 +7,7 @@ local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
+local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
 
@@ -139,12 +140,33 @@ local function addPrompt(owner: Player, model: Model, name: string, key: string,
 end
 
 -- Control center from U21, one battery unit per storage stage; both are rebuilt only when the number changes.
-local function updateFurniture(record: Record, extras: { stage: number, control: boolean })
+local EMPTY_COLOR = Color3.fromRGB(110, 110, 110)
+local FULL_COLOR = Color3.fromRGB(60, 190, 80)
+
+-- Tints each battery unit from grey (empty) to green (full) by its share of the charge; repaints only on a change.
+local function tintBatteries(record: Record, fill: number)
+	local count = #record.batteries
+	for level, unit in record.batteries do
+		local own = Formulas.unitFill(fill, level - 1, count)
+		if unit:GetAttribute("Fill") ~= own then
+			unit:SetAttribute("Fill", own)
+			local color = EMPTY_COLOR:Lerp(FULL_COLOR, own)
+			for _, item in unit:GetDescendants() do
+				if item:IsA("BasePart") and item.Material ~= Enum.Material.Neon then
+					item.Color = color
+				end
+			end
+		end
+	end
+end
+
+local function updateFurniture(record: Record, extras: { stage: number, control: boolean, fill: number? })
 	if extras.control and record.control == nil then
 		record.control = addFurniture(record, "control", nil)
 	end
 	local wanted = Assets.batteryUnits(extras.stage)
 	if #record.batteries == wanted then
+		tintBatteries(record, extras.fill or 0)
 		return
 	end
 	for _, unit in record.batteries do
@@ -159,6 +181,7 @@ local function updateFurniture(record: Record, extras: { stage: number, control:
 		unit.Parent = record.model
 		table.insert(record.batteries, unit)
 	end
+	tintBatteries(record, extras.fill or 0)
 end
 
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
@@ -224,7 +247,11 @@ function PlotService.create(player: Player, plants: { any }): boolean
 end
 
 -- Column heights from the plant counts (index = plant id). Capped at 100 plants per column.
-function PlotService.update(player: Player, counts: { number }, extras: { stage: number, control: boolean }?)
+function PlotService.update(
+	player: Player,
+	counts: { number },
+	extras: { stage: number, control: boolean, fill: number? }?
+)
 	local record = plots[player]
 	if record == nil then
 		return

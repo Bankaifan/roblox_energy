@@ -493,7 +493,15 @@ local function storageView(state: State, env: Env): { [string]: any }
 			rules[slot] = { id = rule.id, th = rule.th, on = rule.on }
 		end
 	end
-	return { stage = storageStage(state, env), mode = state.storage.mode, ruleSlots = slots, rules = rules }
+	local stage = storageStage(state, env)
+	local capacity = env.formulas.storageCapacity(stage, middayOutput(state, env))
+	return {
+		stage = stage,
+		mode = state.storage.mode,
+		ruleSlots = slots,
+		rules = rules,
+		fill = env.formulas.storageFill(state.storage.charge, capacity),
+	}
 end
 
 -- What the HUD shows, so the client does no game logic: each plant's next price and whether the coins cover it,
