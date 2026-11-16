@@ -5,7 +5,7 @@
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 5 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps, the stages of the tool chains (Migrations/Steps)
+local VERSION = 6 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps, the stages of the tool chains; 6: tutorial step (Migrations/Steps)
 local MAX_SITES = { 25, 7, 7, 7, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design-v2.md, section 2)
 local CHAIN_LENGTH = { 1, 2, 2, 2, 3, 3 } -- stages of one cell per field (Config/Land chains)
 local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
@@ -75,7 +75,8 @@ local function template(): Profile
 		daily = { day = 0, skips = 0 },
 		cosmetics = {},
 		settings = { lang = "auto", sfx = true, music = true },
-		tutorial = 0,
+		tutorial = 1, -- the current tutorial step (Core/Tutorial): 1 for a new profile
+		tutorialDone = false, -- skipped or finished: never shown again
 	}
 end
 Data.template = template
