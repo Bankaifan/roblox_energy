@@ -73,19 +73,74 @@ local function tileCentre(column: number, row: number, tile: number, plotTiles: 
 	return { x = (column + 0.5) * tile - half, z = (row + 0.5) * tile - half }
 end
 
--- Centres of the first `count` sites of a field, in the fixed fill order: a row of `perRow`, then the next row.
--- A site is `field.size` x `field.size` tiles; its size never depends on `count`.
-function PlotLayout.sites(field: Field, count: number, tile: number, plotTiles: number): { Site }
+-- Cells of a field are numbered 1..perRow*#rows in the fill order: a row of `perRow`, then the next row. A cell is
+-- `field.size` x `field.size` tiles. A player may mow the cells in any order (Prepare { target, cell }).
+local function cellOrigin(field: Field, cell: number): (number, number)
+	local i = cell - 1
+	return field.col0 + (i % field.perRow) * field.size, field.rows[i // field.perRow + 1]
+end
+
+-- Centre of cell `cell` of a field (plot-relative studs).
+function PlotLayout.cellCentre(field: Field, cell: number, tile: number, plotTiles: number): Site
+	local column, row = cellOrigin(field, cell)
+	local centre = tileCentre(column, row, tile, plotTiles)
+	local shift = (field.size - 1) * tile / 2
+	return { x = centre.x + shift, z = centre.z + shift }
+end
+
+-- The cell of a field that contains the plot-relative point (x, z), or nil when the point is outside every cell.
+function PlotLayout.cellAt(field: Field, x: number, z: number, tile: number, plotTiles: number): number?
+	local half = plotTiles * tile / 2
+	local tx, tz = math.floor((x + half) / tile), math.floor((z + half) / tile)
+	for cell = 1, field.perRow * #field.rows do
+		local column, row = cellOrigin(field, cell)
+		if tx >= column and tx < column + field.size and tz >= row and tz < row + field.size then
+			return cell
+		end
+	end
+	return nil
+end
+
+-- The mown cells of a field: the saved ordered list (in the order they were mown), cleaned (whole numbers inside the
+-- field, no repeats), padded with the lowest free cells up to `count` (a profile that only knows a count) and cut to it.
+function PlotLayout.mown(saved: { number }?, count: number, total: number): { number }
+	local list: { number } = {}
+	local used: { [number]: boolean } = {}
+	local want = math.min(math.floor(count), total)
+	for _, cell in saved or {} do
+		if #list < want and cell % 1 == 0 and cell >= 1 and cell <= total and not used[cell] then
+			used[cell] = true
+			table.insert(list, cell)
+		end
+	end
+	local free = 1
+	while #list < want do
+		if not used[free] then
+			used[free] = true
+			table.insert(list, free)
+		end
+		free += 1
+	end
+	return list
+end
+
+-- Centres of the given cells, in the order given.
+function PlotLayout.cellSites(field: Field, cells: { number }, tile: number, plotTiles: number): { Site }
 	local points: { Site } = {}
-	local total = field.perRow * #field.rows
-	for i = 0, math.min(math.floor(count), total) - 1 do
-		local column = field.col0 + (i % field.perRow) * field.size
-		local row = field.rows[i // field.perRow + 1]
-		local centre = tileCentre(column, row, tile, plotTiles)
-		local shift = (field.size - 1) * tile / 2
-		table.insert(points, { x = centre.x + shift, z = centre.z + shift })
+	for _, cell in cells do
+		table.insert(points, PlotLayout.cellCentre(field, cell, tile, plotTiles))
 	end
 	return points
+end
+
+-- Centres of the first `count` sites of a field, in the fixed fill order. A site is `field.size` x `field.size` tiles;
+-- its size never depends on `count`.
+function PlotLayout.sites(field: Field, count: number, tile: number, plotTiles: number): { Site }
+	local cells: { number } = {}
+	for cell = 1, math.min(math.floor(count), field.perRow * #field.rows) do
+		table.insert(cells, cell)
+	end
+	return PlotLayout.cellSites(field, cells, tile, plotTiles)
 end
 
 -- Integer hash in [0, 1000) of (seed, index, salt): no Roblox APIs, same result on every call.
@@ -97,44 +152,18 @@ end
 
 PlotLayout.WILD_SHIFT = 0.4
 PlotLayout.WILD_ANGLE = 12
-PlotLayout.WILD_PER_ROW = 3
 
--- Wild layout of the first `count` panels (at most 9): three per row on every second mown row (rows 1, 3, 5 of the
--- field), each shifted by up to WILD_SHIFT studs and turned by up to WILD_ANGLE degrees. The three panels of a row
--- are spread over the field width, so even a turned panel does not touch its neighbour.
-function PlotLayout.wild(field: Field, count: number, seed: number, tile: number, plotTiles: number): { WildSite }
-	local points: { WildSite } = {}
-	local perRow = PlotLayout.WILD_PER_ROW
-	local width = field.perRow * field.size * tile
-	local left = tileCentre(field.col0, 0, tile, plotTiles).x - tile / 2
-	local pitch = width / perRow
-	local rowsUsed = (#field.rows + 1) // 2
-	local total = perRow * rowsUsed
-	for i = 0, math.min(math.floor(count), total) - 1 do
-		local row = field.rows[(i // perRow) * 2 + 1]
-		local centre = tileCentre(field.col0, row, tile, plotTiles)
-		local jx = (hash(seed, i, 1) / 999 * 2 - 1) * PlotLayout.WILD_SHIFT
-		local jz = (hash(seed, i, 2) / 999 * 2 - 1) * PlotLayout.WILD_SHIFT
-		local angle = (hash(seed, i, 3) / 999 * 2 - 1) * PlotLayout.WILD_ANGLE
-		table.insert(points, { x = left + (i % perRow + 0.5) * pitch + jx, z = centre.z + jz, angle = angle })
+-- Wild layout: each point (the centre of a mown cell, in the order they were mown) is shifted by up to WILD_SHIFT studs
+-- and turned by up to WILD_ANGLE degrees. The shift is small against the tile, so a wild panel stays on its mown tile.
+function PlotLayout.wild(points: { Site }, seed: number): { WildSite }
+	local wild: { WildSite } = {}
+	for i, point in points do
+		local jx = (hash(seed, i - 1, 1) / 999 * 2 - 1) * PlotLayout.WILD_SHIFT
+		local jz = (hash(seed, i - 1, 2) / 999 * 2 - 1) * PlotLayout.WILD_SHIFT
+		local angle = (hash(seed, i - 1, 3) / 999 * 2 - 1) * PlotLayout.WILD_ANGLE
+		table.insert(wild, { x = point.x + jx, z = point.z + jz, angle = angle })
 	end
-	return points
-end
-
--- How many wild panels stand on mown ground when the first `prepared` tiles of the field are mown (fill order of
--- `sites`): a panel counts once the tile under its centre is mown, so a panel never lies in the grass.
-function PlotLayout.wildFit(field: Field, prepared: number, tile: number): number
-	local perRow = PlotLayout.WILD_PER_ROW
-	local pitch = field.perRow * field.size * tile / perRow
-	local fit = 0
-	for i = 0, perRow * ((#field.rows + 1) // 2) - 1 do
-		local column = math.min(field.perRow, math.ceil((i % perRow + 0.5) * pitch / (field.size * tile)))
-		if (i // perRow) * 2 * field.perRow + column > prepared then
-			break
-		end
-		fit += 1
-	end
-	return fit
+	return wild
 end
 
 -- Plot ground (terrain): the square of a slot in world studs and its side in terrain cells of `cell` studs.

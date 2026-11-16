@@ -83,7 +83,11 @@ return function(t, load)
 	for index, field in Assets.fields do
 		local total = Assets.siteCount(index)
 		for _, done in { 0, 1, total // 2, total - 1 } do
-			local stakes, ropes = Meadow.fence(field, done, 3, Assets.TILE, Assets.PLOT_TILES)
+			local mown = {}
+			for cellNo = 1, done do
+				mown[cellNo] = true
+			end
+			local stakes, ropes = Meadow.fence(field, mown, 3, Assets.TILE, Assets.PLOT_TILES)
 			local label = `field {index} with {done} done`
 			local ends = table.create(#stakes, 0)
 			for _, rope in ropes do
@@ -98,13 +102,17 @@ return function(t, load)
 			end
 			t.truthy(#stakes >= 4 and #stakes + #ropes <= 40, `{label}: {#stakes + #ropes} fence parts`)
 		end
-		local stakes, ropes = Meadow.fence(field, total, 3, Assets.TILE, Assets.PLOT_TILES)
+		local full = {}
+		for cellNo = 1, total do
+			full[cellNo] = true
+		end
+		local stakes, ropes = Meadow.fence(field, full, 3, Assets.TILE, Assets.PLOT_TILES)
 		t.equal(#stakes + #ropes, 0, `field {index}: a full field has no fence`)
 	end
 
 	-- No fence line is straight: every stake stands a little off its grid corner, the same on every call.
-	local stakes = Meadow.fence(Assets.fields[1], 0, 3, Assets.TILE, Assets.PLOT_TILES)
-	local same = Meadow.fence(Assets.fields[1], 0, 3, Assets.TILE, Assets.PLOT_TILES)
+	local stakes = Meadow.fence(Assets.fields[1], {}, 3, Assets.TILE, Assets.PLOT_TILES)
+	local same = Meadow.fence(Assets.fields[1], {}, 3, Assets.TILE, Assets.PLOT_TILES)
 	local xs, distinct = {}, 0
 	for i, stake in stakes do
 		t.equal(same[i].x, stake.x, `stake {i} stands at the same place on a second call`)

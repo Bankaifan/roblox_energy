@@ -328,16 +328,28 @@ local function buyPlant(state: State, env: Env, action: { [string]: any }): bool
 	if index > 1 and state.plants[index - 1] < 1 then
 		return false
 	end
-	if landRequired(env) and (state.land == nil or (state.land.sites[index] or 0) < 1) then
-		return false
+	-- A plant needs a mown cell of its field for every unit: owned + bought must not pass the mown cells.
+	local room = math.huge
+	if landRequired(env) then
+		local sites = if state.land ~= nil then state.land.sites[index] or 0 else 0
+		if sites < 1 then
+			return false
+		end
+		local perSite = env.config.land.unitsPerSite
+		if perSite ~= nil then
+			room = sites * perSite - state.plants[index]
+			if room < 1 then
+				return false
+			end
+		end
 	end
 	local qty = action.qty
 	if qty ~= 1 and qty ~= 10 and qty ~= "max" then
 		return false
 	end
-	local wanted = math.huge
+	local wanted = room
 	if qty ~= "max" then
-		wanted = qty
+		wanted = math.min(qty, room)
 	end
 	local owned = state.plants[index]
 	local count, total = 0, 0
@@ -448,7 +460,7 @@ local function buyTool(state: State, env: Env, action: { [string]: any }): boole
 	return true
 end
 
--- Prepare { target }: a field (plant id 1 to 6: its tool is owned, one more site), "market" (once), "container"
+-- Prepare { target, cell? }: a field (plant id 1 to 6: its tool is owned, one more mown cell, the named free one or the lowest), "market" (once), "container"
 -- (costs coins, once) or "wired" (needs U21, the container and the pliers, once). Hold time is checked by the server.
 local function prepare(state: State, env: Env, action: { [string]: any }): boolean
 	local config = env.config.land
@@ -483,10 +495,39 @@ local function prepare(state: State, env: Env, action: { [string]: any }): boole
 	if not land.tools[config.fieldTools[target]] or not toolRevealed(state, { plant = target }) then
 		return false
 	end
-	if (land.sites[target] or 0) >= config.fields[target] then
+	local total = config.fields[target]
+	if (land.sites[target] or 0) >= total then
 		return false
 	end
-	land.sites[target] = (land.sites[target] or 0) + 1
+	-- The mown cells in mowing order; padded with the lowest free cells for a state that only knows the count.
+	land.cells = land.cells or {}
+	local cells = land.cells[target] or {}
+	local used: { [number]: boolean } = {}
+	for _, cell in cells do
+		used[cell] = true
+	end
+	local free = 1
+	while #cells < (land.sites[target] or 0) do
+		if not used[free] then
+			used[free] = true
+			table.insert(cells, free)
+		end
+		free += 1
+	end
+	-- A cell is named by the caller (the tile under the player's feet) or, without one, the lowest free cell.
+	local cell = action.cell
+	if cell == nil then
+		cell = 1
+		while used[cell] do
+			cell += 1
+		end
+	end
+	if not isCount(cell) or cell > total or used[cell] then
+		return false
+	end
+	table.insert(cells, cell)
+	land.cells[target] = cells
+	land.sites[target] = #cells
 	return true
 end
 
@@ -688,7 +729,11 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		local land = state.land or env.config.land.start
 		local required = landRequired(env)
 		for _, plant in env.config.plants do
-			plants[plant.id].needsSite = required and (land.sites[plant.id] or 0) < 1
+			plants[plant.id].sites = land.sites[plant.id] or 0
+			local sites = land.sites[plant.id] or 0
+			local perSite = env.config.land.unitsPerSite
+			plants[plant.id].needsSite = required
+				and (sites < 1 or (perSite ~= nil and sites * perSite <= state.plants[plant.id]))
 		end
 		local tools = {}
 		for _, tool in env.config.land.tools do

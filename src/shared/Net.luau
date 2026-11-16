@@ -4,7 +4,7 @@
 -- Field rules: "int" (finite whole number), "number" (finite), "string", "boolean", or a list of allowed values.
 -- The server checks in Core/GameCore (IDs from Config, prices, ownership) come after this.
 export type Limit = { max: number, per: number }
-export type Message = { direction: string, fields: { [string]: any }, limit: Limit? }
+export type Message = { direction: string, fields: { [string]: any }, optional: { [string]: any }?, limit: Limit? }
 
 local Net = {}
 
@@ -36,6 +36,7 @@ Net.messages = {
 	Prepare = {
 		direction = "internal",
 		fields = { target = { 1, 2, 3, 4, 5, 6, "market", "container", "wired" } },
+		optional = { cell = "int" }, -- the cell of the field the player stands on (any free one, in any order)
 		limit = { max = 2, per = 1 },
 	},
 	Ready = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
@@ -97,6 +98,15 @@ function Net.check(name: string, payload: any): (boolean, { [string]: any })
 			return false, {}
 		end
 		clean[field] = value
+	end
+	for field, rule in message.optional or {} do
+		local value = data[field]
+		if value ~= nil then
+			if not accepts(rule, value) then
+				return false, {}
+			end
+			clean[field] = value
+		end
 	end
 	return true, clean
 end
