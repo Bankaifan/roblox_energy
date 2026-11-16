@@ -6,8 +6,56 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
+local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
+local Flat = require(Core:WaitForChild("Flat") :: ModuleScript) :: any
 
 local PlantModels = {}
+
+local function vec(v: Vector3): any
+	return { x = v.X, y = v.Y, z = v.Z }
+end
+
+-- The parts of `root` as oriented boxes for Core/Flat.
+local function describe(root: Instance): { any }
+	local parts: { any } = {}
+	for _, item in root:GetDescendants() do
+		if item:IsA("BasePart") then
+			local frame = item.CFrame
+			table.insert(parts, {
+				pos = vec(item.Position),
+				size = vec(item.Size),
+				right = vec(frame.RightVector),
+				up = vec(frame.UpVector),
+				back = vec(frame.ZVector),
+			})
+		end
+	end
+	return parts
+end
+
+-- Centre and size of the model's box along the world axes. Model:GetBoundingBox follows the pivot's rotation instead
+-- (measured: the upright panel reports 5.2 x 0.13 x 8.2 there, 8.2 x 5.2 x 0.12 in the world).
+local function worldBox(model: Model): (Vector3, Vector3)
+	local box = Flat.box(describe(model))
+	if box == nil then
+		return model:GetPivot().Position, Vector3.zero
+	end
+	local low = Vector3.new(box.minX, box.minY, box.minZ)
+	local high = Vector3.new(box.maxX, box.maxY, box.maxZ)
+	return (low + high) / 2, high - low
+end
+
+-- Turns a slab-shaped model in the world so that its glass side looks along the unit vector `toward`.
+local function lay(model: Model, toward: Vector3)
+	local normal = Flat.normal(describe(model), vec(toward))
+	if normal == nil then
+		return
+	end
+	local axis, angle = Flat.turn(normal, vec(toward))
+	if angle ~= 0 then
+		model:PivotTo(CFrame.fromAxisAngle(Vector3.new(axis.x, axis.y, axis.z), angle) * model:GetPivot())
+	end
+end
 
 -- True for an instance the sanitiser removes: scripts, sounds, particles, beams, trails, constraints (WeldConstraint
 -- included; every part is anchored, so welds do nothing), legacy welds, bindable/remote events and value objects.
@@ -181,21 +229,8 @@ end
 function PlantModels.mountPanels(market: Model, facing: number?)
 	-- The building's own box: small add-ons (sign poster, banner posts) would stretch the whole-model box.
 	local boxes: { any } = {}
-	for _, item in market:GetDescendants() do
-		if item:IsA("BasePart") then
-			local half = item.Size / 2
-			local right, up, look = item.CFrame.RightVector, item.CFrame.UpVector, item.CFrame.LookVector
-			local reach = right:Abs() * half.X + up:Abs() * half.Y + look:Abs() * half.Z
-			local at = item.Position
-			table.insert(boxes, {
-				minX = at.X - reach.X,
-				minY = at.Y - reach.Y,
-				minZ = at.Z - reach.Z,
-				maxX = at.X + reach.X,
-				maxY = at.Y + reach.Y,
-				maxZ = at.Z + reach.Z,
-			})
-		end
+	for _, part in describe(market) do
+		table.insert(boxes, Flat.box({ part }))
 	end
 	local building = Assets.buildingBox(boxes, Assets.BUILDING_SHARE)
 	if building == nil then
@@ -210,40 +245,38 @@ function PlantModels.mountPanels(market: Model, facing: number?)
 		if panel == nil then
 			return
 		end
-		-- Lay the panel flat on the wall: its thinnest axis points along Z (towards the plot centre).
-		local _, raw = panel:GetBoundingBox()
-		if raw.Y <= raw.X and raw.Y <= raw.Z then
-			panel:PivotTo(panel:GetPivot() * CFrame.Angles(math.rad(90), 0, 0))
-		elseif raw.X <= raw.Y and raw.X <= raw.Z then
-			panel:PivotTo(panel:GetPivot() * CFrame.Angles(0, math.rad(90), 0))
-		end
-		local _, panelSize = panel:GetBoundingBox()
+		-- Flat against the wall: the glass side looks along Z towards the plot centre.
+		local side = if facing == -1 then -1 else 1
+		lay(panel, Vector3.new(0, 0, -side))
+		local _, panelSize = worldBox(panel)
 		panel:ScaleTo(panel:GetScale() * Assets.fitScale(panelSize.X, panelSize.Y, size.X / 4, 1))
-		local pivot, scaled = panel:GetBoundingBox()
+		local centre, scaled = worldBox(panel)
 		local x = boxCFrame.Position.X + (i - 1.5) * size.X / 3
 		-- Touching the facade: the back of the panel sits 0.05 studs inside the wall, never floating.
-		local side = if facing == -1 then -1 else 1
 		local z = boxCFrame.Position.Z - side * (size.Z / 2 + scaled.Z / 2 - 0.05)
 		local y = boxCFrame.Position.Y - size.Y / 2 + size.Y * 0.6
-		panel:PivotTo(panel:GetPivot() + Vector3.new(x, y, z) - pivot.Position)
+		panel:PivotTo(panel:GetPivot() + Vector3.new(x, y, z) - centre)
 		panel.Parent = market
 	end
 end
 
--- Fits `copy` into a cell of `cell` studs centred on `centre` (x, z), standing on `groundY`. The size depends on the
--- cell only; `angle` (degrees about Y, optional) turns the copy after it is scaled, so a turned copy keeps its size.
+-- Fits `copy` into a cell of `cell` studs centred on `centre` (x, z), standing on `groundY`. A `flat` plant is laid
+-- down first, glass side up. The size depends on the cell only; `angle` (degrees about the world's Y, optional) turns
+-- the copy after it is scaled, so a turned copy keeps its size. All boxes are along the world axes.
 function PlantModels.place(copy: Model, plantId: number, cell: number, centre: Vector3, groundY: number, angle: number?)
 	local entry = Assets.entry(plantId)
-	local _, size = copy:GetBoundingBox()
+	if entry ~= nil and entry.flat then
+		lay(copy, Vector3.yAxis)
+	end
+	local _, size = worldBox(copy)
 	local factor = if entry ~= nil then entry.scale else 1
 	copy:ScaleTo(copy:GetScale() * Assets.fitScale(size.X, size.Z, cell, factor))
 	if angle ~= nil and angle ~= 0 then
-		copy:PivotTo(copy:GetPivot() * CFrame.Angles(0, math.rad(angle), 0))
+		copy:PivotTo(CFrame.Angles(0, math.rad(angle), 0) * copy:GetPivot())
 	end
-	local boxCFrame, scaled = copy:GetBoundingBox()
-	local bottom = boxCFrame.Position.Y - scaled.Y / 2
-	local shift = Vector3.new(centre.X - boxCFrame.Position.X, groundY - bottom, centre.Z - boxCFrame.Position.Z)
-	copy:PivotTo(copy:GetPivot() + shift)
+	local at, scaled = worldBox(copy)
+	local bottom = at.Y - scaled.Y / 2
+	copy:PivotTo(copy:GetPivot() + Vector3.new(centre.X - at.X, groundY - bottom, centre.Z - at.Z))
 end
 
 return PlantModels

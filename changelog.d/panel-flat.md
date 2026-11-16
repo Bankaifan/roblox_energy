@@ -1,0 +1,1 @@
+- Solar panels lie flat on their site with the glass side up, and the two market panels lie flat against the wall; the wind turbine stands on the ground.
