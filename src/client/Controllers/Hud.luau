@@ -146,6 +146,18 @@ function Hud.build(net: Instance)
 		return order
 	end
 
+	-- The shop panel (the list and the detail area) can be shown or hidden; the Shop button toggles it and the market's
+	-- prompt opens it. `detail` is created below, so the setter is filled in after it.
+	local setShop: (boolean) -> () = function() end
+	local shopOpen = true
+	local shopButton = button(gui, "", 0, function()
+		setShop(not shopOpen)
+	end)
+	shopButton.AutomaticSize = Enum.AutomaticSize.None
+	shopButton.AnchorPoint = Vector2.new(1, 0)
+	shopButton.Position = UDim2.new(1, -16, 0, 16)
+	shopButton.Size = UDim2.fromOffset(96, ROW_MIN_HEIGHT)
+
 	-- Changes the language and paints every label again. Declared here, written below once the labels exist.
 	local paint: () -> ()
 	local language = button(frame, "", nextOrder(), function()
@@ -186,6 +198,11 @@ function Hud.build(net: Instance)
 	detailWidth.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
 	detailWidth.Parent = detail
 	detail.Parent = gui
+	setShop = function(open: boolean)
+		shopOpen = open
+		frame.Visible = open
+		detail.Visible = open
+	end
 	-- Name, effect and reason scroll inside the detail area when they wrap long; Buy stays pinned to its bottom edge.
 	local detailText = Instance.new("ScrollingFrame")
 	detailText.Size = UDim2.new(1, 0, 1, -(ROW_MIN_HEIGHT + DETAIL_GAP))
@@ -426,6 +443,7 @@ function Hud.build(net: Instance)
 	-- painted again on purpose: shop, storage and env texts are not kept anywhere else.
 	paint = function()
 		language.Text = t("hud.language", { name = t("language." .. lang) })
+		shopButton.Text = t("hud.shop")
 		crank.Text = t("action.crank")
 		for index, control in buyButtons do
 			control.Text = t("action.buyNamed", { name = plantName(index) })
@@ -457,6 +475,10 @@ function Hud.build(net: Instance)
 	return {
 		language = function(): string
 			return lang
+		end,
+		openShop = function()
+			setShop(true)
+			frame.CanvasPosition = Vector2.zero
 		end,
 		snapshot = function(state: any)
 			lastSnapshot = state

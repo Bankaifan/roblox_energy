@@ -19,23 +19,24 @@ Assets.MAX_CELL = 14
 -- Side of the primitive fallback column.
 Assets.COLUMN = 12
 
--- Visible copies per pad: at most 3, so a pad never looks crowded.
+-- Visible copies per pad: at most 4 (2 x 2), so a pad never looks crowded.
 Assets.plants = {
-	[1] = { file = "plant1_panel", scale = 1, cap = 3 },
-	[2] = { file = "plant2_waterwheel", scale = 1, cap = 3 },
-	[3] = { file = "plant3_house", scale = 1, cap = 3 },
-	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 3 },
-	[5] = { file = "plant5_solarfarm", scale = 1, cap = 3 },
-	[6] = { file = "plant6_windturbine", scale = 1, cap = 3 },
+	[1] = { file = "plant1_panel", scale = 1, cap = 4 },
+	[2] = { file = "plant2_waterwheel", scale = 1, cap = 4 },
+	[3] = { file = "plant3_house", scale = 1, cap = 4 },
+	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 4 },
+	[5] = { file = "plant5_solarfarm", scale = 1, cap = 4 },
+	[6] = { file = "plant6_windturbine", scale = 1, cap = 4 },
 } :: { [number]: Entry }
 
 -- Plot furniture: file, centre (x, z) relative to the plot centre and the longest footprint side in studs.
 -- The pads fill x -48..48, z -31..31 of the 120 x 120 ground; the furniture stands around them (the market at the
 -- front in +z, its facade towards the plot centre) with walking room between.
-export type Furniture = { file: string, x: number, z: number, size: number }
+-- `depth` (optional) is the assumed footprint depth in z of a wide piece; layout checks use it instead of `size`.
+export type Furniture = { file: string, x: number, z: number, size: number, depth: number? }
 Assets.furniture = {
 	crank = { file = "crank", x = 0, z = -48, size = 4 },
-	market = { file = "market", x = -35, z = 46, size = 14 },
+	market = { file = "market", x = -20, z = 48, size = 40, depth = 20 },
 	control = { file = "control", x = 35, z = 46, size = 5 },
 	battery = { file = "battery", x = 50, z = -48, size = 3 },
 } :: { [string]: Furniture }
@@ -50,6 +51,39 @@ Assets.marketRemovedParts = { ["Floppa Cube"] = true, ["Floppa cube"] = true }
 function Assets.useFurniture(name: string, available: { [string]: boolean }): boolean
 	local entry = Assets.furniture[name]
 	return entry ~= nil and available[entry.file] == true
+end
+
+-- A part counts as the market's building when its volume is at least this share of the largest part's volume.
+Assets.BUILDING_SHARE = 0.1
+
+export type Box = { minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number }
+
+-- The union of the boxes whose volume is at least `share` of the largest one: the building without small add-ons
+-- such as a sign poster or a tall banner post. Nil for an empty list.
+function Assets.buildingBox(boxes: { Box }, share: number): Box?
+	local function volume(box: Box): number
+		return (box.maxX - box.minX) * (box.maxY - box.minY) * (box.maxZ - box.minZ)
+	end
+	local largest = 0
+	for _, box in boxes do
+		largest = math.max(largest, volume(box))
+	end
+	local union: Box? = nil
+	for _, box in boxes do
+		if volume(box) >= largest * share then
+			if union == nil then
+				union = table.clone(box)
+			else
+				union.minX = math.min(union.minX, box.minX)
+				union.minY = math.min(union.minY, box.minY)
+				union.minZ = math.min(union.minZ, box.minZ)
+				union.maxX = math.max(union.maxX, box.maxX)
+				union.maxY = math.max(union.maxY, box.maxY)
+				union.maxZ = math.max(union.maxZ, box.maxZ)
+			end
+		end
+	end
+	return union
 end
 
 -- Battery units shown for a storage stage (0 until U17, at most 4).

@@ -9,7 +9,7 @@ return function(t, load)
 		t.truthy(entry ~= nil, `plant {plant.id} has a model entry`)
 		t.truthy(type(entry.file) == "string" and entry.file ~= "", `plant {plant.id} names a file`)
 		t.truthy(entry.scale > 0 and entry.scale <= 1, `plant {plant.id} scale is in (0, 1]`)
-		t.truthy(entry.cap >= 1 and entry.cap <= 3, `plant {plant.id} caps the visible copies at 3 or less`)
+		t.equal(entry.cap, 4, `plant {plant.id} shows up to four copies`)
 	end
 	t.equal(Assets.plants[4].scale, 0.4, "the mini turbine is shown at 40 percent")
 
@@ -43,6 +43,19 @@ return function(t, load)
 		end
 	end
 
+	cell, offsets = PlotLayout.copies(4, Assets.SLOT, Assets.COPY_GAP, Assets.MAX_CELL)
+	t.equal(#offsets, 4, "four offsets")
+	t.equal(offsets[1].x, -offsets[2].x, "four copies sit 2 x 2: two columns")
+	t.equal(offsets[1].z, offsets[2].z, "four copies sit 2 x 2: first row")
+	t.equal(offsets[3].z, offsets[4].z, "four copies sit 2 x 2: second row")
+	t.truthy(offsets[3].z > offsets[1].z, "four copies sit 2 x 2: two rows")
+	for i, a in offsets do
+		t.truthy(PlotLayout.reach(a, cell) <= Assets.SLOT / 2, `of four, copy {i} stays on the pad`)
+		for j = i + 1, #offsets do
+			t.truthy(not PlotLayout.overlap(a, cell, offsets[j], cell), `of four, copies {i} and {j} do not overlap`)
+		end
+	end
+
 	local pads = PlotLayout.pads(#Plants, Assets.PAD_COLUMNS, Assets.PAD_PITCH, 0)
 	t.equal(#pads, #Plants, "one pad per plant")
 	local pieces = {}
@@ -54,8 +67,10 @@ return function(t, load)
 		local piece = Assets.furniture[name]
 		t.truthy(piece ~= nil and piece.size > 0, `{name} has an entry`)
 		local at = { x = piece.x, z = piece.z }
-		t.truthy(PlotLayout.reach(at, piece.size) <= half, `{name} is on the ground`)
-		table.insert(pieces, { name = name, at = at, size = piece.size })
+		local footprint = piece.depth or piece.size
+		t.truthy(PlotLayout.reach(at, footprint) <= half, `{name} is on the ground`)
+		t.truthy(math.abs(piece.x) + piece.size / 2 <= half, `{name} fits the plot width`)
+		table.insert(pieces, { name = name, at = at, size = footprint })
 	end
 	for i, a in pieces do
 		for j = i + 1, #pieces do
@@ -63,7 +78,21 @@ return function(t, load)
 			t.truthy(not PlotLayout.overlap(a.at, a.size, b.at, b.size), `{a.name} and {b.name} do not overlap`)
 		end
 	end
-	t.equal(Assets.furniture.market.size, 14, "the market is about 14 wide")
+	t.truthy(Assets.furniture.market.size >= 3 * 13, "the market is about three times its old 14 studs")
+	-- The market's wide side must not reach over the pad rows (pads end at z = 31).
+	local lastPad = pads[#pads]
+	local market = Assets.furniture.market
+	t.truthy(market.z - market.depth / 2 > lastPad.z + Assets.SLOT / 2, "the market clears the pads")
+
+	-- Building box: a small add-on (sign) does not stretch it.
+	local building = Assets.buildingBox({
+		{ minX = 0, minY = 0, minZ = 0, maxX = 10, maxY = 6, maxZ = 8 },
+		{ minX = 4, minY = 6, minZ = 3, maxX = 5, maxY = 20, maxZ = 3.5 },
+		{ minX = -1, minY = 0, minZ = -1, maxX = 11, maxY = 1, maxZ = 9 },
+	}, Assets.BUILDING_SHARE)
+	t.equal(building.maxY, 6, "the sign post does not raise the building box")
+	t.equal(building.minX, -1, "large parts such as the floor count")
+	t.equal(Assets.buildingBox({}, Assets.BUILDING_SHARE), nil, "no parts, no box")
 	t.equal(#PlotLayout.pads(0, 3, 34, 0), 0, "no plants, no pads")
 	t.equal(Assets.useFurniture("market", { market = true }), true, "furniture entry and file: model")
 	t.equal(Assets.useFurniture("market", {}), false, "furniture file missing: nothing built")

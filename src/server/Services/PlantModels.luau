@@ -177,7 +177,32 @@ end
 
 -- Mounts two small solar panels (clones of the plant 1 model) on the market's front, the side facing the plot centre.
 function PlantModels.mountPanels(market: Model)
-	local boxCFrame, size = market:GetBoundingBox()
+	-- The building's own box: small add-ons (sign poster, banner posts) would stretch the whole-model box.
+	local boxes: { any } = {}
+	for _, item in market:GetDescendants() do
+		if item:IsA("BasePart") then
+			local half = item.Size / 2
+			local right, up, look = item.CFrame.RightVector, item.CFrame.UpVector, item.CFrame.LookVector
+			local reach = right:Abs() * half.X + up:Abs() * half.Y + look:Abs() * half.Z
+			local at = item.Position
+			table.insert(boxes, {
+				minX = at.X - reach.X,
+				minY = at.Y - reach.Y,
+				minZ = at.Z - reach.Z,
+				maxX = at.X + reach.X,
+				maxY = at.Y + reach.Y,
+				maxZ = at.Z + reach.Z,
+			})
+		end
+	end
+	local building = Assets.buildingBox(boxes, Assets.BUILDING_SHARE)
+	if building == nil then
+		return
+	end
+	local low = Vector3.new(building.minX, building.minY, building.minZ)
+	local high = Vector3.new(building.maxX, building.maxY, building.maxZ)
+	local boxCFrame = CFrame.new((low + high) / 2)
+	local size = high - low
 	for i = 1, 2 do
 		local panel = PlantModels.clone(1)
 		if panel == nil then
