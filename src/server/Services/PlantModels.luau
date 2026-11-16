@@ -83,8 +83,9 @@ function PlantModels.hasFurniture(name: string): boolean
 end
 
 -- Sanitised clone of a furniture piece, fitted to its footprint and standing on `groundY` at (x, z) around `origin`.
--- `turn` rotates it about Y first (degrees). Nil when the file is missing.
-function PlantModels.furniture(name: string, origin: Vector3, groundY: number, turn: number?): Model?
+-- `turn` rotates it about Y first (degrees). `facing` (1 or -1, default 1) mirrors its z spot for a plot that faces the
+-- other way. Nil when the file is missing.
+function PlantModels.furniture(name: string, origin: Vector3, groundY: number, turn: number?, facing: number?): Model?
 	local entry = Assets.furniture[name]
 	if entry == nil then
 		return nil
@@ -100,7 +101,7 @@ function PlantModels.furniture(name: string, origin: Vector3, groundY: number, t
 	copy:ScaleTo(copy:GetScale() * Assets.fitScale(size.X, size.Z, entry.size, 1))
 	local boxCFrame, scaled = copy:GetBoundingBox()
 	local bottom = boxCFrame.Position.Y - scaled.Y / 2
-	local target = origin + Vector3.new(entry.x, 0, entry.z)
+	local target = origin + Vector3.new(entry.x, 0, entry.z * (facing or 1))
 	copy:PivotTo(
 		copy:GetPivot()
 			+ Vector3.new(target.X - boxCFrame.Position.X, groundY - bottom, target.Z - boxCFrame.Position.Z)
@@ -129,7 +130,7 @@ end
 
 -- One green battery unit standing on `groundY` at the furniture spot, its thinnest axis pointing up. `level` is the
 -- 0-based place in the stack; nil when the file is missing.
-function PlantModels.battery(origin: Vector3, groundY: number, level: number): Model?
+function PlantModels.battery(origin: Vector3, groundY: number, level: number, facing: number?): Model?
 	local entry = Assets.furniture.battery
 	local copy = PlantModels.cloneFile(entry.file)
 	if copy == nil then
@@ -151,7 +152,7 @@ function PlantModels.battery(origin: Vector3, groundY: number, level: number): M
 	local boxCFrame, scaled = copy:GetBoundingBox()
 	local bottom = boxCFrame.Position.Y - scaled.Y / 2
 	local lift = level * (scaled.Y + Assets.BATTERY_GAP)
-	local target = origin + Vector3.new(entry.x, 0, entry.z)
+	local target = origin + Vector3.new(entry.x, 0, entry.z * (facing or 1))
 	copy:PivotTo(
 		copy:GetPivot()
 			+ Vector3.new(target.X - boxCFrame.Position.X, groundY + lift - bottom, target.Z - boxCFrame.Position.Z)
@@ -176,7 +177,8 @@ function PlantModels.cleanMarket(market: Model)
 end
 
 -- Mounts two small solar panels (clones of the plant 1 model) on the market's front, the side facing the plot centre.
-function PlantModels.mountPanels(market: Model)
+-- `facing` -1: the market was turned by 180 degrees, so its front is on the +Z side.
+function PlantModels.mountPanels(market: Model, facing: number?)
 	-- The building's own box: small add-ons (sign poster, banner posts) would stretch the whole-model box.
 	local boxes: { any } = {}
 	for _, item in market:GetDescendants() do
@@ -220,19 +222,24 @@ function PlantModels.mountPanels(market: Model)
 		local pivot, scaled = panel:GetBoundingBox()
 		local x = boxCFrame.Position.X + (i - 1.5) * size.X / 3
 		-- Touching the facade: the back of the panel sits 0.05 studs inside the wall, never floating.
-		local z = boxCFrame.Position.Z - size.Z / 2 - scaled.Z / 2 + 0.05
+		local side = if facing == -1 then -1 else 1
+		local z = boxCFrame.Position.Z - side * (size.Z / 2 + scaled.Z / 2 - 0.05)
 		local y = boxCFrame.Position.Y - size.Y / 2 + size.Y * 0.6
 		panel:PivotTo(panel:GetPivot() + Vector3.new(x, y, z) - pivot.Position)
 		panel.Parent = market
 	end
 end
 
--- Fits `copy` into a cell of `cell` studs centred on `centre` (x, z), standing on `groundY`.
-function PlantModels.place(copy: Model, plantId: number, cell: number, centre: Vector3, groundY: number)
+-- Fits `copy` into a cell of `cell` studs centred on `centre` (x, z), standing on `groundY`. The size depends on the
+-- cell only; `angle` (degrees about Y, optional) turns the copy after it is scaled, so a turned copy keeps its size.
+function PlantModels.place(copy: Model, plantId: number, cell: number, centre: Vector3, groundY: number, angle: number?)
 	local entry = Assets.entry(plantId)
 	local _, size = copy:GetBoundingBox()
 	local factor = if entry ~= nil then entry.scale else 1
 	copy:ScaleTo(copy:GetScale() * Assets.fitScale(size.X, size.Z, cell, factor))
+	if angle ~= nil and angle ~= 0 then
+		copy:PivotTo(copy:GetPivot() * CFrame.Angles(0, math.rad(angle), 0))
+	end
 	local boxCFrame, scaled = copy:GetBoundingBox()
 	local bottom = boxCFrame.Position.Y - scaled.Y / 2
 	local shift = Vector3.new(centre.X - boxCFrame.Position.X, groundY - bottom, centre.Z - boxCFrame.Position.Z)
