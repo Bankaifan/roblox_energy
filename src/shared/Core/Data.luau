@@ -1,14 +1,15 @@
 --!strict
--- Save data (Bauplan.md, "Datenmodell, Version 1"). Pure: no DataStore, no Roblox APIs. A profile is what is saved;
+-- Save data (Bauplan.md, "Datenmodell, Version 2"). Pure: no DataStore, no Roblox APIs. A profile is what is saved;
 -- fromState and toState map the fields of a run between the profile and the GameCore state (sections 2 and 5).
 -- migrate takes the migration steps as an argument, because core modules do not require each other (see GameCore).
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 1
+local VERSION = 2
 local MAX_PURCHASES = 100 -- the last 100 receipt IDs
+local MAX_BOOSTER_ENTRIES = 100 -- the booster queue (Core/Shop keeps it at most 60 minutes long)
 
--- The GameCore state fields a profile stores; the rest of the profile (lastSeen, grants, ...) belongs to the player.
+-- The GameCore state fields a profile stores; the rest of the profile (lastSeen, passes, ...) belongs to the player.
 local STATE_FIELDS = {
 	"coins",
 	"runEarned",
@@ -26,7 +27,7 @@ local STATE_FIELDS = {
 local Data = {}
 Data.VERSION = VERSION
 
--- The default profile, version 1. Every call returns a new table.
+-- The default profile, version 2. Every call returns a new table.
 local function template(): Profile
 	return {
 		v = VERSION,
@@ -46,7 +47,9 @@ local function template(): Profile
 		sessions = 0,
 		firstJoin = 0,
 		purchases = {},
-		grants = { founder = false, boostSeconds = 0, skipDay = 0, skipCount = 0 },
+		passes = {},
+		boosters = {},
+		daily = { day = 0, skips = 0 },
 		cosmetics = {},
 		settings = { lang = "auto", sfx = true, music = true },
 		tutorial = 0,
@@ -142,6 +145,28 @@ local function isText(item: any): boolean
 	return type(item) == "string"
 end
 
+-- A booster queue entry: a kind and the seconds left, both valid. Entries with no time left are dropped.
+local function isBooster(item: any): boolean
+	return type(item) == "table"
+		and type(item.kind) == "string"
+		and type(item.left) == "number"
+		and item.left > 0
+		and item.left < math.huge
+end
+
+-- The booster queue, in order: the first entry is the active booster.
+local function boosters(value: any): any
+	local result = {}
+	if type(value) == "table" then
+		for _, item in value do
+			if isBooster(item) and #result < MAX_BOOSTER_ENTRIES then
+				table.insert(result, { kind = item.kind, left = item.left })
+			end
+		end
+	end
+	return result
+end
+
 -- How each field of the template is cleaned on load. Fields without an entry are scalars.
 local CLEANERS: { [string]: (any, any) -> any } = {
 	plants = counts,
@@ -160,8 +185,12 @@ local CLEANERS: { [string]: (any, any) -> any } = {
 	purchases = function(value: any): any
 		return strings(value)
 	end,
+	passes = function(value: any): any
+		return entries(value, isTrue)
+	end,
+	boosters = boosters,
 	storage = fields,
-	grants = fields,
+	daily = fields,
 	settings = fields,
 }
 
