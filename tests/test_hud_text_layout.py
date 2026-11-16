@@ -17,7 +17,7 @@ def test_no_per_row_text_scaling():
 
 
 def test_one_fixed_text_size_for_rows_and_buttons():
-    assert re.search(r"local ROW_TEXT = 14\b", HUD)
+    assert re.search(r"local ROW_TEXT = 16\b", HUD)
     assert len(re.findall(r"TextSize = ROW_TEXT\b", HUD)) >= 2
 
 
@@ -37,7 +37,13 @@ def test_scrollbar_is_inset_so_it_does_not_cover_text():
 
 
 def test_shop_is_not_in_the_hud():
-    # The shop is the market popup (Controllers/Market); the HUD keeps the stats, the crank and the grid expansion.
+    # The shop is the market popup (Controllers/Market); the HUD keeps the stats and the grid expansion.
     code = "\n".join(code_lines())
     assert "openShop" not in code
     assert "BuyPlant" not in code and "BuyNode" not in code and "BuyTool" not in code
+
+
+def test_crank_is_not_a_hud_button_and_buttons_keep_touch_size():
+    code = "\n".join(code_lines())
+    assert 'send("Crank")' not in code
+    assert re.search(r"local BUTTON_MIN_HEIGHT = 44\b", HUD)

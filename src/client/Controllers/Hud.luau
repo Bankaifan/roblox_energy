@@ -1,7 +1,7 @@
 --!strict
 -- HUD: shows the Snapshot, Delta and Env the server sends (coins, rate, storage, grid level, weather, goal), and its
--- buttons (language, crank, grid expansion) only send intents. No game rules here: the crank value and the grid
--- expansion come from Delta.view (GameCore.view). The shop is the market popup (Controllers/Market). Every label comes
+-- buttons (language, grid expansion) only send intents; the rest is display only. No game rules here: the grid
+-- expansion comes from Delta.view (GameCore.view). The shop is the market popup (Controllers/Market). Every label comes
 -- from the Locale tables in the current language: the player's locale at the start, switched by the Language button.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,20 +19,22 @@ local Hud = {}
 local DIMMED_TEXT = 0.3
 local DIMMED_BACKGROUND = 0.6
 -- The panel is at most this wide; on a narrow screen it shrinks to the screen width instead.
-local PANEL_MAX_WIDTH = 300
+local PANEL_MAX_WIDTH = 220
 -- Every row and button uses the same fixed text size. Long text wraps onto a second line and the row grows with it.
-local ROW_TEXT = 14
-local ROW_MIN_HEIGHT = 36
+local ROW_TEXT = 16
+local ROW_MIN_HEIGHT = 22
+-- A button keeps a finger-sized height on a phone.
+local BUTTON_MIN_HEIGHT = 44
 -- Inner padding: left and right it keeps text off the edge and off the scrollbar; top and bottom it gives wrapped lines air.
 local ROW_SIDE_PADDING = 8
-local ROW_VERTICAL_PADDING = 4
+local ROW_VERTICAL_PADDING = 2
 
 -- Gives a row or button the shared look: fixed text size, wrapped text, inner padding, and a height that grows with the text.
-local function fitRow(control: GuiObject)
-	control.Size = UDim2.new(1, 0, 0, ROW_MIN_HEIGHT)
+local function fitRow(control: GuiObject, minimum: number)
+	control.Size = UDim2.new(1, 0, 0, minimum)
 	control.AutomaticSize = Enum.AutomaticSize.Y
 	local minHeight = Instance.new("UISizeConstraint")
-	minHeight.MinSize = Vector2.new(0, ROW_MIN_HEIGHT)
+	minHeight.MinSize = Vector2.new(0, minimum)
 	minHeight.Parent = control
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, ROW_SIDE_PADDING)
@@ -42,18 +44,21 @@ local function fitRow(control: GuiObject)
 	padding.Parent = control
 	control.BackgroundColor3 = Theme.colors.window
 	control.BorderSizePixel = 0
-	Theme.round(control)
 end
 
 local function label(parent: Instance, order: number): TextLabel
 	local text = Instance.new("TextLabel")
-	text.BackgroundTransparency = 0.3
+	-- A display row: no background, no corners, only outlined text on the world.
+	text.BackgroundTransparency = 1
+	text.TextXAlignment = Enum.TextXAlignment.Left
+	text.TextStrokeTransparency = 0.4
+	text.TextStrokeColor3 = Theme.colors.backdrop
 	text.Font = Theme.fonts.body
 	text.TextColor3 = Theme.colors.text
 	text.TextSize = ROW_TEXT
 	text.TextWrapped = true
 	text.LayoutOrder = order
-	fitRow(text)
+	fitRow(text, ROW_MIN_HEIGHT)
 	text.Parent = parent
 	return text
 end
@@ -66,7 +71,8 @@ local function button(parent: Instance, caption: string, order: number, onClick:
 	control.TextSize = ROW_TEXT
 	control.TextWrapped = true
 	control.LayoutOrder = order
-	fitRow(control)
+	fitRow(control, BUTTON_MIN_HEIGHT)
+	Theme.round(control)
 	control.BackgroundColor3 = Theme.colors.accent
 	control.Parent = parent
 	control.Activated:Connect(onClick)
@@ -84,14 +90,6 @@ local function format(value: number): string
 end
 
 local short = ShopView.short
-
--- Crank energy per click: whole numbers as they are, otherwise two decimals.
-local function energy(value: number): string
-	if value == math.floor(value) then
-		return string.format("%d", value)
-	end
-	return string.format("%.2f", value)
-end
 
 -- Builds the HUD in the player's GUI. `net` is ReplicatedStorage.Net. Returns the handlers for the server messages,
 -- and `language`, which gives the language in use (the welcome screen follows it).
@@ -120,7 +118,7 @@ function Hud.build(net: Instance)
 	widthLimit.Parent = frame
 	frame.Parent = gui
 	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 4)
+	layout.Padding = UDim.new(0, 2)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = frame
 
@@ -159,18 +157,14 @@ function Hud.build(net: Instance)
 	local lastDelta: any = nil
 	local lastEnv: any = nil
 
-	local crank = button(frame, "", nextOrder(), function()
-		send("Crank")
-	end)
 	local expand = button(frame, "", nextOrder(), function()
 		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
 			send("Prestige")
 		end
 	end)
 
-	-- Captions and dimming from the server's view: the crank value and the grid expansion.
+	-- Captions and dimming from the server's view: the grid expansion.
 	local function shop(view: any)
-		crank.Text = t("shop.crank", { energy = energy(view.crank) })
 		if view.goal ~= nil then
 			goal.Text = t("goal.next", { required = short(view.goal.required), earned = short(view.goal.earned) })
 			expand.Text = t("goal.expand", { sparks = view.goal.sparks })
@@ -207,7 +201,6 @@ function Hud.build(net: Instance)
 	-- painted again on purpose: shop, storage and env texts are not kept anywhere else.
 	paint = function()
 		language.Text = t("hud.language", { name = t("language." .. lang) })
-		crank.Text = t("action.crank")
 		storageHint.Text = t("hud.storageHint")
 		expand.Text = t("action.expand")
 		if lastSnapshot ~= nil then
