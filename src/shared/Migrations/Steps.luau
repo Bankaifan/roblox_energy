@@ -131,4 +131,12 @@ Steps[4] = function(profile: any): any
 	return profile
 end
 
+-- Version 5 -> 6 (issue #71): the tutorial starts at its first step. A profile that has earned coins has played past it,
+-- so the tutorial is marked done and never shown again; a new profile still gets it.
+Steps[5] = function(profile: any): any
+	profile.tutorial = 1
+	profile.tutorialDone = type(profile.lifetimeEarned) == "number" and profile.lifetimeEarned > 0
+	return profile
+end
+
 return Steps

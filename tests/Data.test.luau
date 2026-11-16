@@ -64,9 +64,11 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 5, the default profile of Bauplan section 5.
+	-- The template: version 6, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 5, "the template is version 5")
+	t.equal(template.v, 6, "the template is version 6")
+	t.equal(template.tutorial, 1, "a new profile starts the tutorial at its first step")
+	t.equal(template.tutorialDone, false, "a new profile has not finished the tutorial")
 	t.equal(template.land.tools.scythe, true, "the scythe is owned from the start")
 	t.equal(template.land.market, false, "the market is not yet opened")
 	t.equal(next(template.passes), nil, "no pass owned by default")
@@ -103,6 +105,7 @@ return function(t, load)
 	run.cosmetics = { [1] = "gold" }
 	run.settings = { lang = "de", sfx = false, music = true }
 	run.tutorial = 3
+	run.tutorialDone = true
 	run.land = {
 		sites = { 4, 7, 0, 1, 0, 0 },
 		cells = { { 5, 1, 24, 2 }, { 1, 2, 3, 4, 5, 6, 7 }, { 3 }, { 6 }, {}, {} },
@@ -176,7 +179,7 @@ return function(t, load)
 		},
 	}
 	local migrated = Data.migrate(slotted, Steps)
-	t.equal(migrated.v, 5, "the profile is version 5 afterwards")
+	t.equal(migrated.v, 6, "the profile is version 5 afterwards")
 	t.truthy(same(migrated.rules.charge, { th = 0.8, on = true }), "of two charge slots the switched-on one wins")
 	t.truthy(same(migrated.rules.sell, { th = 1.2, on = true }), "the sell slot becomes the sell rule")
 	t.equal(migrated.rules["1"], nil, "no slot key is left")
@@ -197,7 +200,7 @@ return function(t, load)
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 6
+	newer.v = 7
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
@@ -216,9 +219,10 @@ return function(t, load)
 		[2] = Steps[2],
 		[3] = Steps[3],
 		[4] = Steps[4],
+		[5] = Steps[5],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 5, "the profile is the current version afterwards")
+	t.equal(upgraded.v, 6, "the profile is the current version afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
 	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
@@ -235,7 +239,7 @@ return function(t, load)
 		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
 	}
 	local v2 = Data.migrate(v1, Steps)
-	t.equal(v2.v, 5, "a version 1 profile loads as the current version")
+	t.equal(v2.v, 6, "a version 1 profile loads as the current version")
 	t.equal(v2.passes.founder, true, "a founder grant becomes the owned pass")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
@@ -247,7 +251,7 @@ return function(t, load)
 	-- Migration 2 to 3: a profile that has earned coins gets the old game's land; a fresh one gets the template.
 	local old2 = { v = 2, coins = 10, lifetimeEarned = 50, nodes = { U21 = true } }
 	local v3 = Data.migrate(old2, Steps)
-	t.equal(v3.v, 5, "a version 2 profile loads as the current version")
+	t.equal(v3.v, 6, "a version 2 profile loads as the current version")
 	t.truthy(same(v3.land.sites, { 4, 4, 4, 4, 4, 4 }), "the first row of every field is prepared")
 	t.equal(v3.land.tools.shovel, true, "the tools are owned")
 	t.equal(v3.land.tools.pliers, true, "the cable pliers are owned")
@@ -260,6 +264,14 @@ return function(t, load)
 	t.equal(unwired.land.wired, false, "without U21 the board is not wired")
 	local fresh = Data.migrate({ v = 2, coins = 3 }, Steps)
 	t.truthy(same(fresh.land, Data.template().land), "a fresh version 2 profile gets the template land")
+
+	-- Migration 5 to 6: the tutorial starts at its first step; a profile that has earned coins has it done.
+	local newTutorial = Data.migrate({ v = 5, coins = 0, lifetimeEarned = 0, tutorial = 0 }, Steps)
+	t.equal(newTutorial.tutorial, 1, "a new profile starts the tutorial at step 1")
+	t.equal(newTutorial.tutorialDone, false, "a new profile still gets the tutorial")
+	local earned = Data.migrate({ v = 5, lifetimeEarned = 50, tutorial = 0 }, Steps)
+	t.equal(earned.tutorial, 1, "a profile that has earned coins keeps step 1")
+	t.equal(earned.tutorialDone, true, "a profile that has earned coins never sees the tutorial")
 
 	-- A broken land is repaired: counts clamp to the field, unknown tools go, the scythe stays, flags are booleans.
 	local brokenLand = Data.template()
