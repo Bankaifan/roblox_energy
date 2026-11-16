@@ -426,7 +426,7 @@ function Hud.build(net: Instance)
 				if latest == nil then
 					return
 				end
-				for _, item in latest.tools do
+				for _, item in latest.tools or {} do
 					if item.id == tool.id and item.buyable then
 						send("BuyTool", { tool = tool.id })
 					end
