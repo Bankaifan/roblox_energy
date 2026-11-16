@@ -110,7 +110,7 @@ return function(t, load)
 	state.land.wired = true
 	state.storage.mode = "charge"
 	local stored = byId(cards("storage", state))
-	t.equal(stored.container.button.remote, "Prepare", "the container is prepared")
+	t.equal(stored.container.button.remote, "BuyContainer", "the container has its own client message")
 	t.equal(stored["mode.charge"].state, "active", "the current mode is active")
 	t.equal(stored["mode.auto"].button, nil, "Auto cannot be selected without a rule")
 	t.equal(stored["mode.auto"].status, "Auto needs a rule", "and says why")

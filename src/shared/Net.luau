@@ -29,6 +29,8 @@ Net.messages = {
 	Prestige = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
 	SetCosmetic = { direction = "client", fields = { slot = "int", item = "string" }, limit = { max = 1, per = 1 } },
 	BuyTool = { direction = "client", fields = { tool = "string" }, limit = { max = 4, per = 1 } },
+	-- The container is bought for coins from the market, no hold time and no site: a plain client message.
+	BuyContainer = { direction = "client", fields = {}, limit = { max = 2, per = 1 } },
 	-- Prepare is "internal": the server (LandService, after the hold time and distance checks) sends it to itself.
 	-- It has no RemoteEvent, so a client cannot send it. target: a field (plant id 1 to 6) or a furniture step.
 	Prepare = {
