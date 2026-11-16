@@ -16,6 +16,7 @@ return function(t, load)
 	}
 	local land: { [string]: any } = table.clone(Land)
 	land.required = true
+	land.unitsPerSite = 1
 	config.land = land
 	local env = {
 		phase = config.phases[2],
@@ -77,6 +78,12 @@ return function(t, load)
 	t.equal(plants[1].price, "15 Coins", "the price is on the card")
 	t.equal(plants[1].button.remote, "BuyPlant", "Buy sends BuyPlant")
 	t.equal(plants[1].button.payload.plant, 1, "for plant 1")
+	state.plants[1] = 1
+	plants = cards("plants", state)
+	t.equal(plants[1].state, "hint", "every mown cell carries a unit")
+	t.equal(plants[1].info, "Mow more ground first", "the card names the reason")
+	t.equal(plants[1].button, nil, "and offers no purchase")
+	state.plants[1] = 0
 	state.coins = 5
 	plants = cards("plants", state)
 	t.equal(plants[1].state, "short", "5 coins are short")

@@ -102,20 +102,28 @@ local function spans(starts: { number }, size: number, span: number, add: (numbe
 	end
 end
 
--- Stakes and ropes around the sites of a field that are not prepared yet (`done` are, in the fill order of
--- PlotLayout.sites). The rope follows the outline of the open sites; every stake stands a little off its grid corner,
+-- Stakes and ropes around the cells of a field that are not mown yet (`mown` is the set of mown cell numbers, see
+-- PlotLayout.mown). The rope follows the outline of the open sites; every stake stands a little off its grid corner,
 -- leans and has its own height, so no line is straight. A full field has no fence.
-function Meadow.fence(field: Field, done: number, seed: number, tile: number, plotTiles: number): ({ Stake }, { Rope })
+function Meadow.fence(
+	field: Field,
+	mown: { [number]: boolean },
+	seed: number,
+	tile: number,
+	plotTiles: number
+): ({ Stake }, { Rope })
 	local size = field.size
 	local open: { [number]: boolean } = {}
 	local function key(tx: number, tz: number): number
 		return tx * 1000 + tz
 	end
 	local sites: { { number } } = {}
-	for i = math.max(0, math.floor(done)), field.perRow * #field.rows - 1 do
-		local tx, tz = field.col0 + (i % field.perRow) * size, field.rows[i // field.perRow + 1]
-		open[key(tx, tz)] = true
-		table.insert(sites, { tx, tz })
+	for i = 0, field.perRow * #field.rows - 1 do
+		if not mown[i + 1] then
+			local tx, tz = field.col0 + (i % field.perRow) * size, field.rows[i // field.perRow + 1]
+			open[key(tx, tz)] = true
+			table.insert(sites, { tx, tz })
+		end
 	end
 	-- Outline edges by grid line: across[z] holds the x starts of edges along x, along[x] the z starts of edges along z.
 	local across: { [number]: { number } } = {}

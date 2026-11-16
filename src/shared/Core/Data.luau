@@ -56,6 +56,7 @@ local function template(): Profile
 		rules = {},
 		land = {
 			sites = { 0, 0, 0, 0, 0, 0 },
+			cells = { {}, {}, {}, {}, {}, {} },
 			tools = { scythe = true },
 			container = false,
 			wired = false,
@@ -208,6 +209,36 @@ local function land(value: any, default: any): any
 		local count = scalar(0, if type(source.sites) == "table" then source.sites[index] else nil)
 		sites[index] = math.min(math.floor(count), MAX_SITES[index])
 	end
+	-- The mown cells in mowing order; a profile without them gets the first cells of the fill order, and the count
+	-- always equals the number of cells.
+	local cells = {}
+	for index in default.sites do
+		local saved = if type(source.cells) == "table" then source.cells[index] else nil
+		local list, used = {}, {}
+		for _, cell in if type(saved) == "table" then saved else {} do
+			if
+				type(cell) == "number"
+				and cell % 1 == 0
+				and cell >= 1
+				and cell <= MAX_SITES[index]
+				and not used[cell]
+			then
+				if #list < sites[index] then
+					used[cell] = true
+					table.insert(list, cell)
+				end
+			end
+		end
+		local free = 1
+		while #list < sites[index] do
+			if not used[free] then
+				used[free] = true
+				table.insert(list, free)
+			end
+			free += 1
+		end
+		cells[index] = list
+	end
 	local tools = { scythe = true }
 	if type(source.tools) == "table" then
 		for id in TOOLS do
@@ -218,6 +249,7 @@ local function land(value: any, default: any): any
 	end
 	return {
 		sites = sites,
+		cells = cells,
 		tools = tools,
 		container = source.container == true,
 		wired = source.wired == true,

@@ -212,6 +212,7 @@ return function(t, load)
 		return result
 	end
 	local open, gated = landEnv(false), landEnv(true)
+	gated.config.land.unitsPerSite = 1
 	local _, openBuyOk = GameCore.apply(rich, { type = "BuyPlant", plant = 1, qty = 1 }, open)
 	t.truthy(openBuyOk, "without required, buying needs no site")
 	local _, gatedBuyOk = GameCore.apply(rich, { type = "BuyPlant", plant = 1, qty = 1 }, gated)
@@ -221,6 +222,26 @@ return function(t, load)
 	t.equal(rich.land, nil, "Prepare never changes its input")
 	local _, siteBuyOk = GameCore.apply(mowed, { type = "BuyPlant", plant = 1, qty = 1 }, gated)
 	t.truthy(siteBuyOk, "a prepared site unlocks the plant")
+	local _, secondBuyOk = GameCore.apply(
+		(GameCore.apply(mowed, { type = "BuyPlant", plant = 1, qty = 1 }, gated)),
+		{ type = "BuyPlant", plant = 1, qty = 1 },
+		gated
+	)
+	t.truthy(not secondBuyOk, "one mown cell carries one unit: the second purchase needs more ground")
+	local free, freeOk = GameCore.apply(mowed, { type = "Prepare", target = 1, cell = 17 }, gated)
+	t.truthy(
+		freeOk and free.land.sites[1] == 2 and free.land.cells[1][2] == 17,
+		"any free cell can be mown, in any order"
+	)
+	local _, again = GameCore.apply(free, { type = "Prepare", target = 1, cell = 17 }, gated)
+	t.truthy(not again, "a mown cell cannot be mown twice")
+	local _, outside = GameCore.apply(mowed, { type = "Prepare", target = 1, cell = 25 }, gated)
+	t.truthy(not outside, "a cell outside the field is refused")
+	local two = (GameCore.apply(mowed, { type = "Prepare", target = 1 }, gated))
+	local limited = GameCore.apply(two, { type = "BuyPlant", plant = 1, qty = "max" }, gated)
+	t.equal(limited.plants[1], 2, "max buys only as many as there are mown cells")
+	local _, tenOk = GameCore.apply(two, { type = "BuyPlant", plant = 1, qty = 10 }, gated)
+	t.truthy(not tenOk, "ten units need ten mown cells")
 	local _, noToolOk = GameCore.apply(mowed, { type = "Prepare", target = 2 }, gated)
 	t.truthy(not noToolOk, "Prepare needs the tool")
 	local _, pastOk = GameCore.apply(

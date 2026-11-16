@@ -105,6 +105,7 @@ return function(t, load)
 	run.tutorial = 3
 	run.land = {
 		sites = { 4, 8, 0, 1, 0, 0 },
+		cells = { { 5, 1, 24, 2 }, { 1, 2, 3, 4, 5, 6, 7, 8 }, {}, { 12 }, {}, {} },
 		tools = { scythe = true, shovel = true },
 		container = true,
 		wired = false,
@@ -117,6 +118,12 @@ return function(t, load)
 	t.truthy(same(Data.toState(loaded), state), "the run comes back exactly")
 	t.truthy(same(state.land, run.land), "land is part of the run state")
 	t.truthy(same(Data.fromState(state).land, run.land), "land survives fromState")
+	local legacy = Data.toState(Data.migrate({ v = 3, land = { sites = { 3, 0, 0, 0, 0, 0 } } }, Steps))
+	t.truthy(same(legacy.land.cells[1], { 1, 2, 3 }), "a profile with only a count gets the first cells")
+	local messy = Data.toState(
+		Data.migrate({ v = 3, land = { sites = { 3, 0, 0, 0, 0, 0 }, cells = { { 9, 9, 99, 4 } } } }, Steps)
+	)
+	t.truthy(same(messy.land.cells[1], { 9, 4, 1 }), "repeated or foreign cells are dropped and the count is kept")
 	state.land.sites[1] = 5
 	t.equal(run.land.sites[1], 4, "toState copies the land")
 

@@ -74,7 +74,11 @@ local function plantCards(input: Input): { Card }
 			info = input.t(`plantKind.{plant.kind}`),
 			state = "short",
 		}
-		if item.needsSite == true then
+		if item.needsSite == true and (item.sites or 0) > 0 then
+			-- Every mown cell already carries a unit: the card says why and offers no purchase.
+			card.state = "hint"
+			card.info = input.t("hint.mowMore")
+		elseif item.needsSite == true then
 			-- No site yet: the card names the tool that prepares the ground and leads to the Tools tab.
 			local toolKey = "tool." .. tostring(input.land.fieldTools[index])
 			for _, tool in input.land.tools do

@@ -143,36 +143,26 @@ return function(t, load)
 	t.equal(#PlotLayout.sites(Assets.fields[1], 99, tile, tiles), 24, "sites are capped at the field")
 	t.equal(#PlotLayout.sites(Assets.fields[1], 0, tile, tiles), 0, "no count, no sites")
 
+	-- Wild panels stand on the mown cells, in any order, each a little shifted and turned.
 	local panels = Assets.fields[1]
+	local order = { 17, 3, 24, 9, 1, 12, 6, 20, 14 }
+	local centres = PlotLayout.cellSites(panels, order, tile, tiles)
 	for seed = 1, 8 do
-		local wild = PlotLayout.wild(panels, 99, seed, tile, tiles)
-		local again = PlotLayout.wild(panels, 99, seed, tile, tiles)
-		t.equal(#wild, 9, "at most nine wild panels")
+		local wild = PlotLayout.wild(centres, seed)
+		local again = PlotLayout.wild(centres, seed)
+		t.equal(#wild, #order, "one wild panel per mown cell")
 		for i, a in wild do
 			t.equal(a.x, again[i].x, "wild x is identical on a second call")
 			t.equal(a.angle, again[i].angle, "wild angle is identical on a second call")
 			t.truthy(math.abs(a.angle) <= PlotLayout.WILD_ANGLE, "the turn is at most 12 degrees")
-			t.truthy(PlotLayout.reach(a, tile) <= Assets.PLOT_SIZE / 2, "a wild panel is on the plot")
-			for j = i + 1, #wild do
-				t.truthy(
-					not PlotLayout.overlap(a, 9.6, wild[j], 9.6),
-					`seed {seed}: wild panels {i} and {j} do not overlap`
-				)
-			end
-		end
-	end
-	t.equal(#PlotLayout.wild(panels, 4, 1, tile, tiles), 4, "wild shows only the owned panels")
-	-- A wild panel shows only once the tile under its centre is mown (tiles are mown in the order of `sites`).
-	for prepared, fit in { [0] = 0, [1] = 1, [2] = 2, [3] = 2, [4] = 3, [8] = 3, [9] = 4, [12] = 6, [24] = 9 } do
-		t.equal(PlotLayout.wildFit(panels, prepared, tile), fit, `{prepared} mown tiles carry {fit} wild panels`)
-		local mown = PlotLayout.sites(panels, prepared, tile, tiles)
-		for _, panel in PlotLayout.wild(panels, fit, 1, tile, tiles) do
-			local onEarth = false
-			for _, site in mown do
-				local near = math.abs(panel.x - site.x) <= tile / 2 + 0.5 and math.abs(panel.z - site.z) <= tile / 2
-				onEarth = onEarth or near
-			end
-			t.truthy(onEarth, `{prepared} mown tiles: every shown wild panel has its centre on a mown tile`)
+			t.truthy(
+				math.abs(a.x - centres[i].x) <= PlotLayout.WILD_SHIFT + 1e-9,
+				"a wild panel stays on its mown tile in x"
+			)
+			t.truthy(
+				math.abs(a.z - centres[i].z) <= PlotLayout.WILD_SHIFT + 1e-9,
+				"a wild panel stays on its mown tile in z"
+			)
 		end
 	end
 

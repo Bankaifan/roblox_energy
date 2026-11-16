@@ -1,0 +1,1 @@
+- Mowing now happens where you stand: with the tool in hand, work any unmown tile of the roped field in any order. A plant needs one mown tile per unit, so the market says "Mow more ground first" when all are used.

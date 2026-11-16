@@ -31,4 +31,26 @@ return function(t, load)
 		end
 		table.insert(grounds, ground)
 	end
+
+	-- Free mowing: the cell under a point, the mown list and the cells' centres.
+	local tile, tiles = Assets.TILE, Assets.PLOT_TILES
+	for index, field in Assets.fields do
+		for cellNo = 1, Assets.siteCount(index) do
+			local centre = PlotLayout.cellCentre(field, cellNo, tile, tiles)
+			t.equal(
+				PlotLayout.cellAt(field, centre.x, centre.z, tile, tiles),
+				cellNo,
+				`field {index} cell {cellNo} is found at its centre`
+			)
+		end
+	end
+	t.equal(PlotLayout.cellAt(Assets.fields[1], 0, 90, tile, tiles), nil, "a point outside the field is no cell")
+	t.equal(PlotLayout.cellAt(Assets.fields[2], -60, 0, tile, tiles), nil, "a point left of the field is no cell")
+	t.equal(#PlotLayout.mown({ 3, 3, 99, 5 }, 3, 24), 3, "the mown list is cut to the count")
+	t.equal(
+		table.concat(PlotLayout.mown({ 3, 3, 99, 5 }, 3, 24), ","),
+		"3,5,1",
+		"repeats and strangers go, free cells fill up"
+	)
+	t.equal(#PlotLayout.mown(nil, 99, 24), 24, "the mown list never passes the field")
 end

@@ -86,16 +86,19 @@ local function unitSites(
 	record: Record,
 	index: number,
 	owned: number,
-	prepared: number,
+	cells: { number },
 	tidy: boolean
 ): ({ any }, boolean)
 	local field = Assets.fields[index]
-	local count = math.min(math.floor(owned), prepared, Assets.siteCount(index))
+	local count = math.min(math.floor(owned), #cells)
+	local chosen = table.move(cells, 1, count, 1, {})
 	if index == 1 and not tidy then
-		count = math.min(count, PlotLayout.wildFit(field, prepared, Assets.TILE))
-		return PlotLayout.wild(field, count, record.slot, Assets.TILE, Assets.PLOT_TILES), true
+		-- Wild: on the mown cells in the order they were mown.
+		return PlotLayout.wild(PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES), record.slot), true
 	end
-	return PlotLayout.sites(field, count, Assets.TILE, Assets.PLOT_TILES), false
+	-- Tidy: the first `count` mown cells, laid out in fill order so the units stand in rows.
+	table.sort(chosen)
+	return PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES), false
 end
 
 -- The world position of a plot-relative site: the plot is mirrored in z when it faces the other way.
@@ -104,9 +107,9 @@ local function sitePoint(record: Record, site: { x: number, z: number }): Vector
 end
 
 -- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count or the layout changes.
-local function updateUnits(record: Record, index: number, owned: number, prepared: number, tidy: boolean)
-	local sites, wild = unitSites(record, index, owned, prepared, tidy)
-	local key = #sites .. if wild then "w" else "t"
+local function updateUnits(record: Record, index: number, owned: number, cells: { number }, tidy: boolean)
+	local sites, wild = unitSites(record, index, owned, cells, tidy)
+	local key = (if wild then "w" else "t") .. table.concat(cells, ",", 1, #sites)
 	if record.keys[index] == key then
 		return
 	end
@@ -231,12 +234,12 @@ local function updateLand(record: Record, counts: { number }, land: any)
 	local ground, fence = {}, {}
 	for index in Assets.fields do
 		local total = Assets.siteCount(index)
-		local prepared = math.min(land.sites[index] or 0, total)
-		local open = prepared < total
+		local mown = PlotLayout.mown(land.cells and land.cells[index], land.sites[index] or 0, total)
+		local open = #mown < total
 			and land.tools[Land.fieldTools[index]] == true
 			and (index == 1 or (counts[index - 1] or 0) >= 1)
-		table.insert(ground, tostring(prepared))
-		table.insert(fence, if open then tostring(prepared) else "-")
+		table.insert(ground, table.concat(mown, ","))
+		table.insert(fence, if open then "open" else "-")
 	end
 	local container = land.container == true or #record.batteries > 0
 	local groundKey = table.concat(ground, " ") .. ` {record.control ~= nil} {container}`
@@ -254,8 +257,9 @@ local function updateLand(record: Record, counts: { number }, land: any)
 		end
 		for index, field in Assets.fields do
 			local side = field.size * Assets.TILE
-			local tiles = math.min(land.sites[index] or 0, Assets.siteCount(index))
-			for _, site in PlotLayout.sites(field, tiles, Assets.TILE, Assets.PLOT_TILES) do
+			local mown =
+				PlotLayout.mown(land.cells and land.cells[index], land.sites[index] or 0, Assets.siteCount(index))
+			for _, site in PlotLayout.cellSites(field, mown, Assets.TILE, Assets.PLOT_TILES) do
 				table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
 			end
 		end
@@ -271,8 +275,8 @@ local function updateLand(record: Record, counts: { number }, land: any)
 		folder.Name = "Fences"
 		for index, field in Assets.fields do
 			if fence[index] ~= "-" then
-				local prepared = land.sites[index] or 0
-				local stakes, ropes = Meadow.fence(field, prepared, record.slot, Assets.TILE, Assets.PLOT_TILES)
+				-- The rope runs around the whole field while it is open: the player mows where he stands inside it.
+				local stakes, ropes = Meadow.fence(field, {}, record.slot, Assets.TILE, Assets.PLOT_TILES)
 				PlotGround.fence(folder, record.origin, record.facing, stakes, ropes)
 			end
 		end
@@ -372,7 +376,12 @@ function PlotService.update(
 	updateLand(record, counts, ownLand)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
-			updateUnits(record, index, math.min(counts[index] or 0, 100), ownLand.sites[index] or 0, tidy)
+			local cells = PlotLayout.mown(
+				ownLand.cells and ownLand.cells[index],
+				ownLand.sites[index] or 0,
+				Assets.siteCount(index)
+			)
+			updateUnits(record, index, math.min(counts[index] or 0, 100), cells, tidy)
 		end
 	end
 	for index, column in record.columns do

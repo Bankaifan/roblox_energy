@@ -32,6 +32,7 @@ local PERMANENT = { "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8" }
 -- Land work (design 0018): a bot prepares the first row of a field in one go. It walks WALK seconds and holds the
 -- tool for each site; in that time it neither cranks nor buys.
 local WALK = 3
+local PER = Config.land.unitsPerSite
 local ROW = 4
 local HOLD: { [string]: number } = {}
 for _, tool in Config.land.tools do
@@ -120,7 +121,11 @@ end
 local function offers(state: any, withStorage: boolean): { { cost: number, action: any } }
 	local list = {}
 	for index, plant in Config.plants do
-		if (index == 1 or state.plants[index - 1] >= 1) and state.land.sites[index] >= 1 then
+		if
+			(index == 1 or state.plants[index - 1] >= 1)
+			and state.land.sites[index] >= 1
+			and (PER == nil or state.plants[index] < state.land.sites[index] * PER)
+		then
 			local cost = Formulas.cost(plant.baseCost, state.plants[index])
 			table.insert(list, { cost = cost, action = { type = "BuyPlant", plant = index, qty = 1 } })
 		end
@@ -145,8 +150,15 @@ end
 local function landWork(state: any, env: any): (any, number)
 	for index in Config.plants do
 		local revealed = index == 1 or state.plants[index - 1] >= 1
+		-- Without Config.land.unitsPerSite one row is enough; with it the bot mows another row whenever every mown
+		-- cell carries a unit.
 		local wanted = math.min(ROW, Config.land.fields[index])
-		if revealed and state.land.sites[index] < wanted then
+		local more = state.land.sites[index] < wanted
+		if PER ~= nil then
+			wanted = math.min(state.land.sites[index] + ROW, Config.land.fields[index])
+			more = state.land.sites[index] * PER <= state.plants[index] and state.land.sites[index] < wanted
+		end
+		if revealed and more then
 			local tool = Config.land.fieldTools[index]
 			state = apply(state, { type = "BuyTool", tool = tool }, env)
 			if not state.land.tools[tool] then
