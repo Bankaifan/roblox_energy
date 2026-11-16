@@ -1,0 +1,1 @@
+- The tool hotbar is hidden while the market popup is open, so it no longer covers the tabs.
