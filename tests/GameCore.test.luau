@@ -170,6 +170,88 @@ return function(t, load)
 	local _, shortOk = GameCore.apply(expansion, { type = "Prestige" }, env(2, 1))
 	t.truthy(not shortOk, "expansion needs 10 Mio.")
 
+	-- Land (design 0018): without config.land nothing changes; with required the gates apply.
+	local noLand, noLandOk = GameCore.apply(rich, { type = "BuyTool", tool = "shovel" }, env(2, 1))
+	t.truthy(not noLandOk and noLand == rich, "BuyTool needs config.land")
+	local _, noPrepareOk = GameCore.apply(rich, { type = "Prepare", target = 1 }, env(2, 1))
+	t.truthy(not noPrepareOk, "Prepare needs config.land")
+	local noLandView = GameCore.view(rich, env(2, 1))
+	t.truthy(noLandView.tools == nil and noLandView.plants[1].needsSite == nil, "view has no land without config.land")
+
+	local Land = load("Config/Land")
+	local function landEnv(required: boolean)
+		local config: { [string]: any } = table.clone(Config)
+		local land: { [string]: any } = table.clone(Land)
+		land.required = required
+		config.land = land
+		local result = env(2, 1)
+		result.config = config
+		return result
+	end
+	local open, gated = landEnv(false), landEnv(true)
+	local _, openBuyOk = GameCore.apply(rich, { type = "BuyPlant", plant = 1, qty = 1 }, open)
+	t.truthy(openBuyOk, "without required, buying needs no site")
+	local _, gatedBuyOk = GameCore.apply(rich, { type = "BuyPlant", plant = 1, qty = 1 }, gated)
+	t.truthy(not gatedBuyOk, "with required, buying needs a site")
+	local mowed, mowedOk = GameCore.apply(rich, { type = "Prepare", target = 1 }, gated)
+	t.truthy(mowedOk and mowed.land.sites[1] == 1, "the free scythe mows the first site")
+	t.equal(rich.land, nil, "Prepare never changes its input")
+	local _, siteBuyOk = GameCore.apply(mowed, { type = "BuyPlant", plant = 1, qty = 1 }, gated)
+	t.truthy(siteBuyOk, "a prepared site unlocks the plant")
+	local _, noToolOk = GameCore.apply(mowed, { type = "Prepare", target = 2 }, gated)
+	t.truthy(not noToolOk, "Prepare needs the tool")
+	local _, pastOk = GameCore.apply(
+		{ land = { sites = { 24 }, tools = { scythe = true } } },
+		{ type = "Prepare", target = 1 },
+		gated
+	)
+	t.truthy(not pastOk, "Prepare stops at the sites of the field")
+
+	local owner = fresh()
+	owner.plants[1] = 1
+	owner.coins = 29
+	local _, poorToolOk = GameCore.apply(owner, { type = "BuyTool", tool = "shovel" }, gated)
+	t.truthy(not poorToolOk, "BuyTool needs the coins")
+	owner.coins = 1000
+	local shovel, shovelOk = GameCore.apply(owner, { type = "BuyTool", tool = "shovel" }, gated)
+	t.truthy(shovelOk and shovel.coins == 970 and shovel.land.tools.shovel == true, "the shovel costs 30")
+	local _, twiceOk = GameCore.apply(shovel, { type = "BuyTool", tool = "shovel" }, gated)
+	t.truthy(not twiceOk, "a tool is bought once")
+	local _, hiddenOk = GameCore.apply(owner, { type = "BuyTool", tool = "hammer" }, gated)
+	t.truthy(not hiddenOk, "an unrevealed tool cannot be bought")
+	local _, unknownOk = GameCore.apply(owner, { type = "BuyTool", tool = "axe" }, gated)
+	t.truthy(not unknownOk, "an unknown tool is rejected")
+	local viewed = GameCore.view(owner, gated)
+	t.truthy(viewed.plants[2].needsSite and viewed.tools[3].buyable, "view shows needsSite and the buyable shovel")
+
+	-- The container gates U17, wiring gates the rule slots, prestige keeps the land.
+	local storage = fresh()
+	storage.coins = 100000
+	storage.plants[1] = 1
+	storage.nodes.U16 = true
+	local _, noContainerOk = GameCore.apply(storage, { type = "BuyNode", node = "U17" }, gated)
+	t.truthy(not noContainerOk, "U17 needs the container with required land")
+	local boxed, boxedOk = GameCore.apply(storage, { type = "Prepare", target = "container" }, gated)
+	t.truthy(boxedOk and boxed.coins == 99500, "the container costs 500")
+	local stored, storedOk = GameCore.apply(boxed, { type = "BuyNode", node = "U17" }, gated)
+	t.truthy(storedOk, "U17 with the container")
+	stored.nodes.U21 = true
+	t.equal(GameCore.view(stored, gated).storage.ruleSlots, 0, "rule slots need the wiring")
+	stored.coins = 1000
+	local _, unwiredOk = GameCore.apply(stored, { type = "Prepare", target = "wired" }, gated)
+	t.truthy(not unwiredOk, "wiring needs the pliers")
+	local pliers = GameCore.apply(stored, { type = "BuyTool", tool = "pliers" }, gated)
+	local wired, wiredOk = GameCore.apply(pliers, { type = "Prepare", target = "wired" }, gated)
+	t.truthy(wiredOk, "wiring with the pliers")
+	t.equal(GameCore.view(wired, gated).storage.ruleSlots, 2, "wired board gives the rule slots")
+	t.equal(GameCore.view(stored, open).storage.ruleSlots, 2, "without required the slots need no wiring")
+	wired.runEarned = 10000000
+	local after, afterOk = GameCore.apply(wired, { type = "Prestige" }, gated)
+	t.truthy(
+		afterOk and after.land.container and after.land.wired and after.land.tools.pliers,
+		"prestige keeps the land"
+	)
+
 	-- Offline: nothing under 60 seconds, capped at 2 hours; the Langzeit-Zähler adds 4 hours on top (cap 6 h).
 	local away = fresh()
 	away.plants[1] = 10
@@ -184,7 +266,8 @@ return function(t, load)
 
 	-- Random inputs: whatever the client sends, coins and storage stay finite and not negative.
 	math.randomseed(20261113)
-	local TYPES = { "Crank", "BuyPlant", "BuyNode", "SetRule", "SetStorageMode", "Prestige", "Nonsense" }
+	local TYPES =
+		{ "Crank", "BuyPlant", "BuyNode", "SetRule", "SetStorageMode", "Prestige", "BuyTool", "Prepare", "Nonsense" }
 	local ITEMS = { 0, 1, 2, 6, 7, 10, 25, -1, 0.5, 0.7, 1.5, 2, 2.5, 99, math.huge, -math.huge }
 	table.insert(ITEMS, math.huge - math.huge)
 	table.insert(ITEMS, "max")
@@ -211,11 +294,15 @@ return function(t, load)
 		return value >= 0 and value < math.huge
 	end
 
+	local TOOL_IDS = { "scythe", "rails", "shovel", "hammer", "wrench", "drum", "tamper", "pliers", "axe" }
+	local TARGETS = { 1, 2, 3, 4, 5, 6, 7, 0, "market", "container", "wired", "x" }
 	for run = 1, 100 do
 		local state = fresh()
 		state.coins = 500
+		local landEnvironment = landEnv(run % 2 == 0)
 		for step = 1, 60 do
 			local current = env(math.random(4), math.random(5), math.random(2) == 1)
+			current.config = landEnvironment.config
 			state = GameCore.tick(state, current, pick(DT))
 			local action = {
 				type = pick(TYPES),
@@ -227,8 +314,14 @@ return function(t, load)
 				th = pick(ITEMS),
 				on = pick(ITEMS),
 				mode = pick(ITEMS),
+				tool = pick(TOOL_IDS),
+				target = pick(TARGETS),
 			}
 			state = GameCore.apply(state, action, current)
+			for field, fieldSize in Land.fields do
+				local sites = if state.land ~= nil then state.land.sites[field] else 0
+				t.truthy(sites >= 0 and sites <= fieldSize, `run {run} step {step}: sites of field {field}`)
+			end
 			if math.random(10) == 1 then
 				state = GameCore.offline(state, pick(SECONDS), current)
 			end

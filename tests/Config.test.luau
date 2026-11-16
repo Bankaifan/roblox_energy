@@ -88,6 +88,27 @@ return function(t, load)
 		end
 	end
 
+	-- Land: tools serve a plant or a node that exists, every field has a tool, the scythe is free
+	local Land = load("Config/Land")
+	t.equal(Land.required, false, "land gates are off until the last step")
+	t.equal(#Land.fields, #Plants, "one field per plant")
+	t.equal(#Land.fieldTools, #Plants, "one field tool per plant")
+	local toolIds: { [string]: any } = {}
+	for _, tool in Land.tools do
+		t.truthy(toolIds[tool.id] == nil, `land: duplicate tool {tool.id}`)
+		toolIds[tool.id] = tool
+		t.truthy(tool.plant == nil or plantIds[tool.plant], `tool {tool.id}: plant missing`)
+		t.truthy(tool.node == nil or costOf[tool.node] ~= nil, `tool {tool.id}: node missing`)
+		t.truthy(tool.price >= 0 and tool.hold >= 0, `tool {tool.id}: price and hold`)
+		t.truthy(type(tool.textKey) == "string", `tool {tool.id}: text key`)
+	end
+	for plantId, toolId in Land.fieldTools do
+		t.truthy(toolIds[toolId] ~= nil and toolIds[toolId].plant == plantId, `field {plantId}: tool`)
+		t.truthy(Land.fields[plantId] >= 1, `field {plantId}: sites`)
+	end
+	t.equal(toolIds.scythe.price, 0, "the scythe is free")
+	t.truthy(Land.start.tools.scythe == true, "the scythe is owned at the start")
+
 	-- Rising values
 	assertRising(Plants, "baseCost", "plants")
 	assertRising(Prestige, "requiredRevenue", "grid expansion")

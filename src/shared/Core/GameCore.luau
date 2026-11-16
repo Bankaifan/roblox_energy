@@ -23,8 +23,10 @@ export type State = {
 	pnodes: { [string]: boolean },
 	storage: { charge: number, mode: string },
 	rules: { [number]: Rule },
+	land: any?,
 }
 export type Config = {
+	land: any?,
 	plants: { Plant },
 	upgrades: { run: { any }, permanent: { any } },
 	prestige: { Prestige },
@@ -174,9 +176,25 @@ local function storageEfficiency(state: State, env: Env): number
 	return env.config.effects.storageEfficiency
 end
 
--- Regel-Plätze: two with the Regelzentrale (U21), three with P8.
+-- Land (Config/Land): nil without config.land. The gates apply only with config.land.required.
+local function landRequired(env: Env): boolean
+	return env.config.land ~= nil and env.config.land.required == true
+end
+
+-- The land of a state; a state without land gets the template of the config.
+local function landOf(state: State, env: Env): any
+	if state.land == nil then
+		state.land = copy(env.config.land.start)
+	end
+	return state.land
+end
+
+-- Regel-Plätze: two with the Regelzentrale (U21), three with P8; with required land only when wired.
 local function ruleSlots(state: State, env: Env): number
 	if not state.nodes.U21 then
+		return 0
+	end
+	if landRequired(env) and not (state.land ~= nil and state.land.wired == true) then
 		return 0
 	end
 	if state.pnodes.P8 then
@@ -285,6 +303,9 @@ local function buyPlant(state: State, env: Env, action: { [string]: any }): bool
 	if index > 1 and state.plants[index - 1] < 1 then
 		return false
 	end
+	if landRequired(env) and (state.land == nil or (state.land.sites[index] or 0) < 1) then
+		return false
+	end
 	local qty = action.qty
 	if qty ~= 1 and qty ~= 10 and qty ~= "max" then
 		return false
@@ -323,6 +344,9 @@ local function buyNode(state: State, env: Env, action: { [string]: any }): boole
 			return false
 		end
 		if run.requiresNode ~= nil and not state.nodes[run.requiresNode] then
+			return false
+		end
+		if landRequired(env) and id == "U17" and not (state.land ~= nil and state.land.container == true) then
 			return false
 		end
 		if run.cost > state.coins then
@@ -370,6 +394,74 @@ local function setStorageMode(state: State, env: Env, action: { [string]: any })
 		return false
 	end
 	state.storage.mode = mode
+	return true
+end
+
+-- A tool is offered when its plant is revealed (the plant before owned once, as for buying) or its node is bought.
+local function toolRevealed(state: State, tool: any): boolean
+	if tool.node ~= nil then
+		return state.nodes[tool.node] == true
+	end
+	return tool.plant == 1 or state.plants[tool.plant - 1] >= 1
+end
+
+-- BuyTool { tool }: revealed, not owned, coins cover the price. Tools are kept on prestige.
+local function buyTool(state: State, env: Env, action: { [string]: any }): boolean
+	if env.config.land == nil or type(action.tool) ~= "string" then
+		return false
+	end
+	local tool = findById(env.config.land.tools, action.tool)
+	if tool == nil then
+		return false
+	end
+	local land = landOf(state, env)
+	if land.tools[tool.id] or not toolRevealed(state, tool) or tool.price > state.coins then
+		return false
+	end
+	state.coins -= tool.price
+	land.tools[tool.id] = true
+	return true
+end
+
+-- Prepare { target }: a field (plant id 1 to 6: its tool is owned, one more site), "market" (once), "container"
+-- (costs coins, once) or "wired" (needs U21, the container and the pliers, once). Hold time is checked by the server.
+local function prepare(state: State, env: Env, action: { [string]: any }): boolean
+	local config = env.config.land
+	local target = action.target
+	if config == nil then
+		return false
+	end
+	local land = landOf(state, env)
+	if target == "market" then
+		if land.market then
+			return false
+		end
+		land.market = true
+		return true
+	elseif target == "container" then
+		if land.container or config.containerCost > state.coins then
+			return false
+		end
+		state.coins -= config.containerCost
+		land.container = true
+		return true
+	elseif target == "wired" then
+		if land.wired or not land.container or not state.nodes.U21 or not land.tools.pliers then
+			return false
+		end
+		land.wired = true
+		return true
+	end
+	if not isCount(target) or config.fields[target] == nil then
+		return false
+	end
+	if not land.tools[config.fieldTools[target]] or not toolRevealed(state, { plant = target }) then
+		return false
+	end
+	if (land.sites[target] or 0) >= config.fields[target] then
+		return false
+	end
+	land.sites[target] = (land.sites[target] or 0) + 1
 	return true
 end
 
@@ -423,6 +515,10 @@ function GameCore.apply(state: State, action: { [string]: any }, env: Env): (Sta
 		ok = setRule(result, env, action)
 	elseif action.type == "SetStorageMode" then
 		ok = setStorageMode(result, env, action)
+	elseif action.type == "BuyTool" then
+		ok = buyTool(result, env, action)
+	elseif action.type == "Prepare" then
+		ok = prepare(result, env, action)
 	elseif action.type == "Prestige" then
 		ok = prestige(result, env)
 	end
@@ -524,13 +620,37 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 			allowed = state.runEarned >= step.requiredRevenue,
 		}
 	end
-	return {
+	local view: { [string]: any } = {
 		plants = plants,
 		nodes = nodeStates(state, env),
 		storage = storageView(state, env),
 		crank = crankEnergy(state, env),
 		goal = goal,
 	}
+	if env.config.land ~= nil then
+		local land = state.land or env.config.land.start
+		local required = landRequired(env)
+		for _, plant in env.config.plants do
+			plants[plant.id].needsSite = required and (land.sites[plant.id] or 0) < 1
+		end
+		local tools = {}
+		for _, tool in env.config.land.tools do
+			local owned = land.tools[tool.id] == true
+			local revealed = toolRevealed(state, tool)
+			table.insert(tools, {
+				id = tool.id,
+				price = tool.price,
+				owned = owned,
+				revealed = revealed,
+				buyable = revealed and not owned and tool.price <= state.coins,
+				textKey = tool.textKey,
+				place = "market",
+			})
+		end
+		view.land = copy(land)
+		view.tools = tools
+	end
+	return view
 end
 
 return GameCore
