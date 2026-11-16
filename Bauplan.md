@@ -52,7 +52,7 @@ Zeiten und Werte stammen aus einem Beispiel-Lauf des optimalen Bots \[S\]. Mensc
 
 | Minute | Was passiert | Einnahmen/s am Ende |
 | --- | --- | --- |
-| 0–1 | Start auf dem eigenen Grundstück, ein Pfeil zeigt zur Kurbel. Erstes Balkonmodul nach etwa 5 s, nach einer Minute vier Module und das erste Wasserrad | 3 |
+| 0–1 | Start auf dem eigenen Grundstück, ein Pfeil zeigt zur Kurbel. Erstes Balkonmodul nach etwa 15 s (Sense in die Hand, vier Kacheln mähen), Datenversion bleibt 3 (Schritt 2 auf 3 bringt bestehende Profile ihr Land); nach einer Minute vier Module und das erste Wasserrad | 3 |
 | 1–2 | Weitere Wasserräder, sie laufen Tag und Nacht gleich. Hinweis auf die Tag/Nacht-Leiste | 7 |
 | 2–3 | Erster Upgrade-Knoten. Das zehnte Balkonmodul verdoppelt alle Balkonmodule, mit Konfetti | 20 |
 | 3–5 | Dach-PV für 1.100 Coins. Erster Wetterwechsel, für alle auf dem Server sichtbar | 140 |

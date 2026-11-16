@@ -3,6 +3,8 @@
 -- site, plus the container and the wiring. A prompt only starts the hold; the server times it (Core/Work), checks the owner
 -- and the distance, then sends an internal "Prepare" through the same path as a client message (Action: limit, Net, Session).
 -- There is no client message for preparing, so a client can skip the animation but never the server-side hold time.
+-- A step that needs a tool shows its prompt only while that tool is in the owner's hand (ToolService, Core/Toolbelt), and
+-- the server checks the hand again when the hold ends.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -12,6 +14,8 @@ local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlotLayout = require(Shared:WaitForChild("Core"):WaitForChild("PlotLayout") :: ModuleScript) :: any
 local Work = require(Shared:WaitForChild("Core"):WaitForChild("Work") :: ModuleScript) :: any
+local Toolbelt = require(Shared:WaitForChild("Core"):WaitForChild("Toolbelt") :: ModuleScript) :: any
+local ToolService = require(script.Parent.ToolService)
 
 local LandService = {}
 
@@ -20,6 +24,10 @@ LandService.MAX_DISTANCE = 18
 
 local FIELD_KEYS = { "prompt.mow", "prompt.dig", "prompt.house", "prompt.anchor", "prompt.fence", "prompt.compact" }
 local WIRE_HOLD_TOOL = "pliers"
+local TOOL_KEYS: { [string]: string } = {}
+for _, tool in Land.tools do
+	TOOL_KEYS[tool.id] = tool.textKey
+end
 
 export type Frame = { origin: Vector3, facing: number, model: Model }
 type Entry = {
@@ -29,7 +37,7 @@ type Entry = {
 	hold: number,
 	shown: number, -- sites the anchor is placed for (fields only)
 }
-type Plot = { frame: Frame, work: any, entries: { Entry } }
+type Plot = { frame: Frame, work: any, entries: { Entry }, state: any? } -- state: the run at the last refresh
 local plots: { [Player]: Plot } = {}
 
 -- Set once by Action: sends a checked "Prepare" action for the player through the shared limits.
@@ -83,8 +91,10 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 	anchor.Parent = plot.frame.model
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "LandPrompt" .. tostring(target)
-	prompt.ActionText = Locale.t(key, Locale.resolve(player.LocaleId))
-	prompt.ObjectText = ""
+	local lang = Locale.resolve(player.LocaleId)
+	local tool = Toolbelt.toolFor(target, Land)
+	prompt.ActionText = Locale.t(key, lang)
+	prompt.ObjectText = if tool ~= nil then Locale.t(TOOL_KEYS[tool], lang) else ""
 	prompt.HoldDuration = hold
 	prompt.MaxActivationDistance = 10
 	prompt.RequiresLineOfSight = false
@@ -104,7 +114,9 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 		end
 		-- A hold of 0 needs no timer; every other hold must have run at least 0.9 x its duration on the server clock.
 		local held = if entry.hold > 0 then Work.finish(plot.work, name, os.clock(), entry.hold) else true
-		if held and nearby(player, anchor.Position) then
+		local land = if plot.state ~= nil then plot.state.land or Land.start else Land.start
+		local inHand = Toolbelt.inHand(land, target, ToolService.equipped(player), Land)
+		if held and inHand and nearby(player, anchor.Position) then
 			sender(player, "Prepare", { target = target })
 		end
 	end)
@@ -129,13 +141,15 @@ function LandService.build(player: Player, frame: Frame)
 end
 
 -- Once per second from Session: moves each field prompt to the next site and enables only the steps that are possible
--- (tool owned, plant revealed, field not full, container missing, wiring ready).
+-- (tool owned and in the hand, plant revealed, field not full, container missing, wiring ready).
 function LandService.refresh(player: Player, state: any)
 	local plot = plots[player]
 	if plot == nil then
 		return
 	end
+	plot.state = state
 	local land = state.land or Land.start
+	local hand = ToolService.equipped(player)
 	for _, entry in plot.entries do
 		local target = entry.target
 		local enabled = false
@@ -157,9 +171,17 @@ function LandService.refresh(player: Player, state: any)
 				and state.nodes.U21 == true
 				and land.tools[WIRE_HOLD_TOOL] == true
 		end
-		entry.prompt.Enabled = enabled
+		entry.prompt.Enabled = enabled and Toolbelt.inHand(land, target, hand, Land)
 	end
 end
+
+-- Taking a tool into the hand or putting it away shows or hides its prompts at once, not at the next second.
+ToolService.onEquipChanged(function(player: Player)
+	local plot = plots[player]
+	if plot ~= nil and plot.state ~= nil then
+		LandService.refresh(player, plot.state)
+	end
+end)
 
 -- Drops the player's prompts and hold (the plot model is destroyed by PlotService).
 function LandService.forget(player: Player)

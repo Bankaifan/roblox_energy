@@ -1,14 +1,14 @@
 --!strict
 -- Land development (docs/design/0018-land-development.md, section 4). Plain tables, no logic.
 -- required: the land gates (a site before the first plant, the container before U17, wiring before rule slots) apply
--- only when true; the last step of the design turns it on.
+-- only when true. Setting it to false is the rollback: buying works without sites again.
 -- fields[plant id]: how many sites the field has (the units that can stand on it).
 -- tools: id, the plant it serves (plant) or the node it needs (node), price in coins (run-1 cost, kept after a prestige),
 --   hold seconds per prepared site, textKey for the one-line market text.
 -- container: the storage container (coins, Speicher tab); U17 needs it.
 -- start: the land of a fresh profile.
 return {
-	required = false,
+	required = true,
 	fields = { 24, 12, 8, 12, 4, 4 },
 	tools = {
 		{ id = "scythe", plant = 1, price = 0, hold = 1, textKey = "tool.scythe" },

@@ -12,6 +12,7 @@ local Config = {
 	phases = require("../src/shared/Config/Phases"),
 	weathers = require("../src/shared/Config/Weather"),
 	effects = require("../src/shared/Config/Effects"),
+	land = require("../src/shared/Config/Land"),
 }
 
 local Sim = {}
@@ -28,6 +29,21 @@ local STORAGE_NODES = { U17 = true, U18 = true, U19 = true, U20 = true, U21 = tr
 local STORAGE_PLAN = { "U17", "U21", "U18", "U19", "U20", "U22" }
 local STORAGE_CHAIN = { "U17", "U18", "U19", "U20" }
 local PERMANENT = { "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8" }
+-- Land work (design 0018): a bot prepares the first row of a field in one go. It walks WALK seconds and holds the
+-- tool for each site; in that time it neither cranks nor buys.
+local WALK = 3
+local ROW = 4
+local HOLD: { [string]: number } = {}
+for _, tool in Config.land.tools do
+	HOLD[tool.id] = tool.hold
+end
+
+local STORAGE_COST = 0 -- the price of the first battery (U17)
+for _, node in Config.upgrades.run do
+	if node.id == "U17" then
+		STORAGE_COST = node.cost
+	end
+end
 
 local function clone(value: any): any
 	if type(value) ~= "table" then
@@ -64,6 +80,7 @@ function Sim.fresh(): any
 		pnodes = {},
 		storage = { charge = 0, mode = "auto" },
 		rules = {},
+		land = clone(Config.land.start),
 	}
 end
 
@@ -78,7 +95,7 @@ function Sim.envAt(seed: number, time: number): any
 end
 
 function Sim.record(): any
-	return { clock = 0, stageAt = {}, snapshots = {}, pause = 0, pauseLongest = 0 }
+	return { clock = 0, stageAt = {}, snapshots = {}, pause = 0, pauseLongest = 0, busy = 0 }
 end
 
 -- Coins per second now: one tick, plus the crank income of `clicks` clicks (the crank is not part of the tick).
@@ -98,11 +115,12 @@ local function crankBurst(state: any, env: any, clicks: number): any
 	return cranked
 end
 
--- Offers the bot can take: plants and run nodes whose prerequisites are met. Storage nodes only for the child bot.
+-- Offers the bot can take: plants (with a prepared site) and run nodes whose prerequisites are met. Storage nodes
+-- only for the child bot, which buys the container like any offer.
 local function offers(state: any, withStorage: boolean): { { cost: number, action: any } }
 	local list = {}
 	for index, plant in Config.plants do
-		if index == 1 or state.plants[index - 1] >= 1 then
+		if (index == 1 or state.plants[index - 1] >= 1) and state.land.sites[index] >= 1 then
 			local cost = Formulas.cost(plant.baseCost, state.plants[index])
 			table.insert(list, { cost = cost, action = { type = "BuyPlant", plant = index, qty = 1 } })
 		end
@@ -112,11 +130,36 @@ local function offers(state: any, withStorage: boolean): { { cost: number, actio
 		local open = not state.nodes[id] and (withStorage or not STORAGE_NODES[id])
 		local plantOk = node.requiresPlant == nil or state.plants[node.requiresPlant] >= 1
 		local nodeOk = node.requiresNode == nil or state.nodes[node.requiresNode]
-		if open and plantOk and nodeOk then
+		if open and plantOk and nodeOk and (id ~= "U17" or state.land.container) then
 			table.insert(list, { cost = node.cost, action = { type = "BuyNode", node = id } })
 		end
 	end
+	if withStorage and not state.land.container then
+		table.insert(list, { cost = Config.land.containerCost, action = { type = "Prepare", target = "container" } })
+	end
 	return list
+end
+
+-- Land work: for the first revealed field without a prepared row the bot buys the tool as soon as the coins cover
+-- it, then prepares ROW sites. Returns the state and the seconds the work takes (0 when there is none).
+local function landWork(state: any, env: any): (any, number)
+	for index in Config.plants do
+		local revealed = index == 1 or state.plants[index - 1] >= 1
+		local wanted = math.min(ROW, Config.land.fields[index])
+		if revealed and state.land.sites[index] < wanted then
+			local tool = Config.land.fieldTools[index]
+			state = apply(state, { type = "BuyTool", tool = tool }, env)
+			if not state.land.tools[tool] then
+				return state, 0
+			end
+			local sites = wanted - state.land.sites[index]
+			for _ = 1, sites do
+				state = apply(state, { type = "Prepare", target = index }, env)
+			end
+			return state, WALK + sites * HOLD[tool]
+		end
+	end
+	return state, 0
 end
 
 -- The offer with the shortest payback (cost over coins per second gained). The probe has a full purse,
@@ -168,8 +211,25 @@ local function permanent(state: any, env: any): any
 end
 
 -- Rules first (Günstig laden 0,7 and Teuer verkaufen 1,2), then the storage chain in plan order.
--- Stops at the first item that is not affordable yet.
-local function storagePlan(state: any, env: any): any
+-- Stops at the first item that is not affordable yet. The container comes with the first battery (when the coins
+-- cover both), the pliers and the wiring right after the control center; both cost a walk.
+local function storagePlan(state: any, env: any, record: any): any
+	if not state.land.container then
+		if state.coins < Config.land.containerCost + STORAGE_COST then
+			return state
+		end
+		record.busy = WALK
+		state = apply(state, { type = "Prepare", target = "container" }, env)
+	end
+	if state.nodes.U21 and not state.land.wired then
+		state = apply(state, { type = "BuyTool", tool = "pliers" }, env)
+		local wired, ok = GameCore.apply(state, { type = "Prepare", target = "wired" }, env)
+		if not ok then
+			return state
+		end
+		record.busy = WALK + HOLD.pliers
+		state = wired
+	end
 	if state.nodes.U21 and state.rules[1] == nil then
 		local charge = { type = "SetRule", slot = 1, rule = "charge", th = 0.7, on = true }
 		state = apply(state, charge, env)
@@ -190,6 +250,10 @@ local function decide(bot: any, state: any, env: any, record: any): any
 		record.snapshots[state.level + 1] = state
 		state = apply(state, { type = "Prestige" }, env)
 	end
+	if record.busy > 0 then
+		record.busy -= 1
+		return state
+	end
 	if bot.clicks > 0 and record.clock < bot.crankUntil then
 		state = crankBurst(state, env, bot.clicks)
 	end
@@ -202,13 +266,17 @@ local function decide(bot: any, state: any, env: any, record: any): any
 		end
 	end
 	if record.clock % bot.every == 0 then
+		state, record.busy = landWork(state, env)
+		if record.busy > 0 then
+			return state
+		end
 		state = permanent(state, env)
 		local pick = if bot.rank then bestOffer(state, env, bot.clicks) else cheapestOffer(state)
 		if pick ~= nil and pick.cost <= state.coins then
 			state = apply(state, pick.action, env)
 		end
 		if bot.rank then
-			state = storagePlan(state, env)
+			state = storagePlan(state, env, record)
 		end
 	end
 	return state
@@ -281,6 +349,8 @@ function Sim.withStorage(state: any, stage: number): any
 		result.nodes[STORAGE_CHAIN[index]] = true
 	end
 	if stage >= 1 then
+		result.land.container = true
+		result.land.wired = true
 		result.nodes.U21 = true
 		result.rules = { { id = "charge", th = 0.7, on = true }, { id = "sell", th = 1.2, on = true } }
 	end

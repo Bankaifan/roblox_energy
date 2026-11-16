@@ -121,6 +121,22 @@ function PlotLayout.wild(field: Field, count: number, seed: number, tile: number
 	return points
 end
 
+-- How many wild panels stand on mown ground when the first `prepared` tiles of the field are mown (fill order of
+-- `sites`): a panel counts once the tile under its centre is mown, so a panel never lies in the grass.
+function PlotLayout.wildFit(field: Field, prepared: number, tile: number): number
+	local perRow = PlotLayout.WILD_PER_ROW
+	local pitch = field.perRow * field.size * tile / perRow
+	local fit = 0
+	for i = 0, perRow * ((#field.rows + 1) // 2) - 1 do
+		local column = math.min(field.perRow, math.ceil((i % perRow + 0.5) * pitch / (field.size * tile)))
+		if (i // perRow) * 2 * field.perRow + column > prepared then
+			break
+		end
+		fit += 1
+	end
+	return fit
+end
+
 -- Plot ground (terrain): the square of a slot in world studs and its side in terrain cells of `cell` studs.
 export type Ground = { minX: number, maxX: number, minZ: number, maxZ: number, cells: number }
 

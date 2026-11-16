@@ -7,7 +7,7 @@ TOLERANCES = ROOT / "docs" / "balance" / "tolerances.md"
 ROW = re.compile(r"^\| (Z\d+) \|.*\| (OUT|in target) \|$")
 RANGE_ROW = re.compile(r"^\| (Z\d+) \| [^|]* \| [^|]* \| (-?\d+(?:\.\d+)?) to (-?\d+(?:\.\d+)?) \| [^|]* \|$")
 MEDIAN = re.compile(r"median (-?\d+(?:\.\d+)?)")
-PERCENT = re.compile(r"^(-?\d+(?:\.\d+)?) %$")
+PERCENT = re.compile(r"^([+-]?\d+(?:\.\d+)?) %$")
 
 
 def report_text():
@@ -85,5 +85,5 @@ def test_measured_values_inside_tolerances():
 
 
 def test_value_moved_outside_tolerance_fails():
-    moved = report_text().replace("median 19.1 min", "median 30.0 min", 1)
+    moved = report_text().replace("median 19.7 min", "median 30.0 min", 1)
     assert outside(moved, tolerance_text()) == ["Z1: 30 outside 15 to 22"]
