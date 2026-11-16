@@ -1,5 +1,5 @@
 --!strict
--- Plot ground: every slot gets its own square on whole terrain cells beside the road, with a frame of one cell.
+-- Plot ground: every slot gets its own square on whole terrain cells beside the road.
 return function(t, load)
 	local Assets = load("Config/Assets")
 	local PlotLayout = load("Core/PlotLayout")
@@ -31,16 +31,4 @@ return function(t, load)
 		end
 		table.insert(grounds, ground)
 	end
-
-	local border = 0
-	for ix = 1, 48 do
-		for iz = 1, 48 do
-			if PlotLayout.groundCover(ix, iz, 48, 1) == "border" then
-				border += 1
-				t.truthy(ix == 1 or ix == 48 or iz == 1 or iz == 48, `border cell {ix}, {iz} lies on the edge`)
-			end
-		end
-	end
-	t.equal(border, 48 * 48 - 46 * 46, "the frame is one cell wide all around")
-	t.equal(PlotLayout.groundCover(2, 3, 48, 2), "border", "a wider frame reaches the second cell")
 end

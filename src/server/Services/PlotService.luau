@@ -8,6 +8,8 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
+local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
+local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
 local PlotGround = require(script.Parent.PlotGround)
@@ -35,6 +37,9 @@ type Record = {
 	keys: { string }, -- index -> "<units><w|t>" of the units shown now (w wild, t tidy)
 	control: Model?, -- the control center, built once U21 is owned
 	batteries: { Model }, -- one unit per storage stage
+	groundKey: string, -- what the cleared patches show now
+	fenceKey: string, -- what the fences show now
+	fences: Folder?, -- stakes and ropes around the fields that wait for their tool
 }
 local plots: { [Player]: Record } = {}
 
@@ -208,6 +213,75 @@ local function updateFurniture(record: Record, extras: { stage: number, control:
 	tintBatteries(record, extras.fill or 0)
 end
 
+-- Studs of bare earth around a furniture piece.
+local FURNITURE_MARGIN = 8
+
+-- The ground follows the land: bare earth with a wobbly outline around the crank and the market, under every prepared
+-- site and under every unit; the rest stays meadow. A field whose tool is owned and whose plant is revealed gets a low
+-- fence around the sites that are still to prepare. Terrain and fence are rebuilt only when their content changes.
+local function updateLand(record: Record, counts: { number }, land: any, tidy: boolean)
+	local ground, fence = {}, {}
+	for index in Assets.fields do
+		local total = Assets.siteCount(index)
+		local prepared = math.min(land.sites[index] or 0, total)
+		local shown = math.min(math.floor(counts[index] or 0), total)
+		local open = prepared < total
+			and land.tools[Land.fieldTools[index]] == true
+			and (index == 1 or (counts[index - 1] or 0) >= 1)
+		table.insert(ground, `{prepared}.{shown}`)
+		table.insert(fence, if open then tostring(prepared) else "-")
+	end
+	local container = land.container == true or #record.batteries > 0
+	local groundKey = table.concat(ground, " ") .. `{tidy} {record.control ~= nil} {container}`
+	if record.groundKey ~= groundKey then
+		record.groundKey = groundKey
+		local patches = {}
+		for name, spot in Assets.furniture do
+			local stands = name == "crank"
+				or name == "market"
+				or (name == "control" and record.control ~= nil)
+				or (name == "battery" and container)
+			if stands then
+				table.insert(patches, { x = spot.x, z = spot.z, r = spot.size / 2 + FURNITURE_MARGIN })
+			end
+		end
+		for index, field in Assets.fields do
+			local side = field.size * Assets.TILE
+			local total = Assets.siteCount(index)
+			local shown = math.min(math.floor(counts[index] or 0), total)
+			local wild = index == 1 and not tidy
+			local tiles = math.max(math.min(land.sites[index] or 0, total), if wild then 0 else shown)
+			for _, site in PlotLayout.sites(field, tiles, Assets.TILE, Assets.PLOT_TILES) do
+				table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
+			end
+			if wild then
+				for _, site in PlotLayout.wild(field, shown, record.slot, Assets.TILE, Assets.PLOT_TILES) do
+					table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
+				end
+			end
+		end
+		PlotGround.clear(record.slot, record.facing, groundKey, patches)
+	end
+	local fenceKey = table.concat(fence, " ")
+	if record.fenceKey ~= fenceKey then
+		record.fenceKey = fenceKey
+		if record.fences ~= nil then
+			record.fences:Destroy()
+		end
+		local folder = Instance.new("Folder")
+		folder.Name = "Fences"
+		for index, field in Assets.fields do
+			if fence[index] ~= "-" then
+				local prepared = land.sites[index] or 0
+				local stakes, ropes = Meadow.fence(field, prepared, record.slot, Assets.TILE, Assets.PLOT_TILES)
+				PlotGround.fence(folder, record.origin, record.facing, stakes, ropes)
+			end
+		end
+		folder.Parent = record.model
+		record.fences = folder
+	end
+end
+
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
@@ -251,9 +325,11 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		keys = {},
 		control = nil,
 		batteries = {},
+		groundKey = "",
+		fenceKey = "",
+		fences = nil,
 	}
 	plots[player] = record
-	PlotGround.paint(slot)
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
 	-- The crank and the market are built once per plot. A yellow disc under the crank marks it from afar.
 	local crank = addFurniture(record, "crank", nil)
@@ -278,22 +354,26 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	return true
 end
 
--- Units from the plant counts (index = plant id): min(owned, sites) of constant size per plant. `tidy` is true once the
--- player owns Mounting Rails: the panels then sit in rows of four instead of the wild layout.
+-- Units from the plant counts (index = plant id): min(owned, sites) of constant size per plant, and the ground from
+-- `land` (the state field; a fresh land when missing). Once the player owns Mounting Rails the panels sit in rows of
+-- four instead of the wild layout.
 function PlotService.update(
 	player: Player,
 	counts: { number },
 	extras: { stage: number, control: boolean, fill: number? }?,
-	tidy: boolean?
+	land: any?
 )
 	local record = plots[player]
 	if record == nil then
 		return
 	end
+	local ownLand = land or Land.start
+	local tidy = ownLand.tools.rails == true
 	updateFurniture(record, extras or { stage = 0, control = false })
+	updateLand(record, counts, ownLand, tidy)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
-			updateUnits(record, index, math.min(counts[index] or 0, 100), tidy == true)
+			updateUnits(record, index, math.min(counts[index] or 0, 100), tidy)
 		end
 	end
 	for index, column in record.columns do

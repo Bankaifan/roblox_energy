@@ -1,7 +1,7 @@
 --!strict
 -- The world around the plots (issue 85): terrain, water, props and the light mood, built at runtime from
 -- Core/Landscape and Core/DayCycle. Every prop is a handful of anchored parts without scripts; the part count is
--- capped by Landscape.MAX_PARTS. The ground under the plots is flat; PlotGround paints it per plot.
+-- capped by Landscape.MAX_PARTS. The ground under the plots is flat; PlotGround clears patches of it per plot.
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
