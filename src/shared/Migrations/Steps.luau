@@ -14,4 +14,30 @@ Steps[1] = function(profile: any): any
 	return profile
 end
 
+-- Version 2 to 3 (docs/land-development-design.md, section 5): a profile that has earned coins gets the land of the
+-- old game: the first row of every field, every tool except the rails, market, container, and the wiring if U21 is
+-- owned. A fresh profile (nothing earned) gets the template from Core/Data.reconcile. The numbers are literal on
+-- purpose, so the step never changes when the land config does.
+Steps[2] = function(profile: any): any
+	if type(profile.lifetimeEarned) == "number" and profile.lifetimeEarned > 0 then
+		local nodes = if type(profile.nodes) == "table" then profile.nodes else {}
+		profile.land = {
+			sites = { 4, 4, 4, 4, 4, 4 },
+			tools = {
+				scythe = true,
+				shovel = true,
+				hammer = true,
+				wrench = true,
+				drum = true,
+				tamper = true,
+				pliers = true,
+			},
+			container = true,
+			wired = nodes.U21 == true,
+			market = true,
+		}
+	end
+	return profile
+end
+
 return Steps
