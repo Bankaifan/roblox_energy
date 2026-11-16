@@ -1,5 +1,7 @@
 # 0018 Land development: prepare the ground, buy tools, large plots, market and control board popups
 
+Revised after the play test of 2026-11-16: see [land-development-design-v2.md](land-development-design-v2.md). Where the two differ, v2 wins.
+
 Issue: none yet (owner request of 2026-11-16, no implementation in this PR). Related: #102 (market popup), #97 (rule thresholds), #71 (tutorial),
 #73 (cosmetics), PR #101 (data model v2). Numbered 0018 because 0001 to 0017 are the template's studies and `tools/design_split.py` neither
 checks nor splits a design numbered below 0016.
