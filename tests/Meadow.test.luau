@@ -95,12 +95,18 @@ return function(t, load)
 				ends[rope.to] += 1
 				local a, b = stakes[rope.from], stakes[rope.to]
 				local length = math.sqrt((a.x - b.x) ^ 2 + (a.z - b.z) ^ 2)
-				t.truthy(length > 0 and length <= 16 + 4 * Meadow.STAKE_SHIFT, `{label}: a rope is short ({length})`)
+				t.truthy(
+					length > 0 and length <= math.max(16, field.size * Assets.TILE) + 4 * Meadow.STAKE_SHIFT,
+					`{label}: a rope is short ({length})`
+				)
 			end
 			for i in stakes do
 				t.equal(ends[i], 2, `{label}: stake {i} holds two ropes`)
 			end
-			t.truthy(#stakes >= 4 and #stakes + #ropes <= 40, `{label}: {#stakes + #ropes} fence parts`)
+			t.truthy(
+				#stakes >= 4 and #stakes + #ropes <= math.max(40, 8 * total),
+				`{label}: {#stakes + #ropes} fence parts`
+			)
 		end
 		local full = {}
 		for cellNo = 1, total do

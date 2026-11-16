@@ -235,7 +235,7 @@ return function(t, load)
 	)
 	local _, again = GameCore.apply(free, { type = "Prepare", target = 1, cell = 17 }, gated)
 	t.truthy(not again, "a mown cell cannot be mown twice")
-	local _, outside = GameCore.apply(mowed, { type = "Prepare", target = 1, cell = 25 }, gated)
+	local _, outside = GameCore.apply(mowed, { type = "Prepare", target = 1, cell = 26 }, gated)
 	t.truthy(not outside, "a cell outside the field is refused")
 	local two = (GameCore.apply(mowed, { type = "Prepare", target = 1 }, gated))
 	local limited = GameCore.apply(two, { type = "BuyPlant", plant = 1, qty = "max" }, gated)
@@ -245,7 +245,7 @@ return function(t, load)
 	local _, noToolOk = GameCore.apply(mowed, { type = "Prepare", target = 2 }, gated)
 	t.truthy(not noToolOk, "Prepare needs the tool")
 	local _, pastOk = GameCore.apply(
-		{ land = { sites = { 24 }, tools = { scythe = true } } },
+		{ land = { sites = { 25 }, tools = { scythe = true } } },
 		{ type = "Prepare", target = 1 },
 		gated
 	)

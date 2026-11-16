@@ -6,7 +6,7 @@ export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
 local VERSION = 4 -- 3: the land field; 4: the rules are keyed by their id, no slots (Migrations/Steps)
-local MAX_SITES = { 24, 12, 8, 12, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design.md, section 4)
+local MAX_SITES = { 25, 7, 7, 7, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design-v2.md, section 2)
 local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
 	scythe = true,
 	rails = true,

@@ -32,23 +32,70 @@ Assets.COLUMN = 12
 Assets.MAX_PLANT_PARTS = 1300
 Assets.partsPerModel = { [1] = 9, [2] = 19, [3] = 49, [4] = 4, [5] = 75, [6] = 20 } :: { [number]: number }
 
--- Fields by plant id. A site is `size` x `size` tiles; sites fill from `col0` in rows of `perRow`, one row of
--- `rows` (tile row of the first tile) after the other. Row 0 is the back, row 23 the road side.
+-- Fields by plant id (land design v2, section 3). A field is `size` x `size` tiles per cell and a list of cells; a cell
+-- is the (column, row) of its top-left tile and its number is its index in the list, which is also the fill order.
+-- Column 0 is the left edge, row 0 the back, row 23 the road side. F2 is the river: its seven cells stand in for the
+-- river segments (the tile under the middle of each segment) until the river course takes over (Assets.river).
 Assets.fields = {
-	[1] = { size = 1, col0 = 1, perRow = 4, rows = { 12, 13, 14, 15, 16, 17 } },
-	[2] = { size = 1, col0 = 7, perRow = 6, rows = { 13, 16 } },
-	[3] = { size = 2, col0 = 1, perRow = 4, rows = { 6, 8 } },
-	[4] = { size = 1, col0 = 15, perRow = 4, rows = { 13, 14, 15 } },
-	[5] = { size = 2, col0 = 11, perRow = 4, rows = { 7 } },
-	[6] = { size = 2, col0 = 8, perRow = 4, rows = { 2 } },
-} :: { [number]: { size: number, col0: number, perRow: number, rows: { number } } }
--- Furniture rows of the large plot (tile rows 19 to 23): market, crank, storage container, control board.
-Assets.LAND_FURNITURE_ROWS = { first = 19, last = 23 }
+	[1] = {
+		size = 1,
+		cells = {
+			{ 1, 13 },
+			{ 2, 13 },
+			{ 3, 13 },
+			{ 4, 13 },
+			{ 5, 13 },
+			{ 1, 14 },
+			{ 2, 14 },
+			{ 3, 14 },
+			{ 4, 14 },
+			{ 5, 14 },
+			{ 1, 15 },
+			{ 2, 15 },
+			{ 3, 15 },
+			{ 4, 15 },
+			{ 5, 15 },
+			{ 1, 16 },
+			{ 2, 16 },
+			{ 3, 16 },
+			{ 4, 16 },
+			{ 5, 16 },
+			{ 1, 17 },
+			{ 2, 17 },
+			{ 3, 17 },
+			{ 4, 17 },
+			{ 5, 17 },
+		},
+	},
+	[2] = {
+		size = 1,
+		river = true,
+		cells = { { 2, 9 }, { 5, 9 }, { 8, 9 }, { 11, 10 }, { 14, 11 }, { 17, 12 }, { 20, 12 } },
+	},
+	[3] = { size = 2, cells = { { 14, 14 }, { 17, 14 }, { 20, 14 }, { 12, 17 }, { 15, 17 }, { 18, 17 }, { 21, 17 } } },
+	[4] = { size = 1, cells = { { 9, 12 }, { 7, 13 }, { 9, 14 }, { 7, 15 }, { 9, 16 }, { 7, 17 }, { 9, 18 } } },
+	[5] = { size = 2, cells = { { 17, 6 }, { 19, 6 }, { 17, 8 }, { 19, 8 } } },
+	[6] = { size = 4, cells = { { 1, 1 }, { 7, 1 }, { 13, 1 }, { 19, 1 } } },
+} :: { [number]: { size: number, cells: { { number } }, river: boolean? } }
+-- Tiles that may carry land: columns 1 to 22 and rows 1 to 22 (column 0, column 23 and row 0 stay meadow, rows 19 to 23
+-- are the yard).
+Assets.USABLE = { first = 1, last = 22 }
+-- Studs kept free between two things of the site map (fields, river band, furniture).
+Assets.CLEARANCE = 4
 
--- Number of sites of a field.
+-- The river (F2): centre line through `points` (plot-relative studs), water `width` studs wide, cut into `segments`.
+-- Only the course is data here; the curve and the segments belong to Core/River (a later step).
+Assets.river = {
+	points = { { -84, -28 }, { -56, -16 }, { -28, -20 }, { 0, -8 }, { 28, -2 }, { 56, 2 }, { 80, 2 } },
+	width = 12,
+	segments = 7,
+	-- Studs from the centre line that no other cell or furniture box may come closer than (plus CLEARANCE).
+	band = 8,
+} :: { points: { { number } }, width: number, segments: number, band: number }
+
+-- Number of cells of a field.
 function Assets.siteCount(plantId: number): number
-	local field = Assets.fields[plantId]
-	return field.perRow * #field.rows
+	return #Assets.fields[plantId].cells
 end
 
 -- Visible copies per pad: at most 4 (2 x 2), so a pad never looks crowded.
@@ -61,16 +108,16 @@ Assets.plants = {
 	[6] = { file = "plant6_windturbine", scale = 1, cap = 4 },
 } :: { [number]: Entry }
 
--- Plot furniture: file, centre (x, z) relative to the plot centre and the longest footprint side in studs.
--- The pads fill x -48..48, z -31..31 in the middle of the ground; the furniture stands around them (the market at the
--- front in +z, its facade towards the plot centre) with walking room between.
+-- Plot furniture: file, centre (x, z) relative to the plot centre and the longest footprint side in studs. All of it
+-- stands in the yard (tile rows 19 to 23, z 56 to 96) on the road side, the market with its facade towards the plot.
 -- `depth` (optional) is the assumed footprint depth in z of a wide piece; layout checks use it instead of `size`.
+-- `battery` is the storage container, `control` the control board.
 export type Furniture = { file: string, x: number, z: number, size: number, depth: number? }
 Assets.furniture = {
-	crank = { file = "crank", x = 0, z = -48, size = 4 },
-	market = { file = "market", x = -20, z = 48, size = 40, depth = 20 },
-	control = { file = "control", x = 35, z = 46, size = 5 },
-	battery = { file = "battery", x = 50, z = -48, size = 3 },
+	crank = { file = "crank", x = 0, z = 72, size = 4 },
+	market = { file = "market", x = -56, z = 78, size = 40, depth = 20 },
+	control = { file = "control", x = 52, z = 78, size = 5 },
+	battery = { file = "battery", x = 36, z = 78, size = 3 },
 } :: { [string]: Furniture }
 
 -- Studs between stacked battery units: none, the units sit directly on each other.

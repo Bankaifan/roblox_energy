@@ -6,7 +6,7 @@ local Meadow = {}
 
 -- A cleared patch: a blob around (x, z) with the mean radius r.
 export type Patch = { x: number, z: number, r: number }
-export type Field = { size: number, col0: number, perRow: number, rows: { number } }
+export type Field = { size: number, cells: { { number } } }
 export type Stake = { x: number, z: number, height: number, lean: number, turn: number }
 export type Rope = { from: number, to: number }
 
@@ -17,6 +17,9 @@ Meadow.WAVE = 0.2
 Meadow.WAVE_PITCH = 10
 -- The radius of the patch of a site, as a share of its side: large enough that the whole site is always earth.
 Meadow.SITE_RADIUS = 0.9
+-- Sites wider than SITE_WIDE studs (the 32-stud wind pads) need a larger share: the wobble pulls the outline in by up to 40 percent.
+Meadow.SITE_WIDE = 16
+Meadow.SITE_RADIUS_WIDE = 1.05
 -- Fence: a stake at most every STAKE_PITCH studs, moved by up to STAKE_SHIFT studs, STAKE_HEIGHT +- STAKE_VARIES tall
 -- and leaning by up to STAKE_LEAN degrees.
 Meadow.STAKE_PITCH = 16
@@ -46,7 +49,8 @@ end
 
 -- The patch under a site of `side` studs at (x, z).
 function Meadow.sitePatch(x: number, z: number, side: number): Patch
-	return { x = x, z = z, r = side * Meadow.SITE_RADIUS }
+	local share = if side > Meadow.SITE_WIDE then Meadow.SITE_RADIUS_WIDE else Meadow.SITE_RADIUS
+	return { x = x, z = z, r = side * share }
 end
 
 -- The terrain cells of a plot of `cells` x `cells` cells of `cell` studs that are bare earth: mask[ix][iz] = true,
@@ -118,9 +122,9 @@ function Meadow.fence(
 		return tx * 1000 + tz
 	end
 	local sites: { { number } } = {}
-	for i = 0, field.perRow * #field.rows - 1 do
-		if not mown[i + 1] then
-			local tx, tz = field.col0 + (i % field.perRow) * size, field.rows[i // field.perRow + 1]
+	for i, origin in field.cells do
+		if not mown[i] then
+			local tx, tz = origin[1], origin[2]
 			open[key(tx, tz)] = true
 			table.insert(sites, { tx, tz })
 		end
