@@ -1,7 +1,8 @@
 --!strict
 -- Plant models (issue #80): plant id -> model file in assets/models (ServerStorage.Models), a size factor and a cap for
 -- the visible copies. No entry or no file: the plot builds the primitive column. Pure functions, no Roblox APIs.
-export type Entry = { file: string, scale: number, cap: number }
+-- `flat`: the model is a slab that lies on the ground with its glass side up (Core/Flat).
+export type Entry = { file: string, scale: number, cap: number, flat: boolean? }
 
 local Assets = {}
 
@@ -52,7 +53,7 @@ end
 
 -- Visible copies per pad: at most 4 (2 x 2), so a pad never looks crowded.
 Assets.plants = {
-	[1] = { file = "plant1_panel", scale = 1, cap = 4 },
+	[1] = { file = "plant1_panel", scale = 1, cap = 4, flat = true },
 	[2] = { file = "plant2_waterwheel", scale = 1, cap = 4 },
 	[3] = { file = "plant3_house", scale = 1, cap = 4 },
 	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 4 },
