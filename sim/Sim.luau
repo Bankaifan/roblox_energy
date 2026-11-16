@@ -230,10 +230,10 @@ local function storagePlan(state: any, env: any, record: any): any
 		record.busy = WALK + HOLD.pliers
 		state = wired
 	end
-	if state.nodes.U21 and state.rules[1] == nil then
-		local charge = { type = "SetRule", slot = 1, rule = "charge", th = 0.7, on = true }
+	if state.nodes.U21 and state.rules.charge == nil then
+		local charge = { type = "SetRule", rule = "charge", th = 0.7, on = true }
 		state = apply(state, charge, env)
-		state = apply(state, { type = "SetRule", slot = 2, rule = "sell", th = 1.2, on = true }, env)
+		state = apply(state, { type = "SetRule", rule = "sell", th = 1.2, on = true }, env)
 	end
 	for _, id in STORAGE_PLAN do
 		if not state.nodes[id] then
@@ -352,7 +352,7 @@ function Sim.withStorage(state: any, stage: number): any
 		result.land.container = true
 		result.land.wired = true
 		result.nodes.U21 = true
-		result.rules = { { id = "charge", th = 0.7, on = true }, { id = "sell", th = 1.2, on = true } }
+		result.rules = { charge = { th = 0.7, on = true }, sell = { th = 1.2, on = true } }
 	end
 	return result
 end

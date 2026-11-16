@@ -5,7 +5,7 @@
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 3
+local VERSION = 4 -- 3: the land field; 4: the rules are keyed by their id, no slots (Migrations/Steps)
 local MAX_SITES = { 24, 12, 8, 12, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design.md, section 4)
 local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
 	scythe = true,
@@ -87,13 +87,26 @@ local function deepCopy(value: any): any
 	return result
 end
 
-local function isRule(item: any): boolean
-	return type(item) == "table"
-		and (item.id == "charge" or item.id == "sell")
-		and type(item.on) == "boolean"
-		and type(item.th) == "number"
-		and item.th >= 0.5
-		and item.th <= 2
+-- The saved rules, by rule id ("charge", "sell"). GameCore clamps the threshold into the range of its rule when it is set.
+local RULE_IDS = { charge = true, sell = true }
+
+local function rules(value: any): any
+	local result = {}
+	if type(value) == "table" then
+		for id, item in value do
+			if
+				RULE_IDS[id] == true
+				and type(item) == "table"
+				and type(item.on) == "boolean"
+				and type(item.th) == "number"
+				and item.th >= 0.3
+				and item.th <= 2
+			then
+				result[id] = { th = item.th, on = item.on }
+			end
+		end
+	end
+	return result
 end
 
 -- A scalar keeps its type; a number must also be finite and not negative. Anything else gives the default.
@@ -221,9 +234,7 @@ local CLEANERS: { [string]: (any, any) -> any } = {
 	pnodes = function(value: any): any
 		return entries(value, isTrue)
 	end,
-	rules = function(value: any): any
-		return entries(value, isRule)
-	end,
+	rules = rules,
 	cosmetics = function(value: any): any
 		return entries(value, isText)
 	end,
@@ -283,36 +294,21 @@ function Data.migrate(profile: any, steps: Steps): (Profile?, string?)
 	return reconcile(current), nil
 end
 
--- The GameCore state of a profile: the fields a run stores, copied. The rules keys become slot numbers again.
+-- The GameCore state of a profile: the fields a run stores, copied. The rules are keyed by their id in both.
 function Data.toState(profile: Profile): Profile
 	local state = {}
 	for _, key in STATE_FIELDS do
 		state[key] = deepCopy(profile[key])
 	end
-	local rules: { [number]: any } = {}
-	for key, rule in profile.rules do
-		local slot = tonumber(key)
-		if slot ~= nil then
-			rules[slot] = deepCopy(rule)
-		end
-	end
-	state.rules = rules
 	return state
 end
 
 -- A profile from a GameCore state. The other fields come from `base` (a profile), or from the template.
--- The rules are stored with string keys ("1", "2", ...): ProfileStore refuses numeric tables with gaps, and a
--- player may set slot 3 before slot 2.
 function Data.fromState(state: Profile, base: Profile?): Profile
 	local profile = deepCopy(base or template())
 	for _, key in STATE_FIELDS do
 		profile[key] = deepCopy(state[key])
 	end
-	local rules: { [string]: any } = {}
-	for slot, rule in state.rules do
-		rules[tostring(slot)] = deepCopy(rule)
-	end
-	profile.rules = rules
 	profile.v = VERSION
 	return profile
 end

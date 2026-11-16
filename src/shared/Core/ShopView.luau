@@ -16,6 +16,8 @@ export type Card = {
 	-- hint: leads to another tab. active: the chosen setting. idle: a setting that can be chosen.
 	state: string,
 	button: Button?,
+	-- Two small buttons for a value the player sets in steps (the rule thresholds): lower and higher.
+	steps: { down: Button, up: Button }?,
 }
 export type Input = {
 	view: any,
@@ -23,6 +25,7 @@ export type Input = {
 	plants: any,
 	upgrades: any,
 	land: any,
+	ruleStep: number?, -- the threshold step of the rule steppers (Config/Effects.ruleStep); 0.1 when missing
 	t: (key: string, args: { [string]: any }?) -> string,
 }
 
@@ -34,9 +37,6 @@ ShopView.tabs = {
 	{ id = "tools", key = "tab.tools", hint = "market.hint.tools" },
 }
 ShopView.STORAGE_MODES = { "charge", "sell", "auto" }
--- Placeholder rule thresholds: charge while the price factor is at most 0.8, sell while it is at least 1.2.
-ShopView.CHARGE_BELOW = 0.8
-ShopView.SELL_ABOVE = 1.2
 
 local SUFFIXES = { "", "K", "M", "B", "T" }
 
@@ -169,6 +169,10 @@ local function storageCards(input: Input): { Card }
 		if stored.stage < 1 then
 			card.state = "locked"
 			card.status = t("storage.locked")
+		elseif mode == "auto" and not stored.autoReady then
+			-- Auto does nothing without a rule that is switched on: it cannot be selected until then.
+			card.state = "short"
+			card.status = t("mode.autoNeedsRule")
 		elseif stored.mode == mode then
 			card.state = "active"
 			card.status = t("market.active")
@@ -178,58 +182,90 @@ local function storageCards(input: Input): { Card }
 		end
 		table.insert(cards, card)
 	end
-	if stored.ruleSlots < 1 then
-		table.insert(
-			cards,
-			{ id = "rules", icon = "rule", title = t("rules.title"), info = t("rules.locked"), state = "locked" }
-		)
-		return cards
+	for _, card in ShopView.ruleCards(input) do
+		table.insert(cards, card)
 	end
-	-- Per owned rule slot: what it holds (with its on/off switch), then the two rules it can be set to.
-	for slot = 1, stored.ruleSlots do
-		local rule = stored.rules[slot]
-		local status: Card = {
-			id = `rule.{slot}`,
+	return cards
+end
+
+-- The price line, for the HUD and the rule section: the price factor of this second, the phase and, with U15, the
+-- next weather. `quote` is view.price.
+function ShopView.priceText(quote: any, t: (string, { [string]: any }?) -> string): string
+	local args = { factor = string.format("%.2f", quote.factor), phase = t(`phase.{quote.phase}`) }
+	if quote.nextWeather ~= nil then
+		args.weather = t(`weather.{quote.nextWeather}`)
+		return t("hud.priceNext", args)
+	end
+	return t("hud.price", args)
+end
+
+-- The live storage line of the view: what the storage does this second; "" without a storage.
+function ShopView.flowText(flow: any, t: (string, { [string]: any }?) -> string): string
+	if flow.kind == "charging" then
+		return t("flow.charging", { percent = math.floor(flow.share * 100 + 0.5) })
+	elseif flow.kind == "full" then
+		return t("flow.full")
+	elseif flow.kind == "selling" then
+		return t("flow.selling", { value = ShopView.short(flow.income) })
+	elseif flow.kind == "idle" then
+		return t("flow.idle")
+	end
+	return ""
+end
+
+local function tenths(value: number): number
+	return math.floor(value * 10 + 0.5) / 10
+end
+
+-- The "Regelautomatik" section of the Storage tab: a head card with the price now and what the storage does, then one
+-- card per rule (buy below, sell above) with its switch and two steppers. Locked as one card before U21 (and wiring).
+function ShopView.ruleCards(input: Input): { Card }
+	local t = input.t
+	local stored = input.view.storage
+	if not stored.rulesUnlocked then
+		return { { id = "rules", icon = "rule", title = t("rules.title"), info = t("rules.locked"), state = "locked" } }
+	end
+	local step = input.ruleStep or 0.1
+	local cards: { Card } = {
+		{
+			id = "rules",
 			icon = "rule",
 			title = t("rules.title"),
-			info = t("rule.empty", { slot = slot }),
+			info = ShopView.priceText(input.view.price, t),
+			status = ShopView.flowText(stored.flow, t),
 			state = "idle",
-		}
-		if rule ~= nil then
-			status.info = t("rule.status", {
-				slot = slot,
-				rule = t("rule." .. rule.id),
-				threshold = rule.th,
-				state = t(if rule.on then "state.on" else "state.off"),
-			})
-			status.state = if rule.on then "active" else "idle"
-			status.button = {
-				text = t("market.toggle"),
+		},
+	}
+	for _, id in { "charge", "sell" } do
+		local rule = stored.rules[id]
+		local function message(th: number, on: boolean): Button
+			return {
+				text = "",
 				enabled = true,
 				remote = "SetRule",
-				payload = { slot = slot, rule = rule.id, th = rule.th, on = not rule.on },
+				payload = { rule = id, th = tenths(th), on = on },
 			}
 		end
-		table.insert(cards, status)
-		local options = {
-			{ id = "charge", key = "rule.slotCharge", th = ShopView.CHARGE_BELOW },
-			{ id = "sell", key = "rule.slotSell", th = ShopView.SELL_ABOVE },
-		}
-		for _, option in options do
-			table.insert(cards, {
-				id = `rule.{slot}.{option.id}`,
-				icon = `mode.{option.id}`,
-				title = t("rule." .. option.id),
-				info = t(option.key, { slot = slot, threshold = option.th }),
-				state = "idle",
-				button = {
-					text = t("market.set"),
-					enabled = true,
-					remote = "SetRule",
-					payload = { slot = slot, rule = option.id, th = option.th, on = true },
-				},
-			})
-		end
+		local toggle = message(rule.th, not rule.on)
+		toggle.text = t(if rule.on then "rule.switchOff" else "rule.switchOn")
+		local down = message(rule.th - step, rule.on)
+		down.text = t("rule.down", { step = step })
+		down.enabled = rule.th > rule.min + 1e-9
+		local up = message(rule.th + step, rule.on)
+		up.text = t("rule.up", { step = step })
+		up.enabled = rule.th < rule.max - 1e-9
+		table.insert(cards, {
+			id = `rule.{id}`,
+			icon = `mode.{id}`,
+			title = t(`rule.{id}`),
+			info = t(`rule.{id}Status`, {
+				threshold = string.format("%.1f", rule.th),
+				state = t(if rule.on then "state.on" else "state.off"),
+			}),
+			state = if rule.on then "active" else "idle",
+			button = toggle,
+			steps = { down = down, up = up },
+		})
 	end
 	return cards
 end

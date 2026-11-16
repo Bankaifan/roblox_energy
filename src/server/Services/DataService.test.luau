@@ -1,7 +1,7 @@
 --!strict
 -- DataService on ProfileStore.Mock (Bauplan, "Speichern"). Studio only: TestRunner runs it, Lune does not (it needs server
 -- services). Players are plain tables: DataService reads only UserId, Name and Parent. Covers load, sync, release, a second
--- load with the same run, a profile of a newer version (nil), and a run with slot 3 set and slot 2 empty.
+-- load with the same run, a profile of a newer version (nil), and a run with only the sell rule set.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Data = require(Shared:WaitForChild("Core"):WaitForChild("Data") :: ModuleScript) :: any
@@ -38,7 +38,7 @@ return function(t)
 	local run = Data.toState(Data.template())
 	run.coins = 42
 	run.plants = { 5, 2, 0, 1, 0, 0 }
-	run.rules = { [1] = { id = "charge", th = 0.7, on = true }, [3] = { id = "sell", th = 1.5, on = false } }
+	run.rules = { charge = { th = 0.7, on = true }, sell = { th = 1.5, on = false } }
 	t.truthy(DataService.load(player) ~= nil, "a new profile loads")
 	DataService.sync(player, run)
 	DataService.release(player, nil)
@@ -55,7 +55,7 @@ return function(t)
 	local writer = ProfileStore.New(STORE_NAME, Data.template()).Mock
 	local newer = writer:StartSessionAsync(`player-{newerId}`, {})
 	t.truthy(newer ~= nil, "the newer-version profile starts")
-	newer.Data.v = 2
+	newer.Data.v = Data.VERSION + 1
 	local saved = false
 	local connection = newer.OnAfterSave:Connect(function()
 		saved = true
@@ -73,17 +73,17 @@ return function(t)
 	t.equal(rejected, nil, "a profile of a newer version does not load")
 	t.equal(rejectedAway, 0, "and gives no time away")
 
-	-- Slot 3 set before slot 2: the save works (no gap in the stored table) and slot 3 comes back.
-	local gapPlayer = fakePlayer(9003)
-	local gapRun = Data.toState(Data.template())
-	gapRun.rules = { [3] = { id = "sell", th = 1, on = true } }
-	t.truthy(DataService.load(gapPlayer) ~= nil, "a profile loads for the slot 3 test")
-	DataService.release(gapPlayer, gapRun)
+	-- Only the sell rule set: the save works and the sell rule comes back, the charge rule stays unset.
+	local sellPlayer = fakePlayer(9003)
+	local sellRun = Data.toState(Data.template())
+	sellRun.rules = { sell = { th = 1, on = true } }
+	t.truthy(DataService.load(sellPlayer) ~= nil, "a profile loads for the sell rule test")
+	DataService.release(sellPlayer, sellRun)
 	DataService.flush(10)
-	local gapBack = DataService.load(gapPlayer)
-	t.truthy(gapBack ~= nil, "the slot 3 profile loads again")
-	t.equal(gapBack.rules[3].id, "sell", "slot 3 is kept")
-	t.equal(gapBack.rules[2], nil, "slot 2 stays empty")
-	DataService.release(gapPlayer, nil)
+	local sellBack = DataService.load(sellPlayer)
+	t.truthy(sellBack ~= nil, "the sell rule profile loads again")
+	t.equal(sellBack.rules.sell.on, true, "the sell rule is kept")
+	t.equal(sellBack.rules.charge, nil, "the charge rule stays unset")
+	DataService.release(sellPlayer, nil)
 	DataService.flush(10)
 end

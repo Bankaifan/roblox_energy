@@ -139,6 +139,9 @@ function Hud.build(net: Instance)
 	end)
 	local coins = label(frame, nextOrder())
 	local rate = label(frame, nextOrder())
+	-- The electricity price: a plain row, like the others. The control board popup (#115) can take it over: its text
+	-- comes from ShopView.priceText(view.price, t), the same line the rule section of the Storage tab shows.
+	local price = label(frame, nextOrder())
 	local storage = label(frame, nextOrder())
 	local storageHint = label(frame, nextOrder())
 	local grid = label(frame, nextOrder())
@@ -197,6 +200,7 @@ function Hud.build(net: Instance)
 		coins.Text = t("hud.coins", { value = format(change.coins) })
 		rate.Text = t("hud.rate", { value = format(change.rate) })
 		storageText(change.charge)
+		price.Text = ShopView.priceText(change.view.price, t)
 		shop(change.view)
 	end
 	local function applyEnv(change: any)

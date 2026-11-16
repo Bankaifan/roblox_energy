@@ -12,10 +12,12 @@ return {
 	storageEfficiencyU22 = 0.95, -- U22 Neue Zellchemie
 	storageRateSeconds = 60, -- Laden und Verkaufen höchstens Speicher_max / 60 je Sekunde
 	keptNodes = { "U17", "U18", "U19", "U20", "U21", "U22" }, -- stay after Netz-Ausbau with P5
-	ruleSlots = 2, -- U21 Regelzentrale
-	ruleSlotsP8 = 3, -- P8 Dritter Regel-Platz
-	ruleMin = 0.5, -- Schwelle von 0,5
-	ruleMax = 2, -- bis 2,0, in Zehntelschritten
+	-- U21 Regelzentrale: the two rules, each once. Threshold on the price factor, in tenths, with its range and default.
+	rules = {
+		charge = { min = 0.3, max = 1, default = 0.7 }, -- Günstig laden: charge while the price is at most this
+		sell = { min = 1, max = 2, default = 1.2 }, -- Teuer verkaufen: sell while the price is at least this
+	},
+	ruleStep = 0.1, -- the steppers in the HUD
 	crankBase = 1, -- energy per click
 	crankGear = 3, -- U12 Kurbel-Übersetzung
 	crankShare = 0.02, -- U13 Schwungrad: plus 2 % der Erzeugung/s

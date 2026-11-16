@@ -36,7 +36,15 @@ local Session = {}
 
 -- `boost` is the player's Sunshine / Turbo factor this second (BoostService.multiplierFor); nil means none.
 local function envFor(phase: any, weather: any, boost: number?): any
-	return { phase = phase, weather = weather, longMeter = false, config = config, formulas = Formulas, boost = boost }
+	return {
+		phase = phase,
+		weather = weather,
+		longMeter = false,
+		config = config,
+		formulas = Formulas,
+		boost = boost,
+		nextWeather = Env.nextWeather(),
+	}
 end
 
 -- Join: the profile loads first, so nobody plays without a saved profile. Then the offline income of the time away
@@ -152,7 +160,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 		local storage = view.storage
 		PlotService.update(player, nextState.plants, {
 			stage = storage.stage,
-			control = storage.ruleSlots > 0,
+			control = storage.rulesUnlocked,
 			fill = storage.fill,
 		}, nextState.land)
 		LandService.refresh(player, nextState)
