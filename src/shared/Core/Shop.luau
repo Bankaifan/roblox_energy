@@ -169,4 +169,42 @@ function Shop.purchase(profile: any, offerId: any, day: any, shop: any): (any, n
 	return result, offer.seconds, nil
 end
 
+-- The product offer with this Roblox product ID, or nil. A placeholder ID (0) matches nothing, and passes never match.
+function Shop.offerForProduct(shop: any, productId: any): string?
+	if not isFinite(productId) then
+		return nil
+	end
+	for _, offer in shop.offers do
+		if offer.type == "product" and offer.robloxId > 0 and offer.robloxId == productId then
+			return offer.id
+		end
+	end
+	return nil
+end
+
+-- ProcessReceipt in the pure core: one receipt, one product offer. The receipt ID is written into `purchases` together
+-- with the credit, so a receipt is credited once. Returns the new profile, the status and the seconds of cut yield:
+-- "granted" (credited now), "duplicate" (the receipt is known: nothing changes), "refused" (no credit: no receipt ID, a
+-- pass, an unknown offer or a limit; the input comes back). Paying out the yield is up to the caller.
+function Shop.receipt(profile: any, receiptId: any, offerId: any, day: any, shop: any): (any, string, number)
+	if type(receiptId) ~= "string" or receiptId == "" then
+		return profile, "refused", 0
+	end
+	for _, known in profile.purchases do
+		if known == receiptId then
+			return profile, "duplicate", 0
+		end
+	end
+	local offer = findOffer(shop, offerId)
+	if offer == nil or offer.type ~= "product" then
+		return profile, "refused", 0
+	end
+	local result, seconds, reason = Shop.purchase(profile, offerId, day, shop)
+	if reason ~= nil then
+		return profile, "refused", 0
+	end
+	table.insert(result.purchases, receiptId)
+	return result, "granted", seconds
+end
+
 return Shop

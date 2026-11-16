@@ -1,0 +1,194 @@
+--!strict
+-- Purchases on the server (Bauplan.md, sections 4 and 5): one ProcessReceipt callback for all products, and pass
+-- ownership checked on join and after PromptGamePassPurchaseFinished. The rules live in Core/Shop; this service finds
+-- the profile (DataService), writes the result and waits for the save before a receipt is granted.
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shop = require(Shared:WaitForChild("Core"):WaitForChild("Shop") :: ModuleScript) :: any
+local Catalogue = require(Shared:WaitForChild("Config"):WaitForChild("Shop") :: ModuleScript) :: any
+local DataService = require(script.Parent.DataService) :: any
+local PolicyService = require(script.Parent.PolicyService) :: any
+
+local PurchaseGranted = Enum.ProductPurchaseDecision.PurchaseGranted
+local NotProcessedYet = Enum.ProductPurchaseDecision.NotProcessedYet
+local SAVE_WAIT_SECONDS = 15 -- a receipt waits for its save; Roblox lets the callback take a while
+
+local PurchaseService = {}
+
+-- The day for the daily limits: whole days since the epoch, from the server clock.
+local function today(): number
+	return math.floor(os.time() / 86400)
+end
+
+-- Receipts of one player are handled one after the other (a lock per UserId), so each one reads the data the previous
+-- one saved or undid. Without it, two receipts at once would build on each other's unsaved data.
+local receiving: { [number]: boolean } = {}
+
+local function lockReceipts(userId: number)
+	while receiving[userId] do
+		task.wait()
+	end
+	receiving[userId] = true
+end
+
+local function unlockReceipts(userId: number)
+	receiving[userId] = nil
+end
+
+-- True when the saved data holds this receipt ID, i.e. the save that just finished includes the credit.
+local function holdsReceipt(saved: any, receiptId: string): boolean
+	if type(saved) ~= "table" or type(saved.purchases) ~= "table" then
+		return false
+	end
+	for _, known in saved.purchases do
+		if known == receiptId then
+			return true
+		end
+	end
+	return false
+end
+
+-- Saves the profile and waits until a save holding the receipt is written (OnAfterSave). An older save that was already
+-- in flight fires OnAfterSave too, but its data lacks the credit, so it does not count. False on timeout or when the
+-- profile became inactive.
+local function saveNow(profile: any, receiptId: string): boolean
+	local saved = false
+	local connection: any
+	connection = profile.OnAfterSave:Connect(function(lastSaved: any)
+		if holdsReceipt(lastSaved, receiptId) then
+			saved = true
+			connection:Disconnect()
+		end
+	end)
+	profile:Save()
+	local deadline = os.clock() + SAVE_WAIT_SECONDS
+	while not saved and profile:IsActive() and os.clock() < deadline do
+		task.wait()
+	end
+	if not saved then
+		connection:Disconnect()
+	end
+	return saved
+end
+
+-- Takes back the credit of one receipt only: the fields a receipt writes (purchases, boosters, daily) go back to their
+-- values before it. Whatever else was written meanwhile (run sync, a pass) is kept.
+local function undoCredit(profile: any, before: any)
+	local restored = table.clone(profile.Data)
+	restored.purchases = before.purchases
+	restored.boosters = before.boosters
+	restored.daily = before.daily
+	profile.Data = restored
+end
+
+-- The credit of one receipt, under the receipt lock. Nothing is written unless the save is confirmed.
+local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecision
+	local profile = DataService.profileOf(player)
+	if profile == nil then
+		return NotProcessedYet
+	end
+	local offerId = Shop.offerForProduct(Catalogue, receipt.ProductId)
+	if offerId == nil then
+		warn(`[PurchaseService] unknown product {receipt.ProductId}`)
+		return NotProcessedYet
+	end
+	local before = profile.Data
+	local data, status = Shop.receipt(before, receipt.ReceiptId, offerId, today(), Catalogue)
+	if status == "duplicate" then
+		return PurchaseGranted
+	end
+	if status ~= "granted" then
+		return NotProcessedYet
+	end
+	profile.Data = data
+	if saveNow(profile, receipt.ReceiptId) then
+		return PurchaseGranted
+	end
+	undoCredit(profile, before) -- not saved: this credit is undone, the receipt is asked for again
+	return NotProcessedYet
+end
+
+-- One receipt for the player. A receipt already in the profile is granted again without a credit. No loaded profile
+-- or an unknown product: NotProcessedYet, Roblox asks again later.
+function PurchaseService.receive(player: Player, receipt: any): Enum.ProductPurchaseDecision
+	lockReceipts(player.UserId)
+	local ok, result = pcall(credit, player, receipt)
+	unlockReceipts(player.UserId)
+	if not ok then
+		error(result, 0)
+	end
+	return result
+end
+
+-- The one ProcessReceipt callback. An error counts as not processed: nothing is granted then.
+local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
+	local player = Players:GetPlayerByUserId(receipt.PlayerId)
+	if player == nil then
+		return NotProcessedYet
+	end
+	local ok, result = pcall(PurchaseService.receive, player, receipt)
+	if ok then
+		return result
+	end
+	warn(`[PurchaseService] receipt {receipt.ReceiptId} not processed: {result}`)
+	return NotProcessedYet
+end
+
+-- Records one owned pass in the profile. Shop.purchase keeps the ownership once; the effects read the profile.
+-- The cut yield of a pass (Founder Pack) is not paid here; the payout is open.
+function PurchaseService.grantPass(player: Player, offerId: string)
+	local profile = DataService.profileOf(player)
+	if profile == nil then
+		return
+	end
+	local data, _, reason = Shop.purchase(profile.Data, offerId, today(), Catalogue)
+	if reason == nil then
+		profile.Data = data
+	end
+end
+
+-- Asks Roblox for every pass with an ID. A failed call grants nothing.
+function PurchaseService.checkPasses(player: Player)
+	for _, offer in Catalogue.offers do
+		if offer.type == "pass" and offer.robloxId > 0 then
+			local ok, owned = pcall(function(): boolean
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, offer.robloxId)
+			end)
+			if ok and owned == true then
+				PurchaseService.grantPass(player, offer.id)
+			end
+		end
+	end
+end
+
+-- Join, after the profile loaded (Session.start): the paid-item policy is asked once, then the passes are checked.
+function PurchaseService.join(player: Player)
+	PolicyService.paidItemsAllowed(player)
+	PurchaseService.checkPasses(player)
+end
+
+-- The shop is shown only when the player may buy paid items (the policy answer of this session).
+function PurchaseService.shopVisible(player: Player): boolean
+	return PolicyService.paidItemsAllowed(player)
+end
+
+-- Connects the callbacks. Called once from Main.server.
+function PurchaseService.start()
+	MarketplaceService.ProcessReceipt = processReceipt
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
+		function(player: Player, gamePassId: number, wasPurchased: boolean)
+			if not wasPurchased then
+				return
+			end
+			for _, offer in Catalogue.offers do
+				if offer.type == "pass" and offer.robloxId > 0 and offer.robloxId == gamePassId then
+					PurchaseService.grantPass(player, offer.id)
+				end
+			end
+		end
+	)
+end
+
+return PurchaseService
