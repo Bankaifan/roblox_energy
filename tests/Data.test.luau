@@ -64,9 +64,9 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 3, the default profile of Bauplan section 5.
+	-- The template: version 4, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 3, "the template is version 3")
+	t.equal(template.v, 4, "the template is version 4")
 	t.equal(template.land.tools.scythe, true, "the scythe is owned from the start")
 	t.equal(template.land.market, false, "the market is not yet opened")
 	t.equal(next(template.passes), nil, "no pass owned by default")
@@ -91,7 +91,7 @@ return function(t, load)
 	run.nodes = { U01 = true, U12 = true }
 	run.pnodes = { P1 = true, P2 = true }
 	run.storage = { charge = 40.5, mode = "charge" }
-	run.rules = { ["1"] = { id = "charge", th = 0.7, on = true }, ["2"] = { id = "sell", th = 1.2, on = false } }
+	run.rules = { charge = { th = 0.7, on = true }, sell = { th = 1.2, on = false } }
 	run.lastSeen = 1700000000
 	run.playSeconds = 3600
 	run.sessions = 4
@@ -141,29 +141,55 @@ return function(t, load)
 	broken.lifetimeEarned = math.huge
 	broken.plants = { -1, 0 / 0, 2, 0, 0, 0 }
 	broken.storage = { charge = -3, mode = "charge" }
-	broken.rules = { ["1"] = { id = "charge", th = 0 / 0, on = true } }
+	broken.rules = { charge = { th = 0 / 0, on = true } }
 	broken.lastSeen = -1
 	local cleaned = Data.migrate(broken, Steps)
 	t.truthy(countsOnly(cleaned), "no negative, NaN or infinite number after a load")
 	t.equal(cleaned.coins, 0, "negative coins become 0")
 	t.equal(cleaned.plants[1], 0, "a negative plant count becomes 0")
 	t.equal(cleaned.plants[3], 2, "a valid plant count is kept")
-	t.equal(cleaned.rules["1"], nil, "a rule with a NaN threshold is dropped")
+	t.equal(cleaned.rules.charge, nil, "a rule with a NaN threshold is dropped")
 
-	-- Slot 3 set before slot 2: the saved profile has no numeric keys (ProfileStore refuses gaps), and the slots come back.
-	local gapState = Data.toState(Data.template())
-	gapState.rules = { [3] = { id = "sell", th = 1, on = true } }
-	local gapProfile = Data.fromState(gapState)
-	t.equal(gapProfile.rules[3], nil, "a saved rule has no numeric key")
-	t.equal(gapProfile.rules["3"].id, "sell", "a saved rule is keyed by its slot as a string")
-	local gapBack = Data.toState(Data.migrate(gapProfile, Steps))
-	t.equal(gapBack.rules[2], nil, "slot 2 stays empty")
-	t.equal(gapBack.rules[3].id, "sell", "slot 3 comes back as slot 3")
-	t.truthy(same(gapBack.rules[3], gapState.rules[3]), "the slot 3 rule comes back exactly")
+	-- A rule is saved under its id; one that is not charge or sell is dropped.
+	local sellState = Data.toState(Data.template())
+	sellState.rules = { sell = { th = 1.5, on = true }, bogus = { th = 1, on = true } }
+	local sellBack = Data.toState(Data.migrate(Data.fromState(sellState), Steps))
+	t.truthy(same(sellBack.rules.sell, { th = 1.5, on = true }), "the sell rule comes back exactly")
+	t.equal(sellBack.rules.bogus, nil, "an unknown rule id is dropped")
+	t.equal(sellBack.rules.charge, nil, "a rule never set stays unset")
+
+	-- Version 3 -> 4: the slots become one rule per id, thresholds clamped into the range of their rule.
+	local slotted = {
+		v = 3,
+		rules = {
+			["1"] = { id = "charge", th = 0.5, on = false },
+			["2"] = { id = "sell", th = 1.2, on = true },
+			["3"] = { id = "charge", th = 0.8, on = true },
+		},
+	}
+	local migrated = Data.migrate(slotted, Steps)
+	t.equal(migrated.v, 4, "the profile is version 4 afterwards")
+	t.truthy(same(migrated.rules.charge, { th = 0.8, on = true }), "of two charge slots the switched-on one wins")
+	t.truthy(same(migrated.rules.sell, { th = 1.2, on = true }), "the sell slot becomes the sell rule")
+	t.equal(migrated.rules["1"], nil, "no slot key is left")
+	t.equal(slotted.rules["1"].id, "charge", "the input profile is not changed")
+	local clamped = Data.migrate({
+		v = 3,
+		rules = {
+			["1"] = { id = "charge", th = 1.4, on = true },
+			["2"] = { id = "sell", th = 0.5, on = false },
+			["3"] = { id = "other", th = 1, on = true },
+		},
+	}, Steps)
+	t.equal(clamped.rules.charge.th, 1, "a charge threshold above 1,0 is clamped to 1,0")
+	t.equal(clamped.rules.sell.th, 1, "a sell threshold below 1,0 is clamped to 1,0")
+	t.equal(clamped.rules.sell.on, false, "the switch is kept")
+	t.equal(clamped.rules.other, nil, "an unknown rule id is dropped")
+	t.truthy(same(Data.migrate({ v = 3 }, Steps).rules, {}), "a profile without rules gets none")
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 4
+	newer.v = 5
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
@@ -180,9 +206,10 @@ return function(t, load)
 		end,
 		[1] = Steps[1],
 		[2] = Steps[2],
+		[3] = Steps[3],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 3, "the profile is version 3 afterwards")
+	t.equal(upgraded.v, 4, "the profile is the current version afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
 	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
@@ -199,7 +226,7 @@ return function(t, load)
 		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
 	}
 	local v2 = Data.migrate(v1, Steps)
-	t.equal(v2.v, 3, "a version 1 profile loads as the current version")
+	t.equal(v2.v, 4, "a version 1 profile loads as the current version")
 	t.equal(v2.passes.founder, true, "a founder grant becomes the owned pass")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
@@ -211,7 +238,7 @@ return function(t, load)
 	-- Migration 2 to 3: a profile that has earned coins gets the old game's land; a fresh one gets the template.
 	local old2 = { v = 2, coins = 10, lifetimeEarned = 50, nodes = { U21 = true } }
 	local v3 = Data.migrate(old2, Steps)
-	t.equal(v3.v, 3, "a version 2 profile loads as version 3")
+	t.equal(v3.v, 4, "a version 2 profile loads as the current version")
 	t.truthy(same(v3.land.sites, { 4, 4, 4, 4, 4, 4 }), "the first row of every field is prepared")
 	t.equal(v3.land.tools.shovel, true, "the tools are owned")
 	t.equal(v3.land.tools.pliers, true, "the cable pliers are owned")
@@ -240,7 +267,7 @@ return function(t, load)
 	t.equal(repaired.wired, true, "a valid flag is kept")
 	t.equal(repaired.market, false, "a missing flag is false")
 	t.truthy(
-		same(Data.migrate({ v = 3, land = 5 }, Steps).land, Data.template().land),
+		same(Data.migrate({ v = 4, land = 5 }, Steps).land, Data.template().land),
 		"a land that is no table gets the default"
 	)
 

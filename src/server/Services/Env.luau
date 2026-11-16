@@ -33,6 +33,13 @@ function Env.current(): (any, any)
 	return EnvCore.phaseAt(now, Phases), EnvCore.weatherAt(now, seed, Weathers, WEATHER_SECONDS)
 end
 
+-- The weather of the next period (the view shows it only to players with U15).
+function Env.nextWeather(): any
+	local now = workspace:GetServerTimeNow()
+	local nextStart = (math.floor(now / WEATHER_SECONDS) + 1) * WEATHER_SECONDS
+	return EnvCore.weatherAt(nextStart, seed, Weathers, WEATHER_SECONDS)
+end
+
 -- What every client gets in Env: phase, weather and the Sunshine Hour (end time, buyer, seconds queued behind it).
 function Env.payload(phase: any, weather: any): { [string]: any }
 	local sunshine = BoostService.sunshineStatus()

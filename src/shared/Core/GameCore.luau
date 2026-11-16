@@ -10,7 +10,7 @@ export type Phase = { id: string, duration: number, solar: number, price: number
 export type Weather = { id: string, share: number, solar: number, wind: number, price: number }
 export type Plant = { id: number, name: string, kind: string, baseCost: number, nominalPower: number }
 export type Prestige = { level: number, requiredRevenue: number, multiplier: number, sparks: number }
-export type Rule = { id: string, th: number, on: boolean }
+export type Rule = { th: number, on: boolean }
 export type State = {
 	coins: number,
 	runEarned: number,
@@ -22,7 +22,7 @@ export type State = {
 	nodes: { [string]: boolean },
 	pnodes: { [string]: boolean },
 	storage: { charge: number, mode: string },
-	rules: { [number]: Rule },
+	rules: { [string]: Rule }, -- by rule id ("charge", "sell"); a missing rule is off at its default threshold
 	land: any?,
 }
 export type Config = {
@@ -42,6 +42,7 @@ export type Env = {
 	config: Config,
 	formulas: any,
 	boost: number?,
+	nextWeather: Weather?, -- the weather of the next period; the view shows it only with U15
 }
 
 local GameCore = {}
@@ -189,18 +190,35 @@ local function landOf(state: State, env: Env): any
 	return state.land
 end
 
--- Regel-Plätze: two with the Regelzentrale (U21), three with P8; with required land only when wired.
-local function ruleSlots(state: State, env: Env): number
+-- The Regelzentrale (U21) unlocks the two rules "charge" and "sell"; each exists once and is addressed by its id.
+-- With required land the rules also need the wired site.
+local function rulesUnlocked(state: State, env: Env): boolean
 	if not state.nodes.U21 then
-		return 0
+		return false
 	end
-	if landRequired(env) and not (state.land ~= nil and state.land.wired == true) then
-		return 0
+	return not landRequired(env) or (state.land ~= nil and state.land.wired == true)
+end
+
+-- A rule as the player sees it: the stored one, or off at the default threshold (rules start off).
+local function ruleOf(state: State, env: Env, id: string): Rule
+	local stored = state.rules[id]
+	if stored ~= nil then
+		return stored
 	end
-	if state.pnodes.P8 then
-		return env.config.effects.ruleSlotsP8
+	return { th = env.config.effects.rules[id].default, on = false }
+end
+
+-- Auto does something only with the Regelzentrale and at least one rule switched on.
+local function autoReady(state: State, env: Env): boolean
+	if not rulesUnlocked(state, env) then
+		return false
 	end
-	return env.config.effects.ruleSlots
+	for _, rule in state.rules do
+		if rule.on then
+			return true
+		end
+	end
+	return false
 end
 
 -- What the storage does this second: "charge", "sell" or "idle". In "auto" the rules decide;
@@ -214,15 +232,9 @@ local function storageAction(state: State, env: Env): string
 		return "idle"
 	end
 	local priceFactor = env.phase.price * env.weather.price
-	local charging, selling = false, false
-	for _, rule in state.rules do
-		if rule.on and rule.id == "charge" and priceFactor <= rule.th then
-			charging = true
-		end
-		if rule.on and rule.id == "sell" and priceFactor >= rule.th then
-			selling = true
-		end
-	end
+	local chargeRule, sellRule = state.rules.charge, state.rules.sell
+	local charging = chargeRule ~= nil and chargeRule.on and priceFactor <= chargeRule.th
+	local selling = sellRule ~= nil and sellRule.on and priceFactor >= sellRule.th
 	if selling then
 		return "sell"
 	end
@@ -238,15 +250,15 @@ local function credit(state: State, amount: number)
 	state.lifetimeEarned += amount
 end
 
--- One second-scale step of the run: plants produce, the storage charges or sells, the rest is sold at the price.
-function GameCore.tick(state: State, env: Env, dt: number): State
-	local result = copy(state)
-	if not isFinite(dt) or dt <= 0 then
-		return result
-	end
-	local phase, weather = env.phase, env.weather
-	local generated = production(state, env, phase, weather) * dt * (env.boost or 1)
-	local price = env.formulas.price(phase, weather, market(state, env, phase))
+-- What the storage does over `dt` seconds with `generated` energy: the energy taken in, the energy sold out of it,
+-- the charge after it, the capacity and the action ("charge", "sell" or "idle"). Charging and selling are limited
+-- to capacity / storageRateSeconds per second, so on a small storage part of the output is still sold.
+local function storageStep(
+	state: State,
+	env: Env,
+	generated: number,
+	dt: number
+): (number, number, number, number, string)
 	local capacity = env.formulas.storageCapacity(storageStage(state, env), middayOutput(state, env))
 	local efficiency = storageEfficiency(state, env)
 	local charge = math.min(state.storage.charge, capacity)
@@ -260,6 +272,19 @@ function GameCore.tick(state: State, env: Env, dt: number): State
 		output = math.min(rate, charge)
 		charge -= output
 	end
+	return input, output, charge, capacity, action
+end
+
+-- One second-scale step of the run: plants produce, the storage charges or sells, the rest is sold at the price.
+function GameCore.tick(state: State, env: Env, dt: number): State
+	local result = copy(state)
+	if not isFinite(dt) or dt <= 0 then
+		return result
+	end
+	local phase, weather = env.phase, env.weather
+	local generated = production(state, env, phase, weather) * dt * (env.boost or 1)
+	local price = env.formulas.price(phase, weather, market(state, env, phase))
+	local input, output, charge = storageStep(state, env, generated, dt)
 	local revenue = (generated - input + output) * price
 	if not isFinite(revenue) or not isFinite(result.lifetimeEarned + revenue) then
 		return result
@@ -367,21 +392,17 @@ end
 
 local function setRule(state: State, env: Env, action: { [string]: any }): boolean
 	local effects = env.config.effects
-	local slot, rule, th, on = action.slot, action.rule, action.th, action.on
-	if not isCount(slot) or slot < 1 or slot > ruleSlots(state, env) then
+	local id, th, on = action.rule, action.th, action.on
+	if type(id) ~= "string" or effects.rules[id] == nil or not rulesUnlocked(state, env) then
 		return false
 	end
-	if rule ~= "charge" and rule ~= "sell" then
+	if not isFinite(th) or type(on) ~= "boolean" then
 		return false
 	end
-	if not isFinite(th) or th < effects.ruleMin or th > effects.ruleMax then
-		return false
-	end
-	local tenths = math.floor(th * 10 + 0.5)
-	if math.abs(th * 10 - tenths) > 1e-9 or type(on) ~= "boolean" then
-		return false
-	end
-	state.rules[slot] = { id = rule, th = tenths / 10, on = on }
+	-- The client sends the value it chose; the server rounds it to a tenth and clamps it into the range of the rule.
+	local range = effects.rules[id]
+	local tenths = math.floor(th * 10 + 0.5) / 10
+	state.rules[id] = { th = math.max(range.min, math.min(range.max, tenths)), on = on }
 	return true
 end
 
@@ -391,6 +412,10 @@ local function setStorageMode(state: State, env: Env, action: { [string]: any })
 		return false
 	end
 	if storageStage(state, env) < 1 then
+		return false
+	end
+	-- Auto with no rule switched on would do nothing: it is not selectable then.
+	if mode == "auto" and not autoReady(state, env) then
 		return false
 	end
 	state.storage.mode = mode
@@ -579,14 +604,35 @@ local function nodeStates(state: State, env: Env): { any }
 	return nodes
 end
 
--- Storage for the HUD: the stage (0 until U17), the mode, the rule slots (U21) and the rule in each slot.
-local function storageView(state: State, env: Env): { [string]: any }
-	local slots = ruleSlots(state, env)
+-- What the storage does right now, for the HUD line under the modes (same numbers as tick, for one second):
+-- { kind = "none" | "idle" | "charging" | "full" | "selling", share = fraction of the output taken in, income = coins/s }.
+local function storageFlow(state: State, env: Env, price: number): { [string]: any }
+	if storageStage(state, env) < 1 then
+		return { kind = "none", share = 0, income = 0 }
+	end
+	local generated = production(state, env, env.phase, env.weather) * (env.boost or 1)
+	local input, output, charge, capacity, action = storageStep(state, env, generated, 1)
+	if action == "charge" then
+		if charge >= capacity - 1e-9 then
+			return { kind = "full", share = 0, income = 0 }
+		end
+		local share = if generated > 0 then math.min(1, input / generated) else 0
+		return { kind = "charging", share = share, income = 0 }
+	elseif action == "sell" and output > 0 then
+		return { kind = "selling", share = 0, income = output * price }
+	end
+	return { kind = "idle", share = 0, income = 0 }
+end
+
+-- Storage for the HUD: the stage (0 until U17), the mode, whether Auto can do anything, the two rules (U21: charge
+-- and sell, each with its threshold, switch and range) and the live flow line.
+local function storageView(state: State, env: Env, price: number): { [string]: any }
+	local unlocked = rulesUnlocked(state, env)
 	local rules = {}
-	for slot = 1, slots do
-		local rule = state.rules[slot]
-		if rule ~= nil then
-			rules[slot] = { id = rule.id, th = rule.th, on = rule.on }
+	if unlocked then
+		for id, range in env.config.effects.rules do
+			local rule = ruleOf(state, env, id)
+			rules[id] = { th = rule.th, on = rule.on, min = range.min, max = range.max }
 		end
 	end
 	local stage = storageStage(state, env)
@@ -594,9 +640,11 @@ local function storageView(state: State, env: Env): { [string]: any }
 	return {
 		stage = stage,
 		mode = state.storage.mode,
-		ruleSlots = slots,
+		rulesUnlocked = unlocked,
+		autoReady = autoReady(state, env),
 		rules = rules,
 		fill = env.formulas.storageFill(state.storage.charge, capacity),
+		flow = storageFlow(state, env, price),
 	}
 end
 
@@ -620,10 +668,17 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 			allowed = state.runEarned >= step.requiredRevenue,
 		}
 	end
+	-- The price factor of this second: the same value tick sells at. The next weather shows only with U15.
+	local price = env.formulas.price(env.phase, env.weather, market(state, env, env.phase))
+	local nextWeather: string? = nil
+	if state.nodes.U15 and env.nextWeather ~= nil then
+		nextWeather = env.nextWeather.id
+	end
 	local view: { [string]: any } = {
 		plants = plants,
 		nodes = nodeStates(state, env),
-		storage = storageView(state, env),
+		storage = storageView(state, env, price),
+		price = { factor = price, phase = env.phase.id, weather = env.weather.id, nextWeather = nextWeather },
 		crank = crankEnergy(state, env),
 		goal = goal,
 	}

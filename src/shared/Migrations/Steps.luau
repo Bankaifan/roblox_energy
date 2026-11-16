@@ -40,4 +40,40 @@ Steps[2] = function(profile: any): any
 	return profile
 end
 
+-- Threshold ranges of version 4 (a migration stays as it was written, so these are not read from Config).
+local RANGES = { charge = { min = 0.3, max = 1 }, sell = { min = 1, max = 2 } }
+
+-- Version 3 -> 4: the rules were kept in slots ("1", "2", "3" -> { id, th, on }); now each rule exists once, keyed by
+-- its id ("charge", "sell" -> { th, on }). When two slots held the same rule, a switched-on one wins, else the lower slot.
+-- The threshold is rounded to a tenth and clamped into the range of its rule; a slot with an unknown id is dropped.
+Steps[3] = function(profile: any): any
+	local rules:{ [string]: any } = {}
+	local slots: { number } = {}
+	if type(profile.rules) == "table" then
+		for key in profile.rules do
+			local slot = tonumber(key)
+			if slot ~= nil then
+				table.insert(slots, slot)
+			end
+		end
+	end
+	table.sort(slots)
+	for _, slot in slots do
+		local old = profile.rules[tostring(slot)]
+		if old == nil then
+			old = profile.rules[slot]
+		end
+		local range = if type(old) == "table" then RANGES[old.id] else nil
+		if range ~= nil and type(old.th) == "number" and old.th == old.th and type(old.on) == "boolean" then
+			local kept = rules[old.id]
+			if kept == nil or (old.on and not kept.on) then
+				local tenths = math.floor(old.th * 10 + 0.5) / 10
+				rules[old.id] = { th = math.max(range.min, math.min(range.max, tenths)), on = old.on }
+			end
+		end
+	end
+	profile.rules = rules
+	return profile
+end
+
 return Steps

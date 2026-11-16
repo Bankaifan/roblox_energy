@@ -170,10 +170,9 @@ end
 -- Rules first (Günstig laden 0,7 and Teuer verkaufen 1,2), then the storage chain in plan order.
 -- Stops at the first item that is not affordable yet.
 local function storagePlan(state: any, env: any): any
-	if state.nodes.U21 and state.rules[1] == nil then
-		local charge = { type = "SetRule", slot = 1, rule = "charge", th = 0.7, on = true }
-		state = apply(state, charge, env)
-		state = apply(state, { type = "SetRule", slot = 2, rule = "sell", th = 1.2, on = true }, env)
+	if state.nodes.U21 and state.rules.charge == nil then
+		state = apply(state, { type = "SetRule", rule = "charge", th = 0.7, on = true }, env)
+		state = apply(state, { type = "SetRule", rule = "sell", th = 1.2, on = true }, env)
 	end
 	for _, id in STORAGE_PLAN do
 		if not state.nodes[id] then
@@ -282,7 +281,7 @@ function Sim.withStorage(state: any, stage: number): any
 	end
 	if stage >= 1 then
 		result.nodes.U21 = true
-		result.rules = { { id = "charge", th = 0.7, on = true }, { id = "sell", th = 1.2, on = true } }
+		result.rules = { charge = { th = 0.7, on = true }, sell = { th = 1.2, on = true } }
 	end
 	return result
 end

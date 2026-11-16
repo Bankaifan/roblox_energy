@@ -142,7 +142,7 @@ Drei Entscheidungen hinter den Formeln:
 - **Günstig laden:** lädt, solange der Preisfaktor höchstens die Schwelle erreicht. Standard 0,7.
 - **Teuer verkaufen:** entlädt, sobald der Preisfaktor die Schwelle erreicht. Standard 1,2.
 - **Auto-Ausbau:** kauft alle 2 Sekunden die Anlage mit der kürzesten Amortisation, wenn danach die eingestellte Reserve übrig bleibt (0–90 % der Coins).
-- Schwellen lassen sich in Schritten von 0,1 zwischen 0,5 und 2,0 einstellen.
+- Schwellen lassen sich in Schritten von 0,1 einstellen: Günstig laden 0,3 bis 1,0, Teuer verkaufen 1,0 bis 2,0. Jede Regel gibt es einmal (keine Plätze), mit Schalter und Schwelle. Automatik gilt nur mit U21 und mindestens einer eingeschalteten Regel.
 
 ### Upgrade-Baum: 22 Lauf-Knoten
 

@@ -86,32 +86,55 @@ return function(t, load)
 	t.truthy(permOk and withPerm.pnodes.P1 == true, "P1 is bought with sparks")
 	t.equal(withPerm.sparksSpent, 3, "P1 spends its 3 sparks")
 
-	-- SetRule: the control center (U21) unlocks the rules; thresholds are 0,5 to 2,0 in tenths.
-	local function setRule(state: { [string]: any }, slot: number, rule: string, th: number): (any, boolean)
-		local action = { type = "SetRule", slot = slot, rule = rule, th = th, on = true }
+	-- SetRule: the control center (U21) unlocks the two rules, addressed by id; the server rounds the threshold to a
+	-- tenth and clamps it into the range of the rule (charge 0,3 to 1,0, sell 1,0 to 2,0).
+	local function setRule(state: { [string]: any }, rule: any, th: any, on: any?): (any, boolean)
+		local action = { type = "SetRule", rule = rule, th = th, on = if on == nil then true else on }
 		return GameCore.apply(state, action, env(2, 1))
 	end
 	local rules = fresh()
-	local _, ruleLockedOk = setRule(rules, 1, "charge", 0.7)
+	local _, ruleLockedOk = setRule(rules, "charge", 0.7)
 	t.truthy(not ruleLockedOk, "a rule needs the control center")
 	rules.nodes.U21 = true
-	local ruled, ruleOk = setRule(rules, 1, "charge", 0.7)
-	t.truthy(ruleOk and ruled.rules[1].th == 0.7, "rule accepted at 0,7")
-	local _, oddStepOk = setRule(rules, 1, "sell", 0.75)
-	t.truthy(not oddStepOk, "threshold must be in tenths")
-	local _, thirdSlotOk = setRule(rules, 3, "sell", 1.2)
-	t.truthy(not thirdSlotOk, "only two slots without P8")
-	rules.pnodes.P8 = true
-	local _, thirdOk = setRule(rules, 3, "sell", 1.2)
-	t.truthy(thirdOk, "P8 opens the third slot")
+	local ruled, ruleOk = setRule(rules, "charge", 0.7)
+	t.truthy(ruleOk and ruled.rules.charge.th == 0.7 and ruled.rules.charge.on, "charge rule accepted at 0,7")
+	local rounded = setRule(rules, "sell", 1.24)
+	t.equal(rounded.rules.sell.th, 1.2, "a threshold is rounded to a tenth")
+	t.equal(setRule(rules, "charge", 5).rules.charge.th, 1, "a charge threshold above 1,0 is clamped to 1,0")
+	t.equal(setRule(rules, "charge", 0).rules.charge.th, 0.3, "a charge threshold below 0,3 is clamped to 0,3")
+	t.equal(setRule(rules, "sell", 0.5).rules.sell.th, 1, "a sell threshold below 1,0 is clamped to 1,0")
+	t.equal(setRule(rules, "sell", 9).rules.sell.th, 2, "a sell threshold above 2,0 is clamped to 2,0")
+	local off = setRule(rules, "sell", 1.5, false)
+	t.truthy(off.rules.sell.on == false and off.rules.sell.th == 1.5, "a rule is switched off with its threshold kept")
+	local _, nanOk = setRule(rules, "sell", 0 / 0)
+	t.truthy(not nanOk, "a NaN threshold is rejected")
+	local _, infOk = setRule(rules, "sell", math.huge)
+	t.truthy(not infOk, "an infinite threshold is rejected")
+	local _, unknownRuleOk = setRule(rules, "expand", 1)
+	t.truthy(not unknownRuleOk, "an unknown rule id is rejected")
+	local _, slotOk = setRule(rules, 1, 1)
+	t.truthy(not slotOk, "a slot number is no rule id")
+	local _, onOk = setRule(rules, "sell", 1.2, "yes")
+	t.truthy(not onOk, "the switch must be a boolean")
 
-	-- SetStorageMode: needs the first storage node.
+	-- SetStorageMode: needs the first storage node; Auto needs U21 and at least one rule switched on.
 	local storageless = fresh()
 	local _, modeLockedOk = GameCore.apply(storageless, { type = "SetStorageMode", mode = "charge" }, env(2, 1))
 	t.truthy(not modeLockedOk, "storage mode needs a storage")
 	storageless.nodes.U17 = true
 	local moded, modeOk = GameCore.apply(storageless, { type = "SetStorageMode", mode = "charge" }, env(2, 1))
 	t.truthy(modeOk and moded.storage.mode == "charge", "storage mode is set")
+	local _, autoBeforeOk = GameCore.apply(storageless, { type = "SetStorageMode", mode = "auto" }, env(2, 1))
+	t.truthy(not autoBeforeOk, "Auto is not selectable before U21")
+	storageless.nodes.U21 = true
+	local _, autoNoRuleOk = GameCore.apply(storageless, { type = "SetStorageMode", mode = "auto" }, env(2, 1))
+	t.truthy(not autoNoRuleOk, "Auto is not selectable without a rule switched on")
+	storageless.rules.sell = { th = 1.2, on = false }
+	local _, autoOffOk = GameCore.apply(storageless, { type = "SetStorageMode", mode = "auto" }, env(2, 1))
+	t.truthy(not autoOffOk, "Auto is not selectable with every rule off")
+	storageless.rules.sell.on = true
+	local autoSet, autoOk = GameCore.apply(storageless, { type = "SetStorageMode", mode = "auto" }, env(2, 1))
+	t.truthy(autoOk and autoSet.storage.mode == "auto", "Auto is selectable with a rule on")
 
 	-- Storage at noon and evening: 10 rooftop solar, midday output 406/s, capacity 30 s = 12180.
 	local storing = fresh()
@@ -132,7 +155,7 @@ return function(t, load)
 	auto.plants[3] = 10
 	auto.nodes.U17 = true
 	auto.nodes.U21 = true
-	auto.rules[1] = { id = "charge", th = 0.7, on = true }
+	auto.rules.charge = { th = 0.7, on = true }
 	local autoNoon = GameCore.tick(auto, env(2, 1), 1)
 	t.truthy(autoNoon.storage.charge > 0, "auto charges at the noon price")
 	local autoMorning = GameCore.tick(auto, env(1, 1), 1)
@@ -236,15 +259,15 @@ return function(t, load)
 	local stored, storedOk = GameCore.apply(boxed, { type = "BuyNode", node = "U17" }, gated)
 	t.truthy(storedOk, "U17 with the container")
 	stored.nodes.U21 = true
-	t.equal(GameCore.view(stored, gated).storage.ruleSlots, 0, "rule slots need the wiring")
+	t.equal(GameCore.view(stored, gated).storage.rulesUnlocked, false, "the rules need the wiring")
 	stored.coins = 1000
 	local _, unwiredOk = GameCore.apply(stored, { type = "Prepare", target = "wired" }, gated)
 	t.truthy(not unwiredOk, "wiring needs the pliers")
 	local pliers = GameCore.apply(stored, { type = "BuyTool", tool = "pliers" }, gated)
 	local wired, wiredOk = GameCore.apply(pliers, { type = "Prepare", target = "wired" }, gated)
 	t.truthy(wiredOk, "wiring with the pliers")
-	t.equal(GameCore.view(wired, gated).storage.ruleSlots, 2, "wired board gives the rule slots")
-	t.equal(GameCore.view(stored, open).storage.ruleSlots, 2, "without required the slots need no wiring")
+	t.equal(GameCore.view(wired, gated).storage.rulesUnlocked, true, "a wired board unlocks the rules")
+	t.equal(GameCore.view(stored, open).storage.rulesUnlocked, true, "without required the rules need no wiring")
 	wired.runEarned = 10000000
 	local after, afterOk = GameCore.apply(wired, { type = "Prestige" }, gated)
 	t.truthy(

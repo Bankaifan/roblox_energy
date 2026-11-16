@@ -18,7 +18,7 @@ local Hud = {}
 local DIMMED_TEXT = 0.3
 local DIMMED_BACKGROUND = 0.6
 -- The panel is at most this wide; on a narrow screen it shrinks to the screen width instead.
-local PANEL_MAX_WIDTH = 300
+local PANEL_MAX_WIDTH = 360
 -- Every row and button uses the same fixed text size. Long text wraps onto a second line and the row grows with it.
 local ROW_TEXT = 14
 local ROW_MIN_HEIGHT = 36
@@ -31,9 +31,8 @@ local STORAGE_MODES = {
 	{ id = "sell", key = "mode.sell" },
 	{ id = "auto", key = "mode.auto" },
 }
--- Placeholder rule thresholds: charge while the price factor is at most 0.8, sell while it is at least 1.2.
-local CHARGE_BELOW = 0.8
-local SELL_ABOVE = 1.2
+-- The rules, one row each in this order; the thresholds, ranges and switches come from the server's view.
+local RULE_IDS = { "charge", "sell" }
 -- The fixed detail area under the upgrade list (name, effect, reason, Buy), the gap above Buy, and the border of the selected row.
 local DETAIL_HEIGHT = 160
 local DETAIL_GAP = 4
@@ -166,8 +165,11 @@ function Hud.build(net: Instance)
 	end)
 	local coins = label(frame, nextOrder())
 	local rate = label(frame, nextOrder())
+	-- The electricity price right under the rate: the server's price factor, the phase and, with U15, the next weather.
+	local price = label(frame, nextOrder())
 	local storage = label(frame, nextOrder())
 	local storageHint = label(frame, nextOrder())
+	local storageFlow = label(frame, nextOrder())
 	local grid = label(frame, nextOrder())
 	local env = label(frame, nextOrder())
 	-- The Sunshine Hour button and banner, right under the weather line.
@@ -321,34 +323,57 @@ function Hud.build(net: Instance)
 	local modeButtons: { [string]: TextButton } = {}
 	for _, mode in STORAGE_MODES do
 		modeButtons[mode.id] = button(frame, "", nextOrder(), function()
-			if latest ~= nil and latest.storage.stage >= 1 then
+			local stored = if latest ~= nil then latest.storage else nil
+			if stored ~= nil and stored.stage >= 1 and (mode.id ~= "auto" or stored.autoReady) then
 				send("SetStorageMode", { mode = mode.id })
 			end
 		end)
 	end
 
 	local rulesTitle = label(frame, nextOrder())
-	-- One row per rule slot the Control Center can give (three with P8); the rows beyond the owned slots are hidden.
-	local ruleRows: { [number]: any } = {}
-	for slot = 1, Effects.ruleSlotsP8 do
+	-- One block per rule, each rule once (no slots): a status line, then a row with a lower stepper, a higher stepper
+	-- and the on/off switch. The client sends the chosen value; the server rounds and clamps it. The blocks show
+	-- only with the Control Center (U21).
+	local ruleRows: { [string]: any } = {}
+	for _, id in RULE_IDS do
 		local status = label(frame, nextOrder())
-		local charge = button(frame, "", nextOrder(), function()
-			if latest ~= nil and slot <= latest.storage.ruleSlots then
-				send("SetRule", { slot = slot, rule = "charge", th = CHARGE_BELOW, on = true })
+		local controls = Instance.new("Frame")
+		controls.BackgroundTransparency = 1
+		controls.Size = UDim2.new(1, 0, 0, ROW_MIN_HEIGHT)
+		controls.AutomaticSize = Enum.AutomaticSize.Y
+		controls.LayoutOrder = nextOrder()
+		local controlsLayout = Instance.new("UIListLayout")
+		controlsLayout.FillDirection = Enum.FillDirection.Horizontal
+		controlsLayout.Padding = UDim.new(0, 4)
+		controlsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		controlsLayout.Parent = controls
+		controls.Parent = frame
+		local function change(delta: number?)
+			local rule = if latest ~= nil then latest.storage.rules[id] else nil
+			if rule == nil then
+				return
 			end
-		end)
-		local sell = button(frame, "", nextOrder(), function()
-			if latest ~= nil and slot <= latest.storage.ruleSlots then
-				send("SetRule", { slot = slot, rule = "sell", th = SELL_ABOVE, on = true })
+			if delta == nil then
+				send("SetRule", { rule = id, th = rule.th, on = not rule.on })
+			else
+				send("SetRule", { rule = id, th = rule.th + delta, on = rule.on })
 			end
+		end
+		local function third(position: number, onClick: () -> ()): TextButton
+			local control = button(controls, "", position, onClick)
+			control.Size = UDim2.new(1 / 3, -3, 0, ROW_MIN_HEIGHT)
+			return control
+		end
+		local down = third(1, function()
+			change(-Effects.ruleStep)
 		end)
-		local toggle = button(frame, "", nextOrder(), function()
-			local rule = if latest ~= nil then latest.storage.rules[slot] else nil
-			if rule ~= nil then
-				send("SetRule", { slot = slot, rule = rule.id, th = rule.th, on = not rule.on })
-			end
+		local up = third(2, function()
+			change(Effects.ruleStep)
 		end)
-		ruleRows[slot] = { status = status, charge = charge, sell = sell, toggle = toggle }
+		local toggle = third(3, function()
+			change(nil)
+		end)
+		ruleRows[id] = { status = status, controls = controls, down = down, up = up, toggle = toggle }
 	end
 
 	local expand = button(frame, "", nextOrder(), function()
@@ -387,37 +412,70 @@ function Hud.build(net: Instance)
 		end
 	end
 
-	-- Storage modes and rules from the server's view. Modes need U17; rule slots need U21 (shown per slot).
+	-- The live storage line from the server's view: charging share, full, selling income or idle.
+	local function flowText(stored: any): string
+		local flow = stored.flow
+		if flow.kind == "charging" then
+			return t("flow.charging", { percent = math.floor(flow.share * 100 + 0.5) })
+		elseif flow.kind == "full" then
+			return t("flow.full")
+		elseif flow.kind == "selling" then
+			return t("flow.selling", { value = format(flow.income) })
+		elseif flow.kind == "idle" then
+			return t("flow.idle")
+		end
+		return ""
+	end
+
+	-- Storage modes and rules from the server's view. Modes need U17; Auto needs U21 and a rule switched on, and is
+	-- not offered before U21; the rule rows need U21.
 	local function storageSection(view: any)
 		local stored = view.storage
-		if stored.stage >= 1 then
-			modeTitle.Text = t("storage.mode", { mode = t("mode." .. stored.mode) })
-		else
+		if stored.stage < 1 then
 			modeTitle.Text = t("storage.locked")
+		elseif stored.mode == "auto" and not stored.autoReady then
+			modeTitle.Text = t("mode.autoNeedsRule")
+		else
+			modeTitle.Text = t("storage.mode", { mode = t("mode." .. stored.mode) })
 		end
+		storageFlow.Text = flowText(stored)
+		storageFlow.Visible = stored.flow.kind ~= "none"
 		for _, mode in STORAGE_MODES do
-			dim(modeButtons[mode.id], stored.stage >= 1)
-		end
-		rulesTitle.Text = if stored.ruleSlots > 0 then t("rules.title") else t("rules.locked")
-		for slot, row in ruleRows do
-			local visible = slot <= stored.ruleSlots
-			local rule = stored.rules[slot]
-			row.status.Visible = visible
-			row.charge.Visible = visible
-			row.sell.Visible = visible
-			row.toggle.Visible = visible
-			if rule ~= nil then
-				local state = if rule.on then "state.on" else "state.off"
-				row.status.Text = t("rule.status", {
-					slot = slot,
-					rule = t("rule." .. rule.id),
-					threshold = rule.th,
-					state = t(state),
-				})
+			local control = modeButtons[mode.id]
+			if mode.id == "auto" then
+				control.Visible = stored.rulesUnlocked
+				dim(control, stored.stage >= 1 and stored.autoReady)
 			else
-				row.status.Text = t("rule.empty", { slot = slot })
+				dim(control, stored.stage >= 1)
 			end
-			dim(row.toggle, rule ~= nil)
+		end
+		rulesTitle.Text = if stored.rulesUnlocked then t("rules.title") else t("rules.locked")
+		for id, row in ruleRows do
+			local rule = stored.rules[id]
+			local visible = rule ~= nil
+			row.status.Visible = visible
+			row.controls.Visible = visible
+			if rule ~= nil then
+				row.status.Text = t(`rule.{id}Status`, {
+					threshold = format(rule.th),
+					state = t(if rule.on then "state.on" else "state.off"),
+				})
+				row.toggle.Text = t(if rule.on then "rule.switchOff" else "rule.switchOn")
+				dim(row.down, rule.th > rule.min + 1e-9)
+				dim(row.up, rule.th < rule.max - 1e-9)
+			end
+		end
+	end
+
+	-- The price line: the server's price factor and phase, and with U15 the next weather.
+	local function priceSection(view: any)
+		local quote = view.price
+		local args = { factor = string.format("%.2f", quote.factor), phase = t("phase." .. quote.phase) }
+		if quote.nextWeather ~= nil then
+			args.weather = t("weather." .. quote.nextWeather)
+			price.Text = t("hud.priceNext", args)
+		else
+			price.Text = t("hud.price", args)
 		end
 	end
 
@@ -437,6 +495,7 @@ function Hud.build(net: Instance)
 		rate.Text = t("hud.rate", { value = format(change.rate) })
 		storageText(change.charge)
 		shop(change.view)
+		priceSection(change.view)
 		storageSection(change.view)
 		showDetail()
 	end
@@ -458,10 +517,10 @@ function Hud.build(net: Instance)
 			modeButtons[mode.id].Text = t("mode.hint." .. mode.id)
 		end
 		storageHint.Text = t("hud.storageHint")
-		for slot, row in ruleRows do
-			row.charge.Text = t("rule.slotCharge", { slot = slot, threshold = CHARGE_BELOW })
-			row.sell.Text = t("rule.slotSell", { slot = slot, threshold = SELL_ABOVE })
-			row.toggle.Text = t("rule.slotToggle", { slot = slot })
+		for _, row in ruleRows do
+			row.down.Text = t("rule.down", { step = Effects.ruleStep })
+			row.up.Text = t("rule.up", { step = Effects.ruleStep })
+			row.toggle.Text = t("rule.switchOn")
 		end
 		expand.Text = t("action.expand")
 		if lastSnapshot ~= nil then
