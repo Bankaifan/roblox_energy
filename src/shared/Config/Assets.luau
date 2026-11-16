@@ -41,8 +41,8 @@ Assets.furniture = {
 	battery = { file = "battery", x = 50, z = -48, size = 3 },
 } :: { [string]: Furniture }
 
--- Studs between stacked battery units (the unit's own height is added on top).
-Assets.BATTERY_GAP = 3
+-- Studs between stacked battery units: none, the units sit directly on each other.
+Assets.BATTERY_GAP = 0
 -- Texture ids of the poster decals removed from the market (cola posters), and the part names removed whole.
 Assets.marketPosterTextures = { ["rbxassetid://7977205851"] = true }
 Assets.marketRemovedParts = { ["Floppa Cube"] = true, ["Floppa cube"] = true }
