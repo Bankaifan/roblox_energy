@@ -114,25 +114,28 @@ function PlotService.setCrankHandler(handler: (Player) -> ())
 	crankHandler = handler
 end
 
--- A ProximityPrompt on the crank model; only the plot's owner can trigger it.
-local function addCrankPrompt(owner: Player, crank: Model)
-	local anchor = crank.PrimaryPart or crank:FindFirstChildWhichIsA("BasePart", true)
+-- A ProximityPrompt on a furniture model, texted in the owner's language. `onTriggered` runs on the server for the
+-- owner only; a prompt without it is handled on the client (the shop prompt: Controllers/Hud opens its panel).
+local function addPrompt(owner: Player, model: Model, name: string, key: string, onTriggered: ((Player) -> ())?)
+	local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
 	if anchor == nil then
 		return
 	end
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "CrankPrompt"
-	prompt.ActionText = Locale.t("action.crank", Locale.resolve(owner.LocaleId))
+	prompt.Name = name
+	prompt.ActionText = Locale.t(key, Locale.resolve(owner.LocaleId))
 	prompt.ObjectText = ""
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 10
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = anchor
-	prompt.Triggered:Connect(function(player: Player)
-		if player == owner and crankHandler ~= nil then
-			crankHandler(player)
-		end
-	end)
+	if onTriggered ~= nil then
+		prompt.Triggered:Connect(function(player: Player)
+			if player == owner then
+				onTriggered(player)
+			end
+		end)
+	end
 end
 
 -- Control center from U21, one battery unit per storage stage; both are rebuilt only when the number changes.
@@ -206,9 +209,16 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	-- The crank and the market are built once per plot.
 	local crank = addFurniture(record, "crank", nil)
 	if crank ~= nil then
-		addCrankPrompt(player, crank)
+		addPrompt(player, crank, "CrankPrompt", "action.crank", function(who: Player)
+			if crankHandler ~= nil then
+				crankHandler(who)
+			end
+		end)
 	end
-	addFurniture(record, "market", nil)
+	local market = addFurniture(record, "market", nil)
+	if market ~= nil then
+		addPrompt(player, market, "ShopPrompt", "action.shop", nil)
+	end
 	PlotService.update(player, {})
 	return true
 end
