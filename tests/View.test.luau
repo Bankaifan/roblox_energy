@@ -106,4 +106,41 @@ return function(t, load)
 	t.equal(Formulas.unitFill(0.5, 0, 2), 1, "with two units at half fill, the bottom unit is full")
 	t.equal(Formulas.unitFill(0.5, 1, 2), 0, "and the top unit is empty")
 	t.equal(Formulas.unitFill(0.25, 0, 1), 0.3, "one unit at a quarter shows in tenths")
+
+	-- Market popup data (Tools tab, site states, container): what the HUD draws comes from view.land and view.tools.
+	local Land = load("Config/Land")
+	local Locale = load("Config/Locale")
+	local landConfig: { [string]: any } = table.clone(Config)
+	local landTemplate: { [string]: any } = table.clone(Land)
+	landTemplate.required = true
+	landConfig.land = landTemplate
+	local landEnv = env(2, 1)
+	landEnv.config = landConfig
+	local landState = fresh()
+	landState.coins = 40
+	local landView = GameCore.view(landState, landEnv)
+	t.truthy(landView.plants[1].needsSite, "a plant without a site names its tool instead of Buy")
+	t.equal(Land.fieldTools[2], "shovel", "the water wheel row names the shovel")
+	t.equal(landView.land.container, false, "the Storage tab starts with the container still to buy")
+	local byId = {}
+	for _, tool in landView.tools do
+		byId[tool.id] = tool
+	end
+	t.truthy(byId.scythe.owned, "the scythe is owned at the start")
+	t.equal(byId.shovel.revealed, false, "the shovel waits for the first panel")
+	landState.plants[1] = 1
+	byId = {}
+	for _, tool in GameCore.view(landState, landEnv).tools do
+		byId[tool.id] = tool
+	end
+	t.truthy(byId.shovel.revealed and byId.shovel.buyable, "with a panel and 40 coins the shovel is buyable")
+	t.equal(byId.shovel.place, "market", "tools are sold at the market")
+	for _, tool in Land.tools do
+		local en = Locale.tables.en
+		t.truthy(en[tool.textKey] ~= nil and en[tool.textKey .. ".info"] ~= nil, `texts for {tool.id}`)
+	end
+	t.truthy(
+		Locale.tables.en["tool.line"] ~= nil and Locale.tables.de["hint.needTool"] ~= nil,
+		"popup texts in both languages"
+	)
 end
