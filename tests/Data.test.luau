@@ -64,13 +64,16 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 1, the default profile of Bauplan section 5.
+	-- The template: version 2, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 1, "the template is version 1")
+	t.equal(template.v, 2, "the template is version 2")
+	t.equal(next(template.passes), nil, "no pass owned by default")
+	t.equal(#template.boosters, 0, "the booster queue starts empty")
+	t.equal(template.daily.skips, 0, "no Time Skip used by default")
 	t.equal(#template.plants, 6, "six plants")
 	t.equal(template.storage.mode, "auto", "storage starts in auto")
 	t.equal(template.settings.lang, "auto", "the language follows the player")
-	t.equal(template.grants.founder, false, "no founder grant by default")
+	t.equal(template.grants, nil, "the version 1 grants table is gone")
 	template.coins = 5
 	t.equal(Data.template().coins, 0, "every call returns a new template")
 
@@ -92,7 +95,9 @@ return function(t, load)
 	run.sessions = 4
 	run.firstJoin = 1690000000
 	run.purchases = { "receipt-1", "receipt-2" }
-	run.grants = { founder = true, boostSeconds = 600, skipDay = 2, skipCount = 1 }
+	run.passes = { founder = true, premium = true }
+	run.boosters = { { kind = "turbo", left = 900 }, { kind = "sunshine", left = 600 } }
+	run.daily = { day = 20000, skips = 2 }
 	run.cosmetics = { [1] = "gold" }
 	run.settings = { lang = "de", sfx = false, music = true }
 	run.tutorial = 3
@@ -145,7 +150,7 @@ return function(t, load)
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 2
+	newer.v = 3
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
@@ -160,16 +165,50 @@ return function(t, load)
 			profile.money = nil
 			return profile
 		end,
+		[1] = Steps[1],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 1, "the profile is version 1 afterwards")
+	t.equal(upgraded.v, 2, "the profile is version 2 afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
-	t.equal(upgraded.plants[1], 0, "fields new in version 1 come from the template")
+	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
 	t.equal(old.money, 50, "the input profile is not changed")
 	local stranded, strandedReason = Data.migrate(old, {})
 	t.equal(stranded, nil, "without a step the load fails")
 	t.equal(strandedReason, "no migration from version 0", "the reason names the version")
+
+	-- Migration 1 to 2: the granted founder pass, the Time Skip counter and the empty booster queue come from the
+	-- version 1 grants; grants itself is gone.
+	local v1 = {
+		v = 1,
+		coins = 10,
+		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
+	}
+	local v2 = Data.migrate(v1, Steps)
+	t.equal(v2.v, 2, "a version 1 profile loads as version 2")
+	t.equal(v2.passes.founder, true, "a founder grant becomes the owned pass")
+	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
+	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
+	t.equal(#v2.boosters, 0, "the booster queue starts empty")
+	t.equal(v2.grants, nil, "grants is gone")
+	local v1none = Data.migrate({ v = 1 }, Steps)
+	t.equal(next(v1none.passes), nil, "a version 1 profile without a founder grant owns no pass")
+
+	-- Booster queue and passes: broken entries are dropped on load, a good one is kept.
+	local queued = Data.template()
+	queued.boosters = {
+		{ kind = "turbo", left = 0 / 0 },
+		{ kind = 5, left = 60 },
+		{ kind = "sunshine", left = -1 },
+		{ kind = "turbo", left = 300 },
+	}
+	queued.passes = { premium = true, neon = false }
+	local clean = Data.migrate(queued, Steps)
+	t.equal(#clean.boosters, 1, "only the valid booster entry is kept")
+	t.equal(clean.boosters[1].kind, "turbo", "the kept entry is the valid one")
+	t.equal(clean.boosters[1].left, 300, "its time left is kept")
+	t.equal(clean.passes.premium, true, "an owned pass is kept")
+	t.equal(clean.passes.neon, nil, "a pass that is not owned is dropped")
 
 	-- Offline income after a save and a load: Schnittrate × min(Abwesenheit, Deckel) × Wirkungsgrad.
 	-- Plant multipliers here have no nodes and no grid expansion (level 0).
