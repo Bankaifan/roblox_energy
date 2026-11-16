@@ -8,6 +8,7 @@ local GameCore = require(Shared:WaitForChild("Core"):WaitForChild("GameCore") ::
 local Formulas = require(Shared:WaitForChild("Core"):WaitForChild("Formulas") :: ModuleScript) :: any
 local Env = require(script.Parent.Env)
 local PlotService = require(script.Parent.PlotService)
+local LandService = require(script.Parent.LandService)
 local DataService = require(script.Parent.DataService)
 local BoostService = require(script.Parent.BoostService)
 
@@ -22,6 +23,7 @@ local config = {
 	phases = load("Phases"),
 	weathers = load("Weather"),
 	effects = load("Effects"),
+	land = load("Land"), -- BuyTool and Prepare; the gates stay off until Land.required is true
 }
 
 local states: { [Player]: any } = {}
@@ -146,6 +148,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			control = storage.ruleSlots > 0,
 			fill = storage.fill,
 		}, nextState.land ~= nil and nextState.land.tools.rails == true)
+		LandService.refresh(player, nextState)
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,
