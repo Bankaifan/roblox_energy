@@ -136,19 +136,19 @@ return function(t, load)
 	local autoSet, autoOk = GameCore.apply(storageless, { type = "SetStorageMode", mode = "auto" }, env(2, 1))
 	t.truthy(autoOk and autoSet.storage.mode == "auto", "Auto is selectable with a rule on")
 
-	-- Storage at noon and evening: 10 rooftop solar, midday output 406/s, capacity 30 s = 12180.
+	-- Storage at noon and evening: 10 rooftop solar, midday output 406/s, capacity 45 s = 18270.
 	local storing = fresh()
 	storing.plants[3] = 10
 	storing.nodes.U17 = true
 	storing.storage.mode = "charge"
 	local noon = GameCore.tick(storing, env(2, 1), 1)
-	near(noon.storage.charge, 172.55, "noon charge: 203 per second times 0,85")
-	near(noon.coins, 249.9, "noon sale: 560 - 203 at 0,7")
+	near(noon.storage.charge, 258.825, "noon charge: 304,5 per second times 0,85")
+	near(noon.coins, 178.85, "noon sale: 560 - 304,5 at 0,7")
 	storing = noon
 	storing.storage.mode = "sell"
 	local evening = GameCore.tick(storing, env(3, 1), 1)
 	t.equal(evening.storage.charge, 0, "evening empties the storage")
-	near(evening.coins - noon.coins, 612.99, "evening sale: (168 + 172,55) at 1,8")
+	near(evening.coins - noon.coins, 768.285, "evening sale: (168 + 258,825) at 1,8")
 
 	-- Auto mode: the charge rule fires at a price factor of 0,7 or less and not at 1,2.
 	local auto = fresh()

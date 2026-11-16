@@ -85,5 +85,6 @@ def test_measured_values_inside_tolerances():
 
 
 def test_value_moved_outside_tolerance_fails():
-    moved = report_text().replace("median 19.7 min", "median 30.0 min", 1)
+    moved = re.sub(r"(?m)^(\| Z1 \|.*\| )median [0-9.]+ min", r"\g<1>median 30.0 min", report_text(), count=1)
+    assert moved != report_text()
     assert outside(moved, tolerance_text()) == ["Z1: 30 outside 15 to 22"]

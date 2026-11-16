@@ -85,16 +85,16 @@ Alle Werte in diesem Abschnitt sind Entwurf v0.2 \[A\]. Die Vorab-Simulation zei
 
 ### Tag und Nacht
 
-Ein Tag dauert 480 Sekunden und gilt für den ganzen Server. Das Wetter wechselt alle 120 Sekunden und lässt sich aus einem Server-Startwert berechnen, damit die Simulation dieselben Verläufe erzeugt.
+Ein Tag dauert 720 Sekunden (12 Minuten, Nacht gut ein Fünftel) und gilt für den ganzen Server. Das Wetter wechselt alle 120 Sekunden und lässt sich aus einem Server-Startwert berechnen, damit die Simulation dieselben Verläufe erzeugt.
 
 | Phase | Dauer | Solarfaktor | Preisfaktor |
 | --- | --- | --- | --- |
-| Morgen | 60 s | 0,5 | 1,2 |
-| Mittag | 150 s | 1,0 | 0,7 |
-| Abend | 90 s | 0,3 | 1,8 |
-| Nacht | 180 s | 0,1 | 1,0 |
+| Morgen | 100 s | 0,5 | 1,2 |
+| Mittag | 300 s | 1,0 | 0,7 |
+| Abend | 160 s | 0,3 | 1,8 |
+| Nacht | 160 s | 0,1 | 1,0 |
 
-Daraus gerechnete Erwartungswerte je Einheit Nennleistung: Solar 0,320, Wind 1,152, Grundlast 1,130 Coins pro Sekunde. Mittags liefern Solar 0,725, Wind 1,02 und Grundlast 1,0 der Nennleistung.
+Daraus gerechnete Erwartungswerte je Einheit Nennleistung: Solar 0,382, Wind 1,151, Grundlast 1,129 Coins pro Sekunde. Mittags liefern Solar 0,725, Wind 1,02 und Grundlast 1,0 der Nennleistung.
 
 ### Formeln
 
@@ -112,7 +112,7 @@ Einnahmen/s   = (Erzeugung − Laden + Entladen + Kurbel) × Preis
 Kosten_i      = Basiskosten_i × 1,15^Anzahl_i
 Kurbel/Klick  = 1 (mit U12: 3) + 2 % der Erzeugung/s (mit U13); höchstens 8 Klicks/s
 
-Speicher_max  = Sekunden_Stufe × Mittagserzeugung        (30 / 60 / 100 / 150 s)
+Speicher_max  = Sekunden_Stufe × Mittagserzeugung        (45 / 90 / 150 / 225 s)
 Mittagserz.   = Σ Basis_i × Anzahl_i × M_i × (Solar 0,725 | Wind 1,02 | Grundlast 1,0)
 Laden/Entl.   = höchstens Speicher_max / 60 pro Sekunde
 Wirkungsgrad  = 85 % beim Laden (mit U22: 95 %)
@@ -227,7 +227,7 @@ Jede Anlage erscheint, sobald man die vorige einmal besitzt. Der Schnitt-Ertrag 
 
 ### Speicher
 
-**Heimspeicher / Home Battery.** Vier Stufen mit 30, 60, 100 und 150 Sekunden Mittagserzeugung (U17–U20). Wirkungsgrad 85 %, mit U22 95 %. Drei Schalter: Laden, Verkaufen, Automatik. Die Anzeige zählt in „Sekunden Sonne“.
+**Heimspeicher / Home Battery.** Vier Stufen mit 45, 90, 150 und 225 Sekunden Mittagserzeugung (U17–U20). Wirkungsgrad 85 %, mit U22 95 %. Drei Schalter: Laden, Verkaufen, Automatik. Die Anzeige zählt in „Sekunden Sonne“.
 
 ### Regeln
 

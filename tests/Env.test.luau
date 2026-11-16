@@ -5,14 +5,14 @@ return function(t, load)
 	local Phases = load("Config/Phases")
 	local Weather = load("Config/Weather")
 
-	-- One day is 480 s: Morgen 0-60, Mittag 60-210, Abend 210-300, Nacht 300-480
+	-- One day is 720 s: Morgen 0-100, Mittag 100-400, Abend 400-560, Nacht 560-720
 	t.equal(Env.phaseAt(0, Phases).id, "Morgen", "day starts in the morning")
-	t.equal(Env.phaseAt(59.9, Phases).id, "Morgen", "morning lasts until 60 s")
-	t.equal(Env.phaseAt(60, Phases).id, "Mittag", "noon starts at 60 s")
-	t.equal(Env.phaseAt(210, Phases).id, "Abend", "evening starts at 210 s")
-	t.equal(Env.phaseAt(300, Phases).id, "Nacht", "night starts at 300 s")
-	t.equal(Env.phaseAt(480, Phases).id, "Morgen", "the day repeats after 480 s")
-	t.equal(Env.phaseAt(480 * 7 + 250, Phases).id, "Abend", "the phase repeats on later days")
+	t.equal(Env.phaseAt(99.9, Phases).id, "Morgen", "morning lasts until 100 s")
+	t.equal(Env.phaseAt(100, Phases).id, "Mittag", "noon starts at 100 s")
+	t.equal(Env.phaseAt(400, Phases).id, "Abend", "evening starts at 400 s")
+	t.equal(Env.phaseAt(560, Phases).id, "Nacht", "night starts at 560 s")
+	t.equal(Env.phaseAt(720, Phases).id, "Morgen", "the day repeats after 720 s")
+	t.equal(Env.phaseAt(720 * 7 + 450, Phases).id, "Abend", "the phase repeats on later days")
 
 	-- Weather changes every 120 s and stays within one period
 	local seed = 42

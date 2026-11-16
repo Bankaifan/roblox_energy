@@ -10,10 +10,10 @@ return function(t, load)
 		t.truthy(math.abs(actual - expected) < tolerance, `{label}: expected {expected}, got {actual}`)
 	end
 
-	-- Expected values per unit of nominal power, Coins per second (Bauplan: 0,320 / 1,152 / 1,130, rounded to 3 digits)
-	near(Formulas.expectedIncome("Solar", Phases, Weather), 0.320, 0.0005, "solar expected income")
-	near(Formulas.expectedIncome("Wind", Phases, Weather), 1.152, 0.0005, "wind expected income")
-	near(Formulas.expectedIncome("Grundlast", Phases, Weather), 1.130, 0.0005, "base load expected income")
+	-- Expected values per unit of nominal power, Coins per second (Bauplan: 0,382 / 1,151 / 1,129, rounded to 3 digits)
+	near(Formulas.expectedIncome("Solar", Phases, Weather), 0.382, 0.0005, "solar expected income")
+	near(Formulas.expectedIncome("Wind", Phases, Weather), 1.151, 0.0005, "wind expected income")
+	near(Formulas.expectedIncome("Grundlast", Phases, Weather), 1.129, 0.0005, "base load expected income")
 
 	-- Factors: Faktor_solar = Phase.solar × Wetter.solar, Faktor_wind = Wetter.wind, Faktor_grund = 1
 	local noon, evening = Phases[2], Phases[3]
@@ -41,8 +41,8 @@ return function(t, load)
 	near(Formulas.cost(1100, 1), 1265, 1e-6, "second rooftop solar costs 1.15 times the base")
 
 	-- Storage: Sekunden_Stufe × Mittagserzeugung
-	near(Formulas.storageCapacity(1, 100), 3000, 1e-9, "stage 1 holds 30 s of midday output")
-	near(Formulas.storageCapacity(4, 100), 15000, 1e-9, "stage 4 holds 150 s of midday output")
+	near(Formulas.storageCapacity(1, 100), 4500, 1e-9, "stage 1 holds 45 s of midday output")
+	near(Formulas.storageCapacity(4, 100), 22500, 1e-9, "stage 4 holds 225 s of midday output")
 	near(Formulas.storageCapacity(0, 100), 0, 1e-9, "no storage at stage 0")
 
 	-- Prestige: each threshold is 10 Mio. × 6^(level − 1). Bauplan rounds the table, so allow 2 %.

@@ -6,7 +6,7 @@ local fs = require("@lune/fs")
 local Sim = require("../sim/Sim")
 
 local SEEDS = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
-local STARTS = { { name = "Morgen", time = 0 }, { name = "Abend", time = 210 }, { name = "Nacht", time = 300 } }
+local STARTS = { { name = "Morgen", time = 0 }, { name = "Abend", time = 400 }, { name = "Nacht", time = 560 } }
 
 -- Median, min and max of the values (nil when there are none).
 local function stats(values: { number }): (number?, number?, number?)
@@ -205,7 +205,7 @@ rows[#rows + 1] = {
 	measure = "Extra revenue from storage by park type, stage 4",
 	target = "solar only +60-70 %, wind and water +15-25 %",
 	value = "solar: " .. text(solar, " %") .. "; wind and water: " .. text(windWater, " %"),
-	ok = inside(stats(solar), 77, 80) and inside(stats(windWater), 27, 30),
+	ok = inside(stats(solar), 74, 77) and inside(stats(windWater), 30, 33),
 }
 
 -- Median first expansion of the optimal bot for one start time.
@@ -333,7 +333,7 @@ lines[#lines + 1] =
 lines[#lines + 1] =
 	"- Permanent nodes P1 to P8 in order, as soon as the sparks suffice. Auto-Ausbau and the third rule slot (P8) are not used."
 lines[#lines + 1] =
-	"- Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (480 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22)."
+	"- Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (720 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22)."
 lines[#lines + 1] = "- Z8: median first expansion of the optimal bot, Nacht start against Morgen start."
 lines[#lines + 1] = "- Z9: longest streak of seconds in the first 10 min with no offer affordable, per run."
 lines[#lines + 1] =
