@@ -14,6 +14,9 @@ Assets.PLOT_SIZE = Assets.TILE * Assets.PLOT_TILES
 Assets.PLOT_SPACING = 240
 Assets.PLOT_COLUMNS = 4
 Assets.PLOT_ROW_Z = 128
+-- Walkable surface of the meadow: a full terrain cell below y = 0 renders its surface half a cell (2 studs) higher
+-- (measured in Studio with a raycast). Everything on a plot stands on this height.
+Assets.GROUND_Y = 2
 
 -- Side length of the pad a plant gets, the grid of pads (3 columns, 34 studs apart) and the layout of copies on a pad.
 Assets.SLOT = 28

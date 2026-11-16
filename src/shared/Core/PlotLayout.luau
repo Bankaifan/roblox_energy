@@ -121,4 +121,25 @@ function PlotLayout.wild(field: Field, count: number, seed: number, tile: number
 	return points
 end
 
+-- Plot ground (terrain): the square of a slot in world studs and its side in terrain cells of `cell` studs.
+export type Ground = { minX: number, maxX: number, minZ: number, maxZ: number, cells: number }
+
+function PlotLayout.ground(slot: Slot, plotSize: number, cell: number): Ground
+	local half = plotSize / 2
+	return {
+		minX = slot.x - half,
+		maxX = slot.x + half,
+		minZ = slot.z - half,
+		maxZ = slot.z + half,
+		cells = plotSize // cell,
+	}
+end
+
+-- Cover of terrain cell (ix, iz), 1-based, of a ground of `cells` x `cells` cells: a frame of `border` cells around
+-- the inner ground.
+function PlotLayout.groundCover(ix: number, iz: number, cells: number, border: number): string
+	local edge = math.min(ix - 1, iz - 1, cells - ix, cells - iz)
+	return if edge < border then "border" else "inner"
+end
+
 return PlotLayout
