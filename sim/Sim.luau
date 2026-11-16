@@ -336,12 +336,12 @@ function Sim.day(bot: any, seed: number): number
 	return state.level
 end
 
--- Run revenue of one day (480 s from Morgen) with an empty storage.
+-- Run revenue of one day (720 s from Morgen) with an empty storage.
 function Sim.dayRevenue(state: any, seed: number): number
 	local current = clone(state)
 	current.storage.charge = 0
 	local start = current.runEarned
-	for time = 0, 479 do
+	for time = 0, 719 do
 		current = GameCore.tick(current, Sim.envAt(seed, time), 1)
 	end
 	return current.runEarned - start

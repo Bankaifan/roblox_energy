@@ -8,23 +8,23 @@ Tolerances are enforced by tests/test_balance_report.py in make check. Changing 
 
 | Nr. | Measure | Target (Bauplan section 2) | Measured | Status |
 | --- | --- | --- | --- | --- |
-| Z1 | First expansion, optimal bot | median 22-27 min, all runs 18-34 min | median 19.7 min (min 16.3, max 22.7, n=27) | in target |
-| Z2 | First expansion, occasional bot | median 26-32 min | median 46.6 min (min 43.9, max 49.0, n=27) | in target |
-| Z3 | Run time per stage 2 to 6, optimal bot | each median 12-25 min | stage 2: median 16.0 min (min 13.8, max 18.4, n=27); stage 3: median 12.3 min (min 10.2, max 14.5, n=27); stage 4: median 11.7 min (min 8.8, max 12.7, n=27); stage 5: median 15.0 min (min 11.7, max 16.0, n=27); stage 6: median 19.1 min (min 16.4, max 22.5, n=27) | in target |
-| Z4 | Run time of stages 7 and 8, optimal bot | median at most 60 and 150 min | stage 7: median 39.4 min (min 36.3, max 44.6, n=27); stage 8: median 107.6 min (min 105.3, max 112.0, n=27) | in target |
-| Z5 | Play time until stage 6 | 100-130 min | optimal: median 92.1 min (min 86.9, max 97.8, n=27); occasional: not reached | in target |
-| Z6 | Extra revenue from storage with rules, mixed park | stage 1: +8-12 %, stage 4: +40-50 % | stage 1: median 16.9 % (min 12.1, max 18.1, n=27); stage 4: median 38.8 % (min 36.8, max 41.2, n=27) | in target |
-| Z7 | Extra revenue from storage by park type, stage 4 | solar only +60-70 %, wind and water +15-25 % | solar: median 78.3 % (min 78.3, max 78.3, n=27); wind and water: median 28.6 % (min 28.6, max 28.6, n=27) | in target |
-| Z8 | Night start: first expansion against morning start | at most +25 % | +12.6 % | in target |
-| Z9 | Longest pause without an affordable purchase, first 10 min | at most 45 s | median 2.0 s (min 1.0, max 4.0, n=27) | in target |
-| Z10 | Stage after the first day (sessions and offline) | stage 4-5 | optimal: median 5.0 (min 5.0, max 6.0, n=9); occasional: median 1.0 (min 1.0, max 1.0, n=9) | in target |
+| Z1 | First expansion, optimal bot | median 22-27 min, all runs 18-34 min | median 20.4 min (min 14.8, max 24.1, n=27) | in target |
+| Z2 | First expansion, occasional bot | median 26-32 min | median 46.5 min (min 43.1, max 54.8, n=27) | in target |
+| Z3 | Run time per stage 2 to 6, optimal bot | each median 12-25 min | stage 2: median 14.2 min (min 13.1, max 17.8, n=27); stage 3: median 12.2 min (min 10.6, max 14.8, n=27); stage 4: median 11.5 min (min 10.3, max 14.4, n=27); stage 5: median 12.6 min (min 11.5, max 18.8, n=27); stage 6: median 21.7 min (min 13.9, max 23.6, n=27) | in target |
+| Z4 | Run time of stages 7 and 8, optimal bot | median at most 60 and 150 min | stage 7: median 36.9 min (min 32.8, max 41.7, n=27); stage 8: median 98.3 min (min 94.7, max 107.9, n=27) | in target |
+| Z5 | Play time until stage 6 | 100-130 min | optimal: median 93.4 min (min 86.6, max 96.3, n=27); occasional: not reached | in target |
+| Z6 | Extra revenue from storage with rules, mixed park | stage 1: +8-12 %, stage 4: +40-50 % | stage 1: median 14.4 % (min 8.7, max 15.3, n=27); stage 4: median 42.6 % (min 40.2, max 52.9, n=27) | in target |
+| Z7 | Extra revenue from storage by park type, stage 4 | solar only +60-70 %, wind and water +15-25 % | solar: median 75.1 % (min 75.1, max 75.1, n=27); wind and water: median 31.6 % (min 31.6, max 31.6, n=27) | in target |
+| Z8 | Night start: first expansion against morning start | at most +25 % | +13.1 % | in target |
+| Z9 | Longest pause without an affordable purchase, first 10 min | at most 45 s | median 2.0 s (min 1.0, max 6.0, n=27) | in target |
+| Z10 | Stage after the first day (sessions and offline) | stage 4-5 | optimal: median 6.0 (min 5.0, max 6.0, n=9); occasional: median 1.0 (min 1.0, max 1.0, n=9) | in target |
 | Z11 | Sum of bought multipliers | at most x3 | not measured here (holds by construction, Bauplan section 2) | in target |
 
 Out of target: 0 of 11 rows. Z11 is not measured here.
 
 ## Other values
 
-- Child bot (no target): first expansion median 24.9 min (min 22.9, max 27.1, n=27); stage 6 median 140.2 min (min 135.0, max 144.9, n=27).
+- Child bot (no target): first expansion median 22.9 min (min 19.9, max 24.6, n=27); stage 6 median 126.9 min (min 120.8, max 132.3, n=27).
 
 ## Assumptions of the bots
 
@@ -36,7 +36,7 @@ Out of target: 0 of 11 rows. Z11 is not measured here.
 - Z7 barely varies between runs: solar plants share one phase shape, and wind and Grundlast have no phase factor, so the storage gain depends mostly on the park type.
 - Storage plan (optimal and occasional): the rules (charge 0.7, sell 1.2) once U21 is owned, then U17, U21, U18, U19, U20, U22, each as soon as it is affordable. The plan is not ranked by payback: the bot does not value the storage gain (known limitation).
 - Permanent nodes P1 to P8 in order, as soon as the sparks suffice. Auto-Ausbau and the third rule slot (P8) are not used.
-- Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (480 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22).
+- Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (720 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22).
 - Z8: median first expansion of the optimal bot, Nacht start against Morgen start.
 - Z9: longest streak of seconds in the first 10 min with no offer affordable, per run.
 - Z10: first day per Bauplan section 1: sessions of 35, 25 and 25 min, offline 4 h and 14 h, from Morgen.

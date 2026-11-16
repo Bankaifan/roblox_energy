@@ -9,7 +9,7 @@ local Formulas = {}
 local COST_GROWTH = 1.15 -- Kosten_i = Basiskosten_i × 1,15^Anzahl_i
 local MILESTONE_COUNTS = { 10, 25, 50, 100, 150, 200 } -- Meilensteine bei 10, 25, 50, 100, 150, 200 Stück
 local GRID_GROWTH = 1.6 -- Global = 1,6^Netzstufe × Netzverstärkung
-local STORAGE_SECONDS = { 30, 60, 100, 150 } -- Speicher Stufe 1 bis 4 in Sekunden Mittagserzeugung
+local STORAGE_SECONDS = { 45, 90, 150, 225 } -- Speicher Stufe 1 bis 4 in Sekunden Mittagserzeugung
 local PRESTIGE_BASE = 10000000 -- Netz-Ausbau ab 10 Mio. × 6^bisherige Netzstufe
 local PRESTIGE_GROWTH = 6
 local PRESTIGE_SPARKS_BASE = 5 -- Funken = 5 + 3 × bisherige Netzstufe

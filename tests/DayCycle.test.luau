@@ -4,16 +4,16 @@ return function(t, load)
 	local DayCycle = load("Core/DayCycle")
 	local Phases = load("Config/Phases")
 
-	-- One day is 480 s: Morgen 0-60, Mittag 60-210, Abend 210-300, Nacht 300-480
+	-- One day is 720 s: Morgen 0-100, Mittag 100-400, Abend 400-560, Nacht 560-720
 	t.equal(DayCycle.clockAt(0, Phases), 5.5, "the morning starts before sunrise")
-	t.equal(DayCycle.clockAt(60, Phases), 9, "midday phase starts at 9 o'clock")
-	t.equal(DayCycle.clockAt(255, Phases), 18.25, "the sun sets in the middle of the evening phase")
-	t.equal(DayCycle.clockAt(300, Phases), 20, "the night phase starts in the dark")
-	t.equal(DayCycle.clockAt(390, Phases), 0.75, "the clock wraps at midnight")
-	t.equal(DayCycle.clockAt(480 * 3 + 60, Phases), 9, "the clock repeats on later days")
+	t.equal(DayCycle.clockAt(100, Phases), 9, "midday phase starts at 9 o'clock")
+	t.equal(DayCycle.clockAt(480, Phases), 18.25, "the sun sets in the middle of the evening phase")
+	t.equal(DayCycle.clockAt(560, Phases), 20, "the night phase starts in the dark")
+	t.equal(DayCycle.clockAt(640, Phases), 0.75, "the clock wraps at midnight")
+	t.equal(DayCycle.clockAt(720 * 3 + 100, Phases), 9, "the clock repeats on later days")
 
 	t.equal(DayCycle.mood(13).glow, 0, "nothing glows at midday")
-	t.equal(DayCycle.mood(DayCycle.clockAt(300, Phases)).glow > 0.9, true, "plants glow when the night phase starts")
+	t.equal(DayCycle.mood(DayCycle.clockAt(560, Phases)).glow > 0.9, true, "plants glow when the night phase starts")
 	t.equal(DayCycle.mood(2).glow, 1, "plants glow at night")
 
 	-- No jump anywhere on the clock, midnight included, and every color stays a color

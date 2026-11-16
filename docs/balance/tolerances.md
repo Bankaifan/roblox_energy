@@ -22,8 +22,8 @@ The status in the report and the check in `tests/test_balance_report.py` (run by
 | Z5 | play time until stage 6, optimal bot | 100-130 | 82 to 98 | runs 83.4-96.1 min, outside Bauplan |
 | Z6 | storage gain stage 1 | +8-12 % | 10 to 20 | runs 11.0-18.7 %, outside Bauplan |
 | Z6 | storage gain stage 4 | +40-50 % | 34 to 43 | runs 35.5-41.2 %, outside Bauplan |
-| Z7 | storage gain, solar only | +60-70 % | 77 to 80 | all runs 78.3 %, outside Bauplan |
-| Z7 | storage gain, wind and water | +15-25 % | 27 to 30 | all runs 28.6 %, outside Bauplan |
+| Z7 | storage gain, solar only | +60-70 % | 74 to 77 | all runs 75.1 % with the 720 s day (was 77 to 80), outside Bauplan |
+| Z7 | storage gain, wind and water | +15-25 % | 30 to 33 | all runs 31.6 % with the 720 s day (was 27 to 30), outside Bauplan |
 | Z8 | night start against morning | at most +25 % | -100 to 25 | in target, Bauplan kept (no lower limit) |
 | Z9 | longest pause, first 10 min | at most 45 s | 0 to 45 | in target, Bauplan kept |
 | Z10 | stage after day 1, optimal bot | stage 4-5 | 4 to 7 | runs 5.0-6.0; median 5.0 was in target, widened with the row |

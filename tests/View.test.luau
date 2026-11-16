@@ -123,20 +123,20 @@ return function(t, load)
 	stored.rules.sell.on = false
 	t.equal(GameCore.view(stored, env(2, 1)).storage.autoReady, false, "all rules off: Auto is not ready")
 
-	-- Flow line: 10 rooftop solar at noon make 560/s; capacity 12180, rate 203/s, so 203 of 560 is taken in.
+	-- Flow line: 10 rooftop solar at noon make 560/s; capacity 18270, rate 304.5/s, so 304.5 of 560 is taken in.
 	local flowing = fresh()
 	flowing.plants[3] = 10
 	flowing.nodes.U17 = true
 	flowing.storage.mode = "charge"
 	local charging = GameCore.view(flowing, env(2, 1)).storage.flow
 	t.equal(charging.kind, "charging", "charge mode shows charging")
-	t.truthy(math.abs(charging.share - 203 / 560) < 1e-6, "the share is input / generated")
-	flowing.storage.charge = 12180
+	t.truthy(math.abs(charging.share - 304.5 / 560) < 1e-6, "the share is input / generated")
+	flowing.storage.charge = 18270
 	t.equal(GameCore.view(flowing, env(2, 1)).storage.flow.kind, "full", "a full storage shows full")
 	flowing.storage.mode = "sell"
 	local selling = GameCore.view(flowing, env(3, 1)).storage.flow
 	t.equal(selling.kind, "selling", "sell mode with stored energy shows selling")
-	t.truthy(math.abs(selling.income - 203 * 1.8) < 1e-6, "selling income is the energy sold per second at the price")
+	t.truthy(math.abs(selling.income - 304.5 * 1.8) < 1e-6, "selling income is the energy sold per second at the price")
 	flowing.storage.charge = 0
 	t.equal(GameCore.view(flowing, env(3, 1)).storage.flow.kind, "idle", "selling with an empty storage is idle")
 	local sold = GameCore.tick(flowing, env(2, 1), 1)
