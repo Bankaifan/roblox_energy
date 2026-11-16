@@ -19,6 +19,36 @@ Assets.MAX_CELL = 14
 -- Side of the primitive fallback column.
 Assets.COLUMN = 12
 
+-- Land grid (design 0018): a tile is 8 studs, a plot 24 x 24 tiles = 192 studs, plots 240 studs apart in two rows of
+-- four at z = +-128 beside the road. Used by PlotLayout.slot/sites/wild; the old constants above stay until the world moves.
+Assets.TILE = 8
+Assets.PLOT_TILES = 24
+Assets.LAND_PLOT_SIZE = Assets.TILE * Assets.PLOT_TILES
+Assets.LAND_PLOT_SPACING = 240
+Assets.LAND_ROW_Z = 128
+-- Parts budget of all plants on a full plot, and the parts per model (counted in assets/models).
+Assets.MAX_PLANT_PARTS = 1300
+Assets.partsPerModel = { [1] = 9, [2] = 19, [3] = 49, [4] = 4, [5] = 75, [6] = 20 } :: { [number]: number }
+
+-- Fields by plant id. A site is `size` x `size` tiles; sites fill from `col0` in rows of `perRow`, one row of
+-- `rows` (tile row of the first tile) after the other. Row 0 is the back, row 23 the road side.
+Assets.fields = {
+	[1] = { size = 1, col0 = 1, perRow = 4, rows = { 12, 13, 14, 15, 16, 17 } },
+	[2] = { size = 1, col0 = 7, perRow = 6, rows = { 13, 16 } },
+	[3] = { size = 2, col0 = 1, perRow = 4, rows = { 6, 8 } },
+	[4] = { size = 1, col0 = 15, perRow = 4, rows = { 13, 14, 15 } },
+	[5] = { size = 2, col0 = 11, perRow = 4, rows = { 7 } },
+	[6] = { size = 2, col0 = 8, perRow = 4, rows = { 2 } },
+} :: { [number]: { size: number, col0: number, perRow: number, rows: { number } } }
+-- Furniture rows of the large plot (tile rows 19 to 23): market, crank, storage container, control board.
+Assets.LAND_FURNITURE_ROWS = { first = 19, last = 23 }
+
+-- Number of sites of a field.
+function Assets.siteCount(plantId: number): number
+	local field = Assets.fields[plantId]
+	return field.perRow * #field.rows
+end
+
 -- Visible copies per pad: at most 4 (2 x 2), so a pad never looks crowded.
 Assets.plants = {
 	[1] = { file = "plant1_panel", scale = 1, cap = 4 },
