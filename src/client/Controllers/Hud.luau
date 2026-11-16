@@ -167,6 +167,7 @@ function Hud.build(net: Instance)
 	local coins = label(frame, nextOrder())
 	local rate = label(frame, nextOrder())
 	local storage = label(frame, nextOrder())
+	local storageHint = label(frame, nextOrder())
 	local grid = label(frame, nextOrder())
 	local env = label(frame, nextOrder())
 	-- The Sunshine Hour button and banner, right under the weather line.
@@ -421,16 +422,20 @@ function Hud.build(net: Instance)
 	end
 
 	-- Each server message, painted from its data. Only the handlers below pass messages to the Boost view.
+	local function storageText(charge: number)
+		local fill = if latest ~= nil then latest.storage.fill else 0
+		storage.Text = t("hud.storage", { value = format(charge), percent = math.floor(fill * 100 + 0.5) })
+	end
 	local function applySnapshot(state: any)
 		coins.Text = t("hud.coins", { value = format(state.coins) })
-		storage.Text = t("hud.storage", { value = format(state.storage.charge) })
+		storageText(state.storage.charge)
 		grid.Text = t("hud.gridLevel", { level = state.level })
 	end
 	local function applyDelta(change: any)
 		latest = change.view
 		coins.Text = t("hud.coins", { value = format(change.coins) })
 		rate.Text = t("hud.rate", { value = format(change.rate) })
-		storage.Text = t("hud.storage", { value = format(change.charge) })
+		storageText(change.charge)
 		shop(change.view)
 		storageSection(change.view)
 		showDetail()
@@ -450,8 +455,9 @@ function Hud.build(net: Instance)
 		end
 		upgradeTitle.Text = t("upgrades.title")
 		for _, mode in STORAGE_MODES do
-			modeButtons[mode.id].Text = t(mode.key)
+			modeButtons[mode.id].Text = t("mode.hint." .. mode.id)
 		end
+		storageHint.Text = t("hud.storageHint")
 		for slot, row in ruleRows do
 			row.charge.Text = t("rule.slotCharge", { slot = slot, threshold = CHARGE_BELOW })
 			row.sell.Text = t("rule.slotSell", { slot = slot, threshold = SELL_ABOVE })

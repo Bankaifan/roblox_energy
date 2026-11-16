@@ -79,6 +79,20 @@ function Formulas.storageCapacity(stage: number, middayOutput: number): number
 	return (STORAGE_SECONDS[stage] or 0) * middayOutput
 end
 
+-- Fill level of the storage from 0 to 1 (0 without capacity).
+function Formulas.storageFill(charge: number, capacity: number): number
+	if capacity <= 0 then
+		return 0
+	end
+	return math.clamp(charge / capacity, 0, 1)
+end
+
+-- Fill of one battery unit in a stack of `count` units: the units fill from the bottom (level 0) up, in tenths.
+function Formulas.unitFill(fill: number, level: number, count: number): number
+	local own = math.clamp(fill * count - level, 0, 1)
+	return math.floor(own * 10 + 0.5) / 10
+end
+
 -- Einnahmen im Lauf, die für den Ausbau auf `level` (1 bis 10) nötig sind: 10 Mio. × 6^(level − 1).
 function Formulas.prestigeThreshold(level: number): number
 	return PRESTIGE_BASE * PRESTIGE_GROWTH ^ (level - 1)
