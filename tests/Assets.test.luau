@@ -100,4 +100,80 @@ return function(t, load)
 	t.equal(Assets.batteryUnits(0), 0, "no storage, no unit")
 	t.equal(Assets.batteryUnits(3), 3, "one unit per stage")
 	t.equal(Assets.batteryUnits(9), 4, "at most four units")
+
+	-- Land layout (design 0018): fields, fixed-size sites, wild panels, slots.
+	local tile, tiles = Assets.TILE, Assets.PLOT_TILES
+	t.equal(Assets.LAND_PLOT_SIZE, 192, "the large plot is 192 studs")
+	local rects = {}
+	local parts = 0
+	for id = 1, #Plants do
+		local field = Assets.fields[id]
+		t.truthy(field ~= nil, `plant {id} has a field`)
+		local count = Assets.siteCount(id)
+		parts += count * Assets.partsPerModel[id]
+		local first = field.rows[1]
+		local last = field.rows[#field.rows] + field.size - 1
+		local rect = { c0 = field.col0, c1 = field.col0 + field.perRow * field.size - 1, r0 = first, r1 = last }
+		t.truthy(rect.c0 >= 0 and rect.c1 < tiles and rect.r0 >= 0, `field {id} is inside the plot`)
+		t.truthy(rect.r1 < Assets.LAND_FURNITURE_ROWS.first, `field {id} stays clear of the furniture rows`)
+		for other, o in rects do
+			local apart = rect.c1 < o.c0 or o.c1 < rect.c0 or rect.r1 < o.r0 or o.r1 < rect.r0
+			t.truthy(apart, `fields {id} and {other} do not overlap`)
+		end
+		rects[id] = rect
+
+		-- The site size is the same for one and for all units; tidy neighbours are exactly one footprint apart.
+		local one = PlotLayout.sites(field, 1, tile, tiles)
+		local all = PlotLayout.sites(field, count, tile, tiles)
+		t.equal(#one, 1, `field {id}: one site`)
+		t.equal(#all, count, `field {id}: all sites`)
+		t.equal(all[1].x, one[1].x, `field {id}: the first site does not move with the count`)
+		t.equal(all[1].z, one[1].z, `field {id}: the first site does not move in z`)
+		local pitch = field.size * tile
+		t.equal(all[2].x - all[1].x, pitch, `field {id}: neighbours are one footprint apart`)
+		for i, a in all do
+			t.truthy(PlotLayout.reach(a, pitch) <= Assets.LAND_PLOT_SIZE / 2, `field {id} site {i} is on the plot`)
+			for j = i + 1, #all do
+				t.truthy(not PlotLayout.overlap(a, pitch, all[j], pitch), `field {id} sites {i} and {j} do not overlap`)
+			end
+		end
+	end
+	t.truthy(parts <= Assets.MAX_PLANT_PARTS, `a full plot has {parts} plant parts, within the budget`)
+	t.equal(Assets.siteCount(1), 24, "24 panel sites")
+	t.equal(Assets.siteCount(2), 12, "12 stream tiles")
+	t.equal(#PlotLayout.sites(Assets.fields[1], 99, tile, tiles), 24, "sites are capped at the field")
+	t.equal(#PlotLayout.sites(Assets.fields[1], 0, tile, tiles), 0, "no count, no sites")
+
+	local panels = Assets.fields[1]
+	for seed = 1, 8 do
+		local wild = PlotLayout.wild(panels, 99, seed, tile, tiles)
+		local again = PlotLayout.wild(panels, 99, seed, tile, tiles)
+		t.equal(#wild, 9, "at most nine wild panels")
+		for i, a in wild do
+			t.equal(a.x, again[i].x, "wild x is identical on a second call")
+			t.equal(a.angle, again[i].angle, "wild angle is identical on a second call")
+			t.truthy(math.abs(a.angle) <= PlotLayout.WILD_ANGLE, "the turn is at most 12 degrees")
+			t.truthy(PlotLayout.reach(a, tile) <= Assets.LAND_PLOT_SIZE / 2, "a wild panel is on the plot")
+			for j = i + 1, #wild do
+				t.truthy(
+					not PlotLayout.overlap(a, 9.6, wild[j], 9.6),
+					`seed {seed}: wild panels {i} and {j} do not overlap`
+				)
+			end
+		end
+	end
+	t.equal(#PlotLayout.wild(panels, 4, 1, tile, tiles), 4, "wild shows only the owned panels")
+
+	local seen = {}
+	for n = 1, 8 do
+		local s = PlotLayout.slot(n, Assets.LAND_PLOT_SPACING, Assets.LAND_ROW_Z)
+		t.truthy(math.abs(s.z) >= Assets.LAND_PLOT_SIZE / 2 / 1 - 64, `slot {n} is off the road`)
+		t.equal(s.facing, if s.z > 0 then -1 else 1, `slot {n} faces the road`)
+		local key = `{s.x},{s.z}`
+		t.truthy(not seen[key], `slot {n} is a new place`)
+		seen[key] = true
+	end
+	t.equal(PlotLayout.slot(1, 240, 128).x, 240, "slot 1 is the first column")
+	t.equal(PlotLayout.slot(2, 240, 128).z, -128, "slot 2 is on the other side of the road")
+	t.equal(PlotLayout.slot(8, 240, 128).x, 960, "slot 8 is the fourth column")
 end
