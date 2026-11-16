@@ -11,6 +11,7 @@ local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
 local PlotGround = require(script.Parent.PlotGround)
+local LandService = require(script.Parent.LandService)
 
 local PlotService = {}
 
@@ -253,6 +254,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	}
 	plots[player] = record
 	PlotGround.paint(slot)
+	LandService.build(player, { origin = origin, facing = place.facing, model = model })
 	-- The crank and the market are built once per plot. A yellow disc under the crank marks it from afar.
 	local crank = addFurniture(record, "crank", nil)
 	if crank ~= nil then
@@ -308,6 +310,7 @@ end
 
 -- Destroys the player's plot, turns its ground back into meadow and frees its slot for the next player.
 function PlotService.remove(player: Player)
+	LandService.forget(player)
 	local record = plots[player]
 	if record ~= nil then
 		record.model:Destroy()

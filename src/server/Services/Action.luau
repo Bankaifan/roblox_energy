@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net") :: ModuleScript) :: any
 local Session = require(script.Parent.Session)
 local PlotService = require(script.Parent.PlotService)
+local LandService = require(script.Parent.LandService)
 
 local FLOOD_LIMIT = 30
 local FLOOD_STRIKES = 3
@@ -63,6 +64,10 @@ function Action.start(remotes: { [string]: RemoteEvent })
 	-- The crank model's prompt takes the same path as the "Crank" message.
 	PlotService.setCrankHandler(function(player: Player)
 		receive(remotes, player, "Crank", Net.messages.Crank.limit, nil)
+	end)
+	-- Prepare has no RemoteEvent: LandService sends it here after its own hold and distance checks.
+	LandService.setSender(function(player: Player, name: string, payload: { [string]: any })
+		receive(remotes, player, name, Net.messages[name].limit, payload)
 	end)
 end
 

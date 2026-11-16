@@ -7,7 +7,7 @@ return function(t, load)
 	for _ in Net.messages do
 		count += 1
 	end
-	t.equal(count, 14, "14 messages")
+	t.equal(count, 16, "16 messages")
 	t.equal(Net.messages.Welcome.direction, "server", "Welcome comes from the server")
 
 	local ok, clean = Net.check("BuyPlant", { plant = 3, qty = "max", extra = "ignored" })
@@ -32,6 +32,23 @@ return function(t, load)
 	t.truthy(rulesOk, "a valid SetRule is accepted")
 	t.equal(rule.th, 1.2, "threshold is kept")
 	t.equal(Net.check("SetRule", { slot = 1, rule = "sell", th = 1.2, on = "yes" }), false, "on must be a boolean")
+
+	local toolOk, tool = Net.check("BuyTool", { tool = "shovel" })
+	t.truthy(toolOk, "a valid BuyTool is accepted")
+	t.equal(tool.tool, "shovel", "tool is kept")
+	t.equal(Net.check("BuyTool", { tool = 5 }), false, "tool must be a string")
+	t.equal(Net.check("BuyTool", {}), false, "tool is required")
+	t.equal(Net.messages.BuyTool.direction, "client", "BuyTool is a client message")
+	t.equal(Net.messages.BuyTool.limit.max, 4, "BuyTool allows 4 per second")
+
+	t.equal(Net.messages.Prepare.direction, "internal", "Prepare never crosses the network")
+	t.equal(Net.messages.Prepare.limit.max, 2, "Prepare allows 2 per second")
+	local prepOk, prep = Net.check("Prepare", { target = 3 })
+	t.truthy(prepOk, "the server path accepts a field target")
+	t.equal(prep.type, "Prepare", "the clean payload names Prepare")
+	t.truthy(Net.check("Prepare", { target = "container" }), "container is a target")
+	t.equal(Net.check("Prepare", { target = 7 }), false, "field 7 does not exist")
+	t.equal(Net.check("Prepare", { target = "x" }), false, "an unknown target is rejected")
 
 	local limit = Net.messages.BuyPlant.limit
 	t.equal(limit.max, 8, "BuyPlant allows 8 per second")

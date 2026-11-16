@@ -11,11 +11,14 @@ local folder = Instance.new("Folder")
 folder.Name = "Net"
 folder.Parent = ReplicatedStorage
 local remotes: { [string]: RemoteEvent } = {}
-for name in Net.messages do
-	local remote = Instance.new("RemoteEvent")
-	remote.Name = name
-	remote.Parent = folder
-	remotes[name] = remote
+for name, message in Net.messages do
+	-- "internal" messages (Prepare) never cross the network: no RemoteEvent, so no client can send them.
+	if message.direction ~= "internal" then
+		local remote = Instance.new("RemoteEvent")
+		remote.Name = name
+		remote.Parent = folder
+		remotes[name] = remote
+	end
 end
 
 Action.start(remotes)
