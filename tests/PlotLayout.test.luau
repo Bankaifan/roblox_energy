@@ -53,4 +53,6 @@ return function(t, load)
 		"repeats and strangers go, free cells fill up"
 	)
 	t.equal(#PlotLayout.mown(nil, 99, 24), 24, "the mown list never passes the field")
+	t.equal(PlotLayout.cellCount(Assets.fields[6]), 4, "a field is its cell list: four wind pads")
+	t.equal(PlotLayout.cellAt(Assets.fields[6], -80, -80, tile, tiles), 1, "a 4 x 4 pad is found anywhere on its tiles")
 end

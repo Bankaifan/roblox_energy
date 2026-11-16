@@ -104,8 +104,8 @@ return function(t, load)
 	run.settings = { lang = "de", sfx = false, music = true }
 	run.tutorial = 3
 	run.land = {
-		sites = { 4, 8, 0, 1, 0, 0 },
-		cells = { { 5, 1, 24, 2 }, { 1, 2, 3, 4, 5, 6, 7, 8 }, {}, { 12 }, {}, {} },
+		sites = { 4, 7, 0, 1, 0, 0 },
+		cells = { { 5, 1, 24, 2 }, { 1, 2, 3, 4, 5, 6, 7 }, {}, { 6 }, {}, {} },
 		tools = { scythe = true, shovel = true },
 		container = true,
 		wired = false,
@@ -268,7 +268,7 @@ return function(t, load)
 		wired = true,
 	}
 	local repaired = Data.migrate(brokenLand, Steps).land
-	t.truthy(same(repaired.sites, { 24, 0, 2, 0, 4, 4 }), "site counts are whole numbers within their own field cap")
+	t.truthy(same(repaired.sites, { 25, 0, 2, 0, 4, 4 }), "site counts are whole numbers within their own field cap")
 	t.truthy(same(repaired.tools, { scythe = true, shovel = true }), "unknown tools go, the scythe stays")
 	t.equal(repaired.container, false, "a flag of the wrong type becomes false")
 	t.equal(repaired.wired, true, "a valid flag is kept")

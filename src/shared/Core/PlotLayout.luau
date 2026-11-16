@@ -54,7 +54,7 @@ end
 
 -- Land layout (design 0018). Coordinates are relative to the plot centre, unmirrored: row 0 is the back (-z) and the
 -- last row is the road side (+z). A plot with facing -1 is mirrored in z by the caller.
-export type Field = { size: number, col0: number, perRow: number, rows: { number } }
+export type Field = { size: number, cells: { { number } } }
 export type Site = { x: number, z: number }
 export type WildSite = { x: number, z: number, angle: number }
 export type Slot = { x: number, z: number, facing: number }
@@ -73,11 +73,16 @@ local function tileCentre(column: number, row: number, tile: number, plotTiles: 
 	return { x = (column + 0.5) * tile - half, z = (row + 0.5) * tile - half }
 end
 
--- Cells of a field are numbered 1..perRow*#rows in the fill order: a row of `perRow`, then the next row. A cell is
+-- A field is a list of cells (Assets.fields): cell n is `field.cells[n]` = { column, row } of its top-left tile and is
 -- `field.size` x `field.size` tiles. A player may mow the cells in any order (Prepare { target, cell }).
 local function cellOrigin(field: Field, cell: number): (number, number)
-	local i = cell - 1
-	return field.col0 + (i % field.perRow) * field.size, field.rows[i // field.perRow + 1]
+	local origin = field.cells[cell]
+	return origin[1], origin[2]
+end
+
+-- Number of cells of a field.
+function PlotLayout.cellCount(field: Field): number
+	return #field.cells
 end
 
 -- Centre of cell `cell` of a field (plot-relative studs).
@@ -92,7 +97,7 @@ end
 function PlotLayout.cellAt(field: Field, x: number, z: number, tile: number, plotTiles: number): number?
 	local half = plotTiles * tile / 2
 	local tx, tz = math.floor((x + half) / tile), math.floor((z + half) / tile)
-	for cell = 1, field.perRow * #field.rows do
+	for cell = 1, #field.cells do
 		local column, row = cellOrigin(field, cell)
 		if tx >= column and tx < column + field.size and tz >= row and tz < row + field.size then
 			return cell
@@ -137,7 +142,7 @@ end
 -- its size never depends on `count`.
 function PlotLayout.sites(field: Field, count: number, tile: number, plotTiles: number): { Site }
 	local cells: { number } = {}
-	for cell = 1, math.min(math.floor(count), field.perRow * #field.rows) do
+	for cell = 1, math.min(math.floor(count), #field.cells) do
 		table.insert(cells, cell)
 	end
 	return PlotLayout.cellSites(field, cells, tile, plotTiles)

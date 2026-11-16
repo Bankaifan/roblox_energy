@@ -27,7 +27,6 @@ return function(t, load)
 
 	-- Plot layout (issue #90): pads, copies, furniture all inside the plot, nothing overlapping.
 	local PlotLayout = load("Core/PlotLayout")
-	local half = Assets.PLOT_SIZE / 2
 	t.truthy(Assets.PLOT_SPACING > Assets.PLOT_SIZE, "neighbouring plots do not touch")
 
 	local cell, offsets = PlotLayout.copies(1, Assets.SLOT, Assets.COPY_GAP, Assets.MAX_CELL)
@@ -57,31 +56,12 @@ return function(t, load)
 
 	local pads = PlotLayout.pads(#Plants, Assets.PAD_COLUMNS, Assets.PAD_PITCH, 0)
 	t.equal(#pads, #Plants, "one pad per plant")
-	local pieces = {}
-	for i, pad in pads do
-		t.truthy(PlotLayout.reach(pad, Assets.SLOT) <= half, `pad {i} is on the ground`)
-		table.insert(pieces, { name = `pad{i}`, at = pad, size = Assets.SLOT })
-	end
 	for _, name in { "crank", "market", "control", "battery" } do
 		local piece = Assets.furniture[name]
 		t.truthy(piece ~= nil and piece.size > 0, `{name} has an entry`)
-		local at = { x = piece.x, z = piece.z }
-		local footprint = piece.depth or piece.size
-		t.truthy(PlotLayout.reach(at, footprint) <= half, `{name} is on the ground`)
-		t.truthy(math.abs(piece.x) + piece.size / 2 <= half, `{name} fits the plot width`)
-		table.insert(pieces, { name = name, at = at, size = footprint })
-	end
-	for i, a in pieces do
-		for j = i + 1, #pieces do
-			local b = pieces[j]
-			t.truthy(not PlotLayout.overlap(a.at, a.size, b.at, b.size), `{a.name} and {b.name} do not overlap`)
-		end
+		t.truthy(piece.z - (piece.depth or piece.size) / 2 >= 56, `{name} stands in the yard`)
 	end
 	t.truthy(Assets.furniture.market.size >= 3 * 13, "the market is about three times its old 14 studs")
-	-- The market's wide side must not reach over the pad rows (pads end at z = 31).
-	local lastPad = pads[#pads]
-	local market = Assets.furniture.market
-	t.truthy(market.z - market.depth / 2 > lastPad.z + Assets.SLOT / 2, "the market clears the pads")
 
 	-- Building box: a small add-on (sign) does not stretch it.
 	local building = Assets.buildingBox({
@@ -100,28 +80,29 @@ return function(t, load)
 	t.equal(Assets.batteryUnits(3), 3, "one unit per stage")
 	t.equal(Assets.batteryUnits(9), 4, "at most four units")
 
-	-- Land layout (design 0018): fields, fixed-size sites, wild panels, slots.
+	-- Land layout (design v2, section 3): fields are cell lists of fixed-size sites.
 	local tile, tiles = Assets.TILE, Assets.PLOT_TILES
 	t.equal(Assets.PLOT_SIZE, 192, "the plot is 192 studs")
-	local rects = {}
 	local parts = 0
+	local counts = { 25, 7, 7, 7, 4, 4 }
 	for id = 1, #Plants do
 		local field = Assets.fields[id]
 		t.truthy(field ~= nil, `plant {id} has a field`)
 		local count = Assets.siteCount(id)
+		t.equal(count, counts[id], `field {id} has {counts[id]} cells`)
 		parts += count * Assets.partsPerModel[id]
-		local first = field.rows[1]
-		local last = field.rows[#field.rows] + field.size - 1
-		local rect = { c0 = field.col0, c1 = field.col0 + field.perRow * field.size - 1, r0 = first, r1 = last }
-		t.truthy(rect.c0 >= 0 and rect.c1 < tiles and rect.r0 >= 0, `field {id} is inside the plot`)
-		t.truthy(rect.r1 < Assets.LAND_FURNITURE_ROWS.first, `field {id} stays clear of the furniture rows`)
-		for other, o in rects do
-			local apart = rect.c1 < o.c0 or o.c1 < rect.c0 or rect.r1 < o.r0 or o.r1 < rect.r0
-			t.truthy(apart, `fields {id} and {other} do not overlap`)
+		for i, origin in field.cells do
+			local c0, r0 = origin[1], origin[2]
+			t.truthy(
+				c0 >= Assets.USABLE.first
+					and c0 + field.size - 1 <= Assets.USABLE.last
+					and r0 >= Assets.USABLE.first
+					and r0 + field.size - 1 <= Assets.USABLE.last,
+				`field {id} cell {i} is inside the usable area`
+			)
 		end
-		rects[id] = rect
 
-		-- The site size is the same for one and for all units; tidy neighbours are exactly one footprint apart.
+		-- The site size is the same for one and for all units.
 		local one = PlotLayout.sites(field, 1, tile, tiles)
 		local all = PlotLayout.sites(field, count, tile, tiles)
 		t.equal(#one, 1, `field {id}: one site`)
@@ -129,7 +110,6 @@ return function(t, load)
 		t.equal(all[1].x, one[1].x, `field {id}: the first site does not move with the count`)
 		t.equal(all[1].z, one[1].z, `field {id}: the first site does not move in z`)
 		local pitch = field.size * tile
-		t.equal(all[2].x - all[1].x, pitch, `field {id}: neighbours are one footprint apart`)
 		for i, a in all do
 			t.truthy(PlotLayout.reach(a, pitch) <= Assets.PLOT_SIZE / 2, `field {id} site {i} is on the plot`)
 			for j = i + 1, #all do
@@ -138,10 +118,95 @@ return function(t, load)
 		end
 	end
 	t.truthy(parts <= Assets.MAX_PLANT_PARTS, `a full plot has {parts} plant parts, within the budget`)
-	t.equal(Assets.siteCount(1), 24, "24 panel sites")
-	t.equal(Assets.siteCount(2), 12, "12 stream tiles")
-	t.equal(#PlotLayout.sites(Assets.fields[1], 99, tile, tiles), 24, "sites are capped at the field")
+	t.equal(Assets.siteCount(1), 25, "25 panel tiles")
+	t.equal(Assets.siteCount(2), 7, "7 river segments")
+	t.equal(#PlotLayout.sites(Assets.fields[1], 99, tile, tiles), 25, "sites are capped at the field")
 	t.equal(#PlotLayout.sites(Assets.fields[1], 0, tile, tiles), 0, "no count, no sites")
+
+	-- Clearance rule: every cell of every field (the river's stand-in cells excepted), the river band and every
+	-- furniture box keep CLEARANCE studs from each other and lie inside the usable area.
+	local low = Assets.USABLE.first * tile - tiles * tile / 2
+	local high = (Assets.USABLE.last + 1) * tile - tiles * tile / 2
+	local function problemsOf(fields, furniture, river): { string }
+		local problems = {}
+		local groups = {}
+		for id, field in fields do
+			if field.river ~= true then
+				local boxes = {}
+				for n = 1, #field.cells do
+					local c = PlotLayout.cellCentre(field, n, tile, tiles)
+					local h = field.size * tile / 2
+					table.insert(boxes, { c.x - h, c.x + h, c.z - h, c.z + h, `field {id} cell {n}` })
+				end
+				table.insert(groups, { name = `field {id}`, boxes = boxes })
+			end
+		end
+		for name, piece in furniture do
+			local w, d = piece.size / 2, (piece.depth or piece.size) / 2
+			table.insert(
+				groups,
+				{ name = name, boxes = { { piece.x - w, piece.x + w, piece.z - d, piece.z + d, name } } }
+			)
+		end
+		-- A box is { minX, maxX, minZ, maxZ, name }.
+		for _, group in groups do
+			for _, b in group.boxes do
+				if b[1] < low or b[2] > high or b[3] < low or b[4] > high then
+					table.insert(problems, `{b[5]} is outside the usable area`)
+				end
+			end
+		end
+		for i, a in groups do
+			for j = i + 1, #groups do
+				for _, p in a.boxes do
+					for _, q in groups[j].boxes do
+						local gap = math.max(q[1] - p[2], p[1] - q[2], q[3] - p[4], p[3] - q[4])
+						if gap < Assets.CLEARANCE then
+							table.insert(problems, `{p[5]} and {q[5]} are closer than {Assets.CLEARANCE} studs`)
+						end
+					end
+				end
+			end
+		end
+		-- The river band: every box keeps band + CLEARANCE from the centre line (a polyline), tested on a 2-stud raster.
+		local function distance(px: number, pz: number, a: { number }, b: { number }): number
+			local dx, dz = b[1] - a[1], b[2] - a[2]
+			local u = math.clamp(((px - a[1]) * dx + (pz - a[2]) * dz) / (dx * dx + dz * dz), 0, 1)
+			return math.sqrt((px - a[1] - u * dx) ^ 2 + (pz - a[2] - u * dz) ^ 2)
+		end
+		for _, group in groups do
+			for _, b in group.boxes do
+				local near = math.huge
+				for x = b[1], b[2], 2 do
+					for z = b[3], b[4], 2 do
+						for k = 1, #river.points - 1 do
+							near = math.min(near, distance(x, z, river.points[k], river.points[k + 1]))
+						end
+					end
+				end
+				if near < river.band + Assets.CLEARANCE then
+					table.insert(problems, `{b[5]} is too close to the river ({near})`)
+				end
+			end
+		end
+		for _, point in river.points do
+			if point[1] < low or point[1] > high or point[2] < low or point[2] > high then
+				table.insert(problems, "a river point is outside the usable area")
+			end
+		end
+		return problems
+	end
+	local problems = problemsOf(Assets.fields, Assets.furniture, Assets.river)
+	t.equal(#problems, 0, `the site map keeps its clearances: {table.concat(problems, "; ")}`)
+
+	-- The map of design 0018 (water wheels in rows 13 and 16, the market in front of them) breaks the rule.
+	local oldFields = { [2] = { size = 1, cells = { { 7, 13 }, { 8, 13 }, { 7, 16 }, { 8, 16 } } } }
+	local oldFurniture = { market = { x = -20, z = 48, size = 40, depth = 20 } }
+	local oldProblems = table.concat(problemsOf(oldFields, oldFurniture, Assets.river), "; ")
+	t.truthy(
+		oldProblems:find("field 2 cell 3 and market", 1, true) ~= nil,
+		`the old map fails: wheels under the market ({oldProblems})`
+	)
 
 	-- Wild panels stand on the mown cells, in any order, each a little shifted and turned.
 	local panels = Assets.fields[1]
