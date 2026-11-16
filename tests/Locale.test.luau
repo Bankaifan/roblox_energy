@@ -116,6 +116,52 @@ return function(t, load)
 		t.equal(de[`weather.{weather.id}`], germanWeather[weather.id], `weather {weather.id} German name`)
 	end
 
+	-- Land, tools and popups (Bauplan 0018, section 4): every prompt, tab, tool name, tool line and hint has a text in both
+	-- languages, and each text fits on one line of at most 60 characters
+	local landKeys = {
+		"tab.plants",
+		"tab.upgrades",
+		"tab.storage",
+		"tab.tools",
+		"prompt.market",
+		"prompt.control",
+		"prompt.mow",
+		"prompt.dig",
+		"prompt.house",
+		"prompt.anchor",
+		"prompt.fence",
+		"prompt.compact",
+		"prompt.wire",
+		"tool.hand",
+		"tool.scythe",
+		"tool.rails",
+		"tool.shovel",
+		"tool.hammer",
+		"tool.wrench",
+		"tool.cableDrum",
+		"tool.tamper",
+		"tool.container",
+		"tool.pliers",
+		"tool.hand.info",
+		"tool.scythe.info",
+		"tool.rails.info",
+		"tool.shovel.info",
+		"tool.hammer.info",
+		"tool.wrench.info",
+		"tool.cableDrum.info",
+		"tool.tamper.info",
+		"tool.container.info",
+		"tool.pliers.info",
+		"hint.noSite",
+	}
+	for _, key in landKeys do
+		hasBoth(key)
+		for _, dictionary in { en, de } do
+			local text = dictionary[key] or ""
+			t.truthy(text ~= "" and (utf8.len(text) or 99) <= 60, `{key}: one line of at most 60 characters`)
+		end
+	end
+
 	-- Locale.t fills placeholders, keeps unknown ones visible, and falls back to English and to the key
 	t.equal(Locale.t("hud.coins", "de", { value = "5" }), "Coins 5", "fills a placeholder")
 	t.equal(
