@@ -36,15 +36,8 @@ def test_scrollbar_is_inset_so_it_does_not_cover_text():
     assert "ScrollBarInset = Enum.ScrollBarInset.ScrollBar" in HUD
 
 
-def test_detail_buy_stays_pinned_below_scrolling_text():
-    # Source check only: the detail area keeps its fixed height, its text scrolls, and Buy sits at the bottom edge outside the scroll.
+def test_shop_is_not_in_the_hud():
+    # The shop is the market popup (Controllers/Market); the HUD keeps the stats, the crank and the grid expansion.
     code = "\n".join(code_lines())
-    assert re.search(r"detail\.Size = UDim2\.new\(1, -32, 0, DETAIL_HEIGHT\)", code)
-    assert re.search(r"local detailText = Instance\.new\(\"ScrollingFrame\"\)", code)
-    assert re.search(r"detailText\.AutomaticCanvasSize = Enum\.AutomaticSize\.Y", code)
-    assert re.search(r"detailText\.Size = UDim2\.new\(1, 0, 1, -\(ROW_MIN_HEIGHT \+ DETAIL_GAP\)\)", code)
-    assert re.search(r"local detailBuy = button\(detail, t\(\"action\.buy\"\)", code)
-    assert re.search(r"detailBuy\.AutomaticSize = Enum\.AutomaticSize\.None", code)
-    assert re.search(r"detailBuy\.AnchorPoint = Vector2\.new\(0, 1\)", code)
-    assert re.search(r"detailBuy\.Position = UDim2\.fromScale\(0, 1\)", code)
-    assert re.search(r"local DETAIL_GAP = 4\b", HUD)
+    assert "openShop" not in code
+    assert "BuyPlant" not in code and "BuyNode" not in code and "BuyTool" not in code

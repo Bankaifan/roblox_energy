@@ -1,0 +1,1 @@
+- The shop is now a market popup: a centred window with tabs and offer cards, opened only at the market (E), in the game's colours.
