@@ -12,6 +12,7 @@ local LandService = require(script.Parent.LandService)
 local ToolService = require(script.Parent.ToolService)
 local DataService = require(script.Parent.DataService)
 local BoostService = require(script.Parent.BoostService)
+local PurchaseService = require(script.Parent.PurchaseService)
 
 local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
@@ -79,6 +80,8 @@ function Session.start(player: Player)
 	states[player] = credited
 	DataService.sync(player, credited)
 	ToolService.refresh(player, credited.land or config.land.start)
+	-- Owned passes and the paid-item policy: asked in the background, so the join does not wait for Roblox.
+	task.spawn(PurchaseService.join, player)
 	if job.remotes ~= nil then
 		Session.ready(job.remotes, player)
 	end

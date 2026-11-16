@@ -49,6 +49,15 @@ function DataService.load(player: Player): (any?, number)
 	return Data.toState(migrated), Data.awaySeconds(migrated.lastSeen, os.time())
 end
 
+-- The loaded, active profile of a player (ProfileStore profile, Data holds the save), or nil when none is loaded.
+function DataService.profileOf(player: Player): any?
+	local profile = profiles[player]
+	if profile ~= nil and profile:IsActive() then
+		return profile
+	end
+	return nil
+end
+
 -- Copies the run into the profile now, so the next autosave writes it.
 function DataService.sync(player: Player, state: any)
 	local profile = profiles[player]

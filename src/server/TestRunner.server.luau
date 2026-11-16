@@ -35,6 +35,8 @@ local boostTest = script.Parent:WaitForChild("Services"):WaitForChild("BoostServ
 table.insert(cases, { name = "BoostService", fn = require(boostTest) })
 local plantModelsTest = script.Parent:WaitForChild("Services"):WaitForChild("PlantModels.test") :: ModuleScript
 table.insert(cases, { name = "PlantModels", fn = require(plantModelsTest) })
+local purchaseTest = script.Parent:WaitForChild("Services"):WaitForChild("PurchaseService.test") :: ModuleScript
+table.insert(cases, { name = "PurchaseService", fn = require(purchaseTest) })
 
 local _, failed = Harness.run(cases, load)
 print(`[TestRunner] {if failed == 0 then "PASS" else "FAIL"}`)

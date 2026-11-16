@@ -6,6 +6,7 @@ local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net")
 local Services = script.Parent:WaitForChild("Services")
 local Session = require(Services.Session)
 local Action = require(Services.Action)
+local PurchaseService = require(Services.PurchaseService)
 
 local folder = Instance.new("Folder")
 folder.Name = "Net"
@@ -22,6 +23,7 @@ for name, message in Net.messages do
 end
 
 Action.start(remotes)
+PurchaseService.start()
 game:BindToClose(Session.close)
 Players.PlayerAdded:Connect(Session.start)
 Players.PlayerRemoving:Connect(function(player: Player)

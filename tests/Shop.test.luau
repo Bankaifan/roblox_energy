@@ -178,4 +178,55 @@ return function(t, load)
 	local income = Shop.incomeMultiplier(loaded, Catalogue)
 	t.truthy(income == income and income >= 1 and income <= 3, "the income multiplier is finite and within ×1 to ×3")
 	t.equal(Shop.boosterStock(Shop.advance(loaded, math.huge)), 60, "an infinite advance changes nothing")
+
+	-- ProcessReceipt: the catalogue with Roblox IDs set for some offers (the shipped IDs are placeholders, 0).
+	local function withIds(ids: { [string]: number }): any
+		local config: any = table.clone(Catalogue)
+		config.offers = {}
+		for _, offer in Catalogue.offers do
+			local copy = table.clone(offer)
+			copy.robloxId = ids[offer.id] or copy.robloxId
+			table.insert(config.offers, copy)
+		end
+		return config
+	end
+	local ids = withIds({ sunshine = 5001, timeskip = 5002, premium = 5003 })
+	t.equal(Shop.offerForProduct(ids, 5001), "sunshine", "a product ID finds its offer")
+	t.equal(Shop.offerForProduct(ids, 9999), nil, "an unknown product ID is not found")
+	t.equal(Shop.offerForProduct(ids, 5003), nil, "a pass ID is never a product")
+	t.equal(Shop.offerForProduct(Catalogue, 0), nil, "placeholder IDs match nothing")
+	t.equal(Shop.offerForProduct(ids, 0 / 0), nil, "a NaN product ID matches nothing")
+
+	-- A receipt is credited once: the credit and the receipt ID are written together, a repeat changes nothing.
+	local first, firstStatus, firstYield = Shop.receipt(base, "r-1", "timeskip", DAY, ids)
+	t.equal(firstStatus, "granted", "a new receipt is granted")
+	t.equal(firstYield, 3600, "the Time Skip pays its hour")
+	t.equal(first.purchases[1], "r-1", "the receipt ID is kept with the credit")
+	t.equal(first.daily.skips, 1, "the daily count goes up with the credit")
+	local repeated, repeatStatus, repeatYield = Shop.receipt(first, "r-1", "timeskip", DAY, ids)
+	t.equal(repeatStatus, "duplicate", "the same receipt again is a duplicate")
+	t.equal(repeatYield, 0, "a duplicate pays nothing")
+	t.equal(repeated, first, "a duplicate returns the same profile")
+	t.equal(repeated.daily.skips, 1, "the credit is written once")
+
+	-- A booster receipt joins the queue, the same for any product.
+	local queued, queuedStatus = Shop.receipt(base, "r-2", "sunshine", DAY, ids)
+	t.equal(queuedStatus, "granted", "a booster receipt is granted")
+	t.equal(Shop.boosterStock(queued), 600, "the Sunshine Hour joins the queue")
+
+	-- Refused: a pass, an unknown offer, an empty or non-text receipt ID, and a limit (stock full, three skips a day).
+	local _, passStatus, passYield = Shop.receipt(base, "r-3", "premium", DAY, ids)
+	t.equal(passStatus, "refused", "a pass is not a product: refused")
+	t.equal(passYield, 0, "a refused receipt pays nothing")
+	local _, bogusStatus = Shop.receipt(base, "r-4", "bogus", DAY, ids)
+	t.equal(bogusStatus, "refused", "an unknown offer is refused")
+	local _, emptyStatus = Shop.receipt(base, "", "timeskip", DAY, ids)
+	t.equal(emptyStatus, "refused", "an empty receipt ID is refused")
+	local _, numberStatus = Shop.receipt(base, 7, "timeskip", DAY, ids)
+	t.equal(numberStatus, "refused", "a receipt ID that is not text is refused")
+	local _, fullStatus, fullYield = Shop.receipt(full, "r-5", "sunshine", DAY, ids)
+	t.equal(fullStatus, "refused", "a booster that does not fit is refused")
+	t.equal(fullYield, 0, "and pays nothing")
+	local _, limitStatus = Shop.receipt(skip, "r-6", "timeskip", DAY, ids)
+	t.equal(limitStatus, "refused", "a fourth Time Skip on the same day is refused")
 end
