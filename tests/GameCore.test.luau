@@ -256,6 +256,17 @@ return function(t, load)
 	t.truthy(not noContainerOk, "U17 needs the container with required land")
 	local boxed, boxedOk = GameCore.apply(storage, { type = "Prepare", target = "container" }, gated)
 	t.truthy(boxedOk and boxed.coins == 99500, "the container costs 500")
+	local boxBought, boxBoughtOk = GameCore.apply(storage, { type = "BuyContainer" }, gated)
+	t.truthy(
+		boxBoughtOk and boxBought.coins == 99500 and boxBought.land.container == true,
+		"BuyContainer costs 500 and sets it"
+	)
+	local _, secondOk = GameCore.apply(boxBought, { type = "BuyContainer" }, gated)
+	t.truthy(not secondOk, "the container is boxBought once")
+	local poorBox = fresh()
+	poorBox.coins = 100
+	local _, poorBoxOk = GameCore.apply(poorBox, { type = "BuyContainer" }, gated)
+	t.truthy(not poorBoxOk, "BuyContainer needs the coins")
 	local stored, storedOk = GameCore.apply(boxed, { type = "BuyNode", node = "U17" }, gated)
 	t.truthy(storedOk, "U17 with the container")
 	stored.nodes.U21 = true
@@ -289,8 +300,18 @@ return function(t, load)
 
 	-- Random inputs: whatever the client sends, coins and storage stay finite and not negative.
 	math.randomseed(20261113)
-	local TYPES =
-		{ "Crank", "BuyPlant", "BuyNode", "SetRule", "SetStorageMode", "Prestige", "BuyTool", "Prepare", "Nonsense" }
+	local TYPES = {
+		"Crank",
+		"BuyPlant",
+		"BuyNode",
+		"SetRule",
+		"SetStorageMode",
+		"Prestige",
+		"BuyTool",
+		"Prepare",
+		"BuyContainer",
+		"Nonsense",
+	}
 	local ITEMS = { 0, 1, 2, 6, 7, 10, 25, -1, 0.5, 0.7, 1.5, 2, 2.5, 99, math.huge, -math.huge }
 	table.insert(ITEMS, math.huge - math.huge)
 	table.insert(ITEMS, "max")

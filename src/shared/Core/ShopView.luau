@@ -153,7 +153,7 @@ local function storageCards(input: Input): { Card }
 			local affordable = input.coins >= input.land.containerCost
 			card.state = if affordable then "affordable" else "short"
 			card.price = price(input, input.land.containerCost)
-			card.button = buy(input, affordable, "Prepare", { target = "container" })
+			card.button = buy(input, affordable, "BuyContainer", {})
 		end
 		table.insert(cards, card)
 	end

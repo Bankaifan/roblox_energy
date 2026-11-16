@@ -544,6 +544,8 @@ function GameCore.apply(state: State, action: { [string]: any }, env: Env): (Sta
 		ok = buyTool(result, env, action)
 	elseif action.type == "Prepare" then
 		ok = prepare(result, env, action)
+	elseif action.type == "BuyContainer" then
+		ok = prepare(result, env, { type = "Prepare", target = "container" })
 	elseif action.type == "Prestige" then
 		ok = prestige(result, env)
 	end

@@ -7,7 +7,7 @@ return function(t, load)
 	for _ in Net.messages do
 		count += 1
 	end
-	t.equal(count, 16, "16 messages")
+	t.equal(count, 17, "17 messages")
 	t.equal(Net.messages.Welcome.direction, "server", "Welcome comes from the server")
 
 	local ok, clean = Net.check("BuyPlant", { plant = 3, qty = "max", extra = "ignored" })
@@ -49,6 +49,7 @@ return function(t, load)
 	t.equal(prep.type, "Prepare", "the clean payload names Prepare")
 	t.truthy(Net.check("Prepare", { target = "container" }), "container is a target")
 	t.equal(Net.check("Prepare", { target = 7 }), false, "field 7 does not exist")
+	t.truthy(Net.check("BuyContainer", {}), "the container can be bought from the client")
 	t.equal(Net.check("Prepare", { target = "x" }), false, "an unknown target is rejected")
 
 	local limit = Net.messages.BuyPlant.limit
