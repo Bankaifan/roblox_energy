@@ -64,9 +64,11 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 2, the default profile of Bauplan section 5.
+	-- The template: version 3, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 2, "the template is version 2")
+	t.equal(template.v, 3, "the template is version 3")
+	t.equal(template.land.tools.scythe, true, "the scythe is owned from the start")
+	t.equal(template.land.market, false, "the market is not yet opened")
 	t.equal(next(template.passes), nil, "no pass owned by default")
 	t.equal(#template.boosters, 0, "the booster queue starts empty")
 	t.equal(template.daily.skips, 0, "no Time Skip used by default")
@@ -101,11 +103,22 @@ return function(t, load)
 	run.cosmetics = { [1] = "gold" }
 	run.settings = { lang = "de", sfx = false, music = true }
 	run.tutorial = 3
+	run.land = {
+		sites = { 4, 8, 0, 1, 0, 0 },
+		tools = { scythe = true, shovel = true },
+		container = true,
+		wired = false,
+		market = true,
+	}
 	local state = Data.toState(run)
 	local loaded, reason = Data.migrate(Data.fromState(state, run), Steps)
 	t.equal(reason, nil, "a current profile loads")
 	t.truthy(same(loaded, run), "the saved profile comes back exactly")
 	t.truthy(same(Data.toState(loaded), state), "the run comes back exactly")
+	t.truthy(same(state.land, run.land), "land is part of the run state")
+	t.truthy(same(Data.fromState(state).land, run.land), "land survives fromState")
+	state.land.sites[1] = 5
+	t.equal(run.land.sites[1], 4, "toState copies the land")
 
 	-- Unknown fields are dropped; missing fields and wrongly typed values get their defaults.
 	local partial =
@@ -150,7 +163,7 @@ return function(t, load)
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 3
+	newer.v = 4
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
@@ -166,9 +179,10 @@ return function(t, load)
 			return profile
 		end,
 		[1] = Steps[1],
+		[2] = Steps[2],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 2, "the profile is version 2 afterwards")
+	t.equal(upgraded.v, 3, "the profile is version 3 afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
 	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
@@ -185,7 +199,7 @@ return function(t, load)
 		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
 	}
 	local v2 = Data.migrate(v1, Steps)
-	t.equal(v2.v, 2, "a version 1 profile loads as version 2")
+	t.equal(v2.v, 3, "a version 1 profile loads as the current version")
 	t.equal(v2.passes.founder, true, "a founder grant becomes the owned pass")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
@@ -193,6 +207,42 @@ return function(t, load)
 	t.equal(v2.grants, nil, "grants is gone")
 	local v1none = Data.migrate({ v = 1 }, Steps)
 	t.equal(next(v1none.passes), nil, "a version 1 profile without a founder grant owns no pass")
+
+	-- Migration 2 to 3: a profile that has earned coins gets the old game's land; a fresh one gets the template.
+	local old2 = { v = 2, coins = 10, lifetimeEarned = 50, nodes = { U21 = true } }
+	local v3 = Data.migrate(old2, Steps)
+	t.equal(v3.v, 3, "a version 2 profile loads as version 3")
+	t.truthy(same(v3.land.sites, { 4, 4, 4, 4, 4, 4 }), "the first row of every field is prepared")
+	t.equal(v3.land.tools.shovel, true, "the tools are owned")
+	t.equal(v3.land.tools.pliers, true, "the cable pliers are owned")
+	t.equal(v3.land.tools.rails, nil, "the mounting rails are not owned")
+	t.equal(v3.land.market, true, "the market is open")
+	t.equal(v3.land.container, true, "the container is owned")
+	t.equal(v3.land.wired, true, "U21 owned means wired")
+	t.equal(old2.land, nil, "the input profile is not changed")
+	local unwired = Data.migrate({ v = 2, lifetimeEarned = 1, nodes = {} }, Steps)
+	t.equal(unwired.land.wired, false, "without U21 the board is not wired")
+	local fresh = Data.migrate({ v = 2, coins = 3 }, Steps)
+	t.truthy(same(fresh.land, Data.template().land), "a fresh version 2 profile gets the template land")
+
+	-- A broken land is repaired: counts clamp to the field, unknown tools go, the scythe stays, flags are booleans.
+	local brokenLand = Data.template()
+	brokenLand.land = {
+		sites = { 99, -1, 2.7, 0 / 0, 9, 50 },
+		tools = { shovel = true, hoe = true, hammer = "yes" },
+		container = "yes",
+		wired = true,
+	}
+	local repaired = Data.migrate(brokenLand, Steps).land
+	t.truthy(same(repaired.sites, { 24, 0, 2, 0, 4, 4 }), "site counts are whole numbers within their own field cap")
+	t.truthy(same(repaired.tools, { scythe = true, shovel = true }), "unknown tools go, the scythe stays")
+	t.equal(repaired.container, false, "a flag of the wrong type becomes false")
+	t.equal(repaired.wired, true, "a valid flag is kept")
+	t.equal(repaired.market, false, "a missing flag is false")
+	t.truthy(
+		same(Data.migrate({ v = 3, land = 5 }, Steps).land, Data.template().land),
+		"a land that is no table gets the default"
+	)
 
 	-- Booster queue and passes: broken entries are dropped on load, a good one is kept.
 	local queued = Data.template()

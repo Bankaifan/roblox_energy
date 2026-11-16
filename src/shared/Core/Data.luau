@@ -1,11 +1,22 @@
 --!strict
--- Save data (Bauplan.md, "Datenmodell, Version 2"). Pure: no DataStore, no Roblox APIs. A profile is what is saved;
+-- Save data (Bauplan.md, "Datenmodell, Version 3"). Pure: no DataStore, no Roblox APIs. A profile is what is saved;
 -- fromState and toState map the fields of a run between the profile and the GameCore state (sections 2 and 5).
 -- migrate takes the migration steps as an argument, because core modules do not require each other (see GameCore).
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 2
+local VERSION = 3
+local MAX_SITES = { 24, 12, 8, 12, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design.md, section 4)
+local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
+	scythe = true,
+	rails = true,
+	shovel = true,
+	hammer = true,
+	wrench = true,
+	drum = true,
+	tamper = true,
+	pliers = true,
+}
 local MAX_PURCHASES = 100 -- the last 100 receipt IDs
 local MAX_BOOSTER_ENTRIES = 100 -- the booster queue (Core/Shop keeps it at most 60 minutes long)
 
@@ -22,12 +33,13 @@ local STATE_FIELDS = {
 	"pnodes",
 	"storage",
 	"rules",
+	"land",
 }
 
 local Data = {}
 Data.VERSION = VERSION
 
--- The default profile, version 2. Every call returns a new table.
+-- The default profile, version 3. Every call returns a new table.
 local function template(): Profile
 	return {
 		v = VERSION,
@@ -42,6 +54,13 @@ local function template(): Profile
 		pnodes = {},
 		storage = { charge = 0, mode = "auto" },
 		rules = {},
+		land = {
+			sites = { 0, 0, 0, 0, 0, 0 },
+			tools = { scythe = true },
+			container = false,
+			wired = false,
+			market = false,
+		},
 		lastSeen = 0,
 		playSeconds = 0,
 		sessions = 0,
@@ -167,6 +186,32 @@ local function boosters(value: any): any
 	return result
 end
 
+-- The land: sites are whole numbers 0..MAX_SITES[field] per plant, known tools stay when true, the scythe is always owned,
+-- the flags are booleans.
+local function land(value: any, default: any): any
+	local source = if type(value) == "table" then value else {}
+	local sites = {}
+	for index in default.sites do
+		local count = scalar(0, if type(source.sites) == "table" then source.sites[index] else nil)
+		sites[index] = math.min(math.floor(count), MAX_SITES[index])
+	end
+	local tools = { scythe = true }
+	if type(source.tools) == "table" then
+		for id in TOOLS do
+			if source.tools[id] == true then
+				tools[id] = true
+			end
+		end
+	end
+	return {
+		sites = sites,
+		tools = tools,
+		container = source.container == true,
+		wired = source.wired == true,
+		market = source.market == true,
+	}
+end
+
 -- How each field of the template is cleaned on load. Fields without an entry are scalars.
 local CLEANERS: { [string]: (any, any) -> any } = {
 	plants = counts,
@@ -189,6 +234,7 @@ local CLEANERS: { [string]: (any, any) -> any } = {
 		return entries(value, isTrue)
 	end,
 	boosters = boosters,
+	land = land,
 	storage = fields,
 	daily = fields,
 	settings = fields,
