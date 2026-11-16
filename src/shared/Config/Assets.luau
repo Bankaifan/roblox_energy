@@ -5,26 +5,39 @@ export type Entry = { file: string, scale: number, cap: number }
 
 local Assets = {}
 
--- Side length of the square a plant gets on the plot (the primitive column is 4 x 4).
-Assets.SLOT = 4
+-- Plot size (issue #90): one constant for the ground of a plot. The world (terrain meadow) follows it too.
+Assets.PLOT_SIZE = 120
+-- Distance between the centres of two neighbouring plots (a walkway of 40 studs between the grounds).
+Assets.PLOT_SPACING = Assets.PLOT_SIZE + 40
 
+-- Side length of the pad a plant gets, the grid of pads (3 columns, 34 studs apart) and the layout of copies on a pad.
+Assets.SLOT = 28
+Assets.PAD_COLUMNS = 3
+Assets.PAD_PITCH = 34
+Assets.COPY_GAP = 4
+Assets.MAX_CELL = 14
+-- Side of the primitive fallback column.
+Assets.COLUMN = 12
+
+-- Visible copies per pad: at most 3, so a pad never looks crowded.
 Assets.plants = {
-	[1] = { file = "plant1_panel", scale = 1, cap = 8 },
-	[2] = { file = "plant2_waterwheel", scale = 1, cap = 8 },
-	[3] = { file = "plant3_house", scale = 1, cap = 8 },
-	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 8 },
-	[5] = { file = "plant5_solarfarm", scale = 1, cap = 8 },
-	[6] = { file = "plant6_windturbine", scale = 1, cap = 8 },
+	[1] = { file = "plant1_panel", scale = 1, cap = 3 },
+	[2] = { file = "plant2_waterwheel", scale = 1, cap = 3 },
+	[3] = { file = "plant3_house", scale = 1, cap = 3 },
+	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 3 },
+	[5] = { file = "plant5_solarfarm", scale = 1, cap = 3 },
+	[6] = { file = "plant6_windturbine", scale = 1, cap = 3 },
 } :: { [number]: Entry }
 
--- Plot furniture (issue #82): file, centre (x, z) relative to the plot centre and the longest footprint side in studs.
--- The plants stand in x -14.5..14.5, z -2..2 on a 40 x 40 ground, so the furniture sits in z beyond 5 and clear of each other.
+-- Plot furniture: file, centre (x, z) relative to the plot centre and the longest footprint side in studs.
+-- The pads fill x -48..48, z -31..31 of the 120 x 120 ground; the furniture stands around them (the market at the
+-- front in +z, its facade towards the plot centre) with walking room between.
 export type Furniture = { file: string, x: number, z: number, size: number }
 Assets.furniture = {
-	crank = { file = "crank", x = 0, z = -10, size = 4 },
-	market = { file = "market", x = -10, z = 12, size = 12 },
-	control = { file = "control", x = 10, z = 12, size = 8 },
-	battery = { file = "battery", x = 15, z = -10, size = 3 },
+	crank = { file = "crank", x = 0, z = -48, size = 4 },
+	market = { file = "market", x = -35, z = 46, size = 14 },
+	control = { file = "control", x = 35, z = 46, size = 5 },
+	battery = { file = "battery", x = 50, z = -48, size = 3 },
 } :: { [string]: Furniture }
 
 -- Studs between stacked battery units (the unit's own height is added on top).
@@ -58,23 +71,6 @@ end
 -- How many copies are shown for `count` owned plants.
 function Assets.visibleCopies(count: number, cap: number): number
 	return math.max(0, math.min(math.floor(count), cap))
-end
-
--- Grid for `copies` models inside a square of side `slot`: the cell size and the (x, z) centre of each cell.
-function Assets.layout(copies: number, slot: number): (number, { { x: number, z: number } })
-	local offsets: { { x: number, z: number } } = {}
-	if copies <= 0 then
-		return slot, offsets
-	end
-	local side = math.ceil(math.sqrt(copies))
-	local cell = slot / side
-	for i = 0, copies - 1 do
-		table.insert(offsets, {
-			x = (i % side + 0.5) * cell - slot / 2,
-			z = (i // side + 0.5) * cell - slot / 2,
-		})
-	end
-	return cell, offsets
 end
 
 -- Scale that fits a footprint (sizeX x sizeZ) into a cell, times the per-plant factor.

@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
+local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
+local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
 
 local PlotService = {}
@@ -78,7 +80,7 @@ local function updateCopies(record: Record, index: number, owned: number, centre
 		copy:Destroy()
 	end
 	table.clear(shown)
-	local cell, offsets = Assets.layout(wanted, Assets.SLOT)
+	local cell, offsets = PlotLayout.copies(wanted, Assets.SLOT, Assets.COPY_GAP, Assets.MAX_CELL)
 	for _, offset in offsets do
 		local copy = PlantModels.clone(index)
 		if copy == nil then
@@ -136,18 +138,29 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	if slot == nil then
 		return false
 	end
-	local origin = Vector3.new(slot * 60, 0, 0)
+	local origin = Vector3.new(slot * Assets.PLOT_SPACING, 0, 0)
 	local model = Instance.new("Model")
 	model.Name = player.Name
-	block(model, "Ground", Vector3.new(40, 1, 40), Color3.fromRGB(90, 140, 80), origin + Vector3.new(0, 0.5, 0))
+	block(
+		model,
+		"Ground",
+		Vector3.new(Assets.PLOT_SIZE, 1, Assets.PLOT_SIZE),
+		Color3.fromRGB(90, 140, 80),
+		origin + Vector3.new(0, 0.5, 0)
+	)
 	local columns: { BasePart } = {}
 	local modelPlants: { boolean } = {}
 	local copies: { { Model } } = {}
 	for index, plant in plants do
 		modelPlants[index] = PlantModels.has(index)
 		copies[index] = {}
-		columns[index] =
-			block(model, "Plant" .. index, Vector3.new(4, 0.2, 4), COLORS[plant.kind] or COLORS.Grundlast, origin)
+		columns[index] = block(
+			model,
+			"Plant" .. index,
+			Vector3.new(Assets.COLUMN, 0.2, Assets.COLUMN),
+			COLORS[plant.kind] or COLORS.Grundlast,
+			origin
+		)
 	end
 	model.Parent = plotsFolder()
 	local record: Record = {
@@ -175,16 +188,18 @@ function PlotService.update(player: Player, counts: { number }, extras: { stage:
 		return
 	end
 	updateFurniture(record, extras or { stage = 0, control = false })
+	local pads = PlotLayout.pads(#record.columns, Assets.PAD_COLUMNS, Assets.PAD_PITCH, 0)
 	for index, column in record.columns do
 		local owned = math.min(counts[index] or 0, 100)
-		local centre = record.origin + Vector3.new((index - 3.5) * 5, 0, 0)
+		local pad = pads[index]
+		local centre = record.origin + Vector3.new(pad.x, 0, pad.z)
 		if record.modelPlants[index] then
-			column.Size = Vector3.new(4, 0.2, 4)
+			column.Size = Vector3.new(Assets.SLOT, 0.2, Assets.SLOT)
 			column.Position = centre + Vector3.new(0, 1.1, 0)
 			updateCopies(record, index, owned, centre)
 		else
-			local height = 0.2 + owned * 0.2
-			column.Size = Vector3.new(4, height, 4)
+			local height = 0.2 + math.min(owned, 30) * 0.2
+			column.Size = Vector3.new(Assets.COLUMN, height, Assets.COLUMN)
 			column.Position = centre + Vector3.new(0, 1 + height / 2, 0)
 		end
 	end

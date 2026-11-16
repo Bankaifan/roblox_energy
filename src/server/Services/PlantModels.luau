@@ -183,11 +183,19 @@ function PlantModels.mountPanels(market: Model)
 		if panel == nil then
 			return
 		end
+		-- Lay the panel flat on the wall: its thinnest axis points along Z (towards the plot centre).
+		local _, raw = panel:GetBoundingBox()
+		if raw.Y <= raw.X and raw.Y <= raw.Z then
+			panel:PivotTo(panel:GetPivot() * CFrame.Angles(math.rad(90), 0, 0))
+		elseif raw.X <= raw.Y and raw.X <= raw.Z then
+			panel:PivotTo(panel:GetPivot() * CFrame.Angles(0, math.rad(90), 0))
+		end
 		local _, panelSize = panel:GetBoundingBox()
-		panel:ScaleTo(panel:GetScale() * Assets.fitScale(panelSize.X, panelSize.Z, size.X / 4, 1))
+		panel:ScaleTo(panel:GetScale() * Assets.fitScale(panelSize.X, panelSize.Y, size.X / 4, 1))
 		local pivot, scaled = panel:GetBoundingBox()
 		local x = boxCFrame.Position.X + (i - 1.5) * size.X / 3
-		local z = boxCFrame.Position.Z - size.Z / 2 - scaled.Z / 2
+		-- Touching the facade: the back of the panel sits 0.05 studs inside the wall, never floating.
+		local z = boxCFrame.Position.Z - size.Z / 2 - scaled.Z / 2 + 0.05
 		local y = boxCFrame.Position.Y - size.Y / 2 + size.Y * 0.6
 		panel:PivotTo(panel:GetPivot() + Vector3.new(x, y, z) - pivot.Position)
 		panel.Parent = market
