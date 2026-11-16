@@ -7,6 +7,7 @@ local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
+local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
 
 local PlotService = {}
@@ -106,6 +107,34 @@ local function addFurniture(record: Record, name: string, turn: number?): Model?
 	return copy
 end
 
+-- Set once by Action: runs the same path as the Net "Crank" message (rate limit, checks, Session).
+local crankHandler: ((Player) -> ())? = nil
+
+function PlotService.setCrankHandler(handler: (Player) -> ())
+	crankHandler = handler
+end
+
+-- A ProximityPrompt on the crank model; only the plot's owner can trigger it.
+local function addCrankPrompt(owner: Player, crank: Model)
+	local anchor = crank.PrimaryPart or crank:FindFirstChildWhichIsA("BasePart", true)
+	if anchor == nil then
+		return
+	end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "CrankPrompt"
+	prompt.ActionText = Locale.t("action.crank", Locale.resolve(owner.LocaleId))
+	prompt.ObjectText = ""
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = anchor
+	prompt.Triggered:Connect(function(player: Player)
+		if player == owner and crankHandler ~= nil then
+			crankHandler(player)
+		end
+	end)
+end
+
 -- Control center from U21, one battery unit per storage stage; both are rebuilt only when the number changes.
 local function updateFurniture(record: Record, extras: { stage: number, control: boolean })
 	if extras.control and record.control == nil then
@@ -175,7 +204,10 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	}
 	plots[player] = record
 	-- The crank and the market are built once per plot.
-	addFurniture(record, "crank", nil)
+	local crank = addFurniture(record, "crank", nil)
+	if crank ~= nil then
+		addCrankPrompt(player, crank)
+	end
 	addFurniture(record, "market", nil)
 	PlotService.update(player, {})
 	return true
