@@ -163,6 +163,12 @@ Locale.tables = {
 		["tool.container.info"] = "Holds batteries for the storage upgrades",
 		["tool.pliers.info"] = "Wires the control board to the container",
 		["hint.noSite"] = "Prepare the ground first",
+		["hint.needTool"] = "Prepare the ground first: {tool}",
+		["tool.line"] = "{name}, {cost} coins: {info}",
+		["tool.owned"] = "{name}: owned",
+		["tool.locked"] = "{name}: not available yet",
+		["container.line"] = "Container, {cost} coins: holds batteries",
+		["container.owned"] = "Container: delivered",
 	},
 	de = {
 		["language.en"] = "English",
@@ -319,6 +325,12 @@ Locale.tables = {
 		["tool.container.info"] = "Hält Batterien für die Speicher-Stufen",
 		["tool.pliers.info"] = "Verbindet das Steuerboard mit dem Container",
 		["hint.noSite"] = "Erst den Boden vorbereiten",
+		["hint.needTool"] = "Erst den Boden vorbereiten: {tool}",
+		["tool.line"] = "{name}, {cost} Coins: {info}",
+		["tool.owned"] = "{name}: vorhanden",
+		["tool.locked"] = "{name}: noch nicht verfügbar",
+		["container.line"] = "Container, {cost} Coins: hält Batterien",
+		["container.owned"] = "Container: geliefert",
 	},
 }
 

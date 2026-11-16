@@ -16,7 +16,7 @@ return {
 		{ id = "shovel", plant = 2, price = 30, hold = 1.5, textKey = "tool.shovel" },
 		{ id = "hammer", plant = 3, price = 250, hold = 2.5, textKey = "tool.hammer" },
 		{ id = "wrench", plant = 4, price = 2500, hold = 1.5, textKey = "tool.wrench" },
-		{ id = "drum", plant = 5, price = 25000, hold = 3, textKey = "tool.drum" },
+		{ id = "drum", plant = 5, price = 25000, hold = 3, textKey = "tool.cableDrum" },
 		{ id = "tamper", plant = 6, price = 250000, hold = 4, textKey = "tool.tamper" },
 		{ id = "pliers", node = "U21", price = 600, hold = 2, textKey = "tool.pliers" },
 	},

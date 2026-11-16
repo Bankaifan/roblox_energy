@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Effects = require(Config:WaitForChild("Effects") :: ModuleScript) :: any
+local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local Plants = require(Config:WaitForChild("Plants") :: ModuleScript) :: any
 local Upgrades = require(Config:WaitForChild("Upgrades") :: ModuleScript) :: any
@@ -39,6 +40,14 @@ local DETAIL_HEIGHT = 160
 local DETAIL_GAP = 4
 local SELECTED_BORDER = 3
 local SELECTED_COLOR = Color3.fromRGB(255, 200, 0)
+-- The market tabs in order (Technik, Upgrades, Speicher, Werkzeuge): id and Locale key. Tab buttons are touch sized.
+local TABS = {
+	{ id = "plants", key = "tab.plants" },
+	{ id = "upgrades", key = "tab.upgrades" },
+	{ id = "storage", key = "tab.storage" },
+	{ id = "tools", key = "tab.tools" },
+}
+local TAB_HEIGHT = 44
 
 -- Gives a row or button the shared look: fixed text size, wrapped text, inner padding, and a height that grows with the text.
 local function fitRow(control: GuiObject)
@@ -181,6 +190,35 @@ function Hud.build(net: Instance)
 	end
 	-- The latest view from the server; buttons check it before they send.
 	local latest: any = nil
+	-- The open market tab, and the controls that belong to each tab (shown only while their tab is open).
+	local currentTab = "plants"
+	local tabControls: { [string]: { GuiObject } } = { plants = {}, upgrades = {}, storage = {}, tools = {} }
+	local tabButtons: { [string]: TextButton } = {}
+	local setTab: (string) -> () = function() end
+	local tabBar = Instance.new("Frame")
+	tabBar.BackgroundTransparency = 1
+	tabBar.LayoutOrder = nextOrder()
+	tabBar.Size = UDim2.new(1, 0, 0, TAB_HEIGHT)
+	local tabLayout = Instance.new("UIListLayout")
+	tabLayout.FillDirection = Enum.FillDirection.Horizontal
+	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	tabLayout.Parent = tabBar
+	tabBar.Parent = frame
+	for index, tab in TABS do
+		local control = button(tabBar, "", index, function()
+			setTab(tab.id)
+		end)
+		control.AutomaticSize = Enum.AutomaticSize.None
+		control.Size = UDim2.new(1 / #TABS, 0, 0, TAB_HEIGHT)
+		control.TextTruncate = Enum.TextTruncate.AtEnd
+		tabButtons[tab.id] = control
+	end
+	-- Puts a control on a tab; it stays hidden while another tab is open.
+	local function onTab(tab: string, control: any): any
+		table.insert(tabControls[tab], control)
+		control.Visible = tab == currentTab
+		return control
+	end
 	-- The upgrade the player tapped (an index into Upgrades.run), and the row buttons to highlight it.
 	local selected: number? = nil
 	local nodeButtons: { [number]: TextButton } = {}
@@ -199,10 +237,14 @@ function Hud.build(net: Instance)
 	detailWidth.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
 	detailWidth.Parent = detail
 	detail.Parent = gui
+	-- The detail area (name, effect, Buy) belongs to the upgrade list, so only the Upgrades tab shows it.
+	local function showShop()
+		frame.Visible = shopOpen
+		detail.Visible = shopOpen and currentTab == "upgrades"
+	end
 	setShop = function(open: boolean)
 		shopOpen = open
-		frame.Visible = open
-		detail.Visible = open
+		showShop()
 	end
 	-- Name, effect and reason scroll inside the detail area when they wrap long; Buy stays pinned to its bottom edge.
 	local detailText = Instance.new("ScrollingFrame")
@@ -304,30 +346,54 @@ function Hud.build(net: Instance)
 	end)
 	local buyButtons: { [number]: TextButton } = {}
 	for index in Plants do
-		buyButtons[index] = button(frame, "", nextOrder(), function()
-			send("BuyPlant", { plant = index, qty = 1 })
-		end)
+		buyButtons[index] = onTab(
+			"plants",
+			button(frame, "", nextOrder(), function()
+				if latest ~= nil and latest.plants[index].needsSite == true then
+					-- No site yet: the row names the tool, a tap leads to the Tools tab instead of buying.
+					setTab("tools")
+				else
+					send("BuyPlant", { plant = index, qty = 1 })
+				end
+			end)
+		)
 	end
 
-	local upgradeTitle = label(frame, nextOrder())
+	local upgradeTitle = onTab("upgrades", label(frame, nextOrder()))
 	-- A row only selects its upgrade; the Buy button in the detail area buys it.
 	for index, node in Upgrades.run do
-		nodeButtons[index] = button(frame, node.id, nextOrder(), function()
-			selectNode(index)
-		end)
+		nodeButtons[index] = onTab(
+			"upgrades",
+			button(frame, node.id, nextOrder(), function()
+				selectNode(index)
+			end)
+		)
 	end
 
-	local modeTitle = label(frame, nextOrder())
-	local modeButtons: { [string]: TextButton } = {}
-	for _, mode in STORAGE_MODES do
-		modeButtons[mode.id] = button(frame, "", nextOrder(), function()
-			if latest ~= nil and latest.storage.stage >= 1 then
-				send("SetStorageMode", { mode = mode.id })
+	-- The Storage tab starts with the container; U17 needs it once the land rules are on.
+	local containerRow = onTab(
+		"storage",
+		button(frame, "", nextOrder(), function()
+			local land = if latest ~= nil then latest.land else nil
+			if land ~= nil and not land.container then
+				send("Prepare", { target = "container" })
 			end
 		end)
+	)
+	local modeTitle = onTab("storage", label(frame, nextOrder()))
+	local modeButtons: { [string]: TextButton } = {}
+	for _, mode in STORAGE_MODES do
+		modeButtons[mode.id] = onTab(
+			"storage",
+			button(frame, "", nextOrder(), function()
+				if latest ~= nil and latest.storage.stage >= 1 then
+					send("SetStorageMode", { mode = mode.id })
+				end
+			end)
+		)
 	end
 
-	local rulesTitle = label(frame, nextOrder())
+	local rulesTitle = onTab("storage", label(frame, nextOrder()))
 	-- One row per rule slot the Control Center can give (three with P8); the rows beyond the owned slots are hidden.
 	local ruleRows: { [number]: any } = {}
 	for slot = 1, Effects.ruleSlotsP8 do
@@ -351,6 +417,24 @@ function Hud.build(net: Instance)
 		ruleRows[slot] = { status = status, charge = charge, sell = sell, toggle = toggle }
 	end
 
+	-- The Tools tab: one row per tool of Config/Land; a tap buys it when the view says it is buyable.
+	local toolRows: { [string]: TextButton } = {}
+	for _, tool in Land.tools do
+		toolRows[tool.id] = onTab(
+			"tools",
+			button(frame, "", nextOrder(), function()
+				if latest == nil then
+					return
+				end
+				for _, item in latest.tools do
+					if item.id == tool.id and item.buyable then
+						send("BuyTool", { tool = tool.id })
+					end
+				end
+			end)
+		)
+	end
+
 	local expand = button(frame, "", nextOrder(), function()
 		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
 			send("Prestige")
@@ -362,8 +446,48 @@ function Hud.build(net: Instance)
 		crank.Text = t("shop.crank", { energy = energy(view.crank) })
 		for index, control in buyButtons do
 			local item = view.plants[index]
-			control.Text = t("shop.plantPrice", { name = plantName(index), cost = short(item.cost) })
-			dim(control, item.affordable)
+			if item.needsSite == true then
+				-- A plant without a site names the tool that prepares its ground instead of a price.
+				local toolId = Land.fieldTools[index]
+				local toolKey = "tool." .. toolId
+				for _, tool in Land.tools do
+					if tool.id == toolId then
+						toolKey = tool.textKey
+					end
+				end
+				control.Text = `{plantName(index)}: {t("hint.needTool", { tool = t(toolKey) })}`
+				dim(control, false)
+			else
+				control.Text = t("shop.plantPrice", { name = plantName(index), cost = short(item.cost) })
+				dim(control, item.affordable)
+			end
+		end
+		if view.tools ~= nil then
+			for _, item in view.tools do
+				local control = toolRows[item.id]
+				local name = t(item.textKey)
+				if item.owned then
+					control.Text = t("tool.owned", { name = name })
+				elseif item.revealed then
+					control.Text = t("tool.line", {
+						name = name,
+						cost = short(item.price),
+						info = t(item.textKey .. ".info"),
+					})
+				else
+					control.Text = t("tool.locked", { name = name })
+				end
+				dim(control, item.buyable)
+			end
+		end
+		if view.land ~= nil then
+			if view.land.container then
+				containerRow.Text = t("container.owned")
+			else
+				containerRow.Text = t("container.line", { cost = short(Land.containerCost) })
+			end
+			local affordable = lastDelta ~= nil and lastDelta.coins >= Land.containerCost
+			dim(containerRow, not view.land.container and affordable)
 		end
 		for index, control in nodeButtons do
 			local node = Upgrades.run[index]
@@ -400,7 +524,7 @@ function Hud.build(net: Instance)
 		end
 		rulesTitle.Text = if stored.ruleSlots > 0 then t("rules.title") else t("rules.locked")
 		for slot, row in ruleRows do
-			local visible = slot <= stored.ruleSlots
+			local visible = slot <= stored.ruleSlots and currentTab == "storage"
 			local rule = stored.rules[slot]
 			row.status.Visible = visible
 			row.charge.Visible = visible
@@ -419,6 +543,32 @@ function Hud.build(net: Instance)
 			end
 			dim(row.toggle, rule ~= nil)
 		end
+	end
+
+	-- Opens a tab: its controls show, the others hide, the active tab button gets the selection border.
+	setTab = function(tab: string)
+		currentTab = tab
+		for id, controls in tabControls do
+			for _, control in controls do
+				control.Visible = id == tab
+			end
+		end
+		for id, control in tabButtons do
+			control.BorderSizePixel = if id == tab then SELECTED_BORDER else 0
+			control.BorderColor3 = SELECTED_COLOR
+		end
+		if latest ~= nil then
+			storageSection(latest)
+		else
+			for _, row in ruleRows do
+				row.status.Visible = false
+				row.charge.Visible = false
+				row.sell.Visible = false
+				row.toggle.Visible = false
+			end
+		end
+		frame.CanvasPosition = Vector2.zero
+		showShop()
 	end
 
 	-- Each server message, painted from its data. Only the handlers below pass messages to the Boost view.
@@ -449,6 +599,13 @@ function Hud.build(net: Instance)
 	paint = function()
 		language.Text = t("hud.language", { name = t("language." .. lang) })
 		shopButton.Text = t("hud.shop")
+		for _, tab in TABS do
+			tabButtons[tab.id].Text = t(tab.key)
+		end
+		containerRow.Text = t("container.line", { cost = short(Land.containerCost) })
+		for _, tool in Land.tools do
+			toolRows[tool.id].Text = t("tool.locked", { name = t(tool.textKey) })
+		end
 		crank.Text = t("action.crank")
 		for index, control in buyButtons do
 			control.Text = t("action.buyNamed", { name = plantName(index) })
@@ -477,6 +634,7 @@ function Hud.build(net: Instance)
 		boost.relabel()
 	end
 	paint()
+	setTab(currentTab)
 
 	return {
 		language = function(): string
