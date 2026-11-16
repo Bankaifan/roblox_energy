@@ -6,6 +6,7 @@
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
@@ -15,6 +16,7 @@ local Plants = require(Config:WaitForChild("Plants") :: ModuleScript) :: any
 local Upgrades = require(Config:WaitForChild("Upgrades") :: ModuleScript) :: any
 local Effects = require(Config:WaitForChild("Effects") :: ModuleScript) :: any
 local ShopView = require(Shared:WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript) :: any
+local PopupGate = require(Shared:WaitForChild("Core"):WaitForChild("PopupGate") :: ModuleScript) :: any
 local Theme = require(script.Parent.Parent.Theme)
 
 local Market = {}
@@ -172,6 +174,7 @@ function Market.build(net: Instance, language: () -> string)
 	-- Tab row: four equal buttons that always fit the window; the caption shrinks before it would be cut.
 	local tabBar = Instance.new("Frame")
 	tabBar.Name = "Tabs"
+	tabBar.ZIndex = 3
 	tabBar.BackgroundTransparency = 1
 	tabBar.Position = UDim2.fromOffset(0, HEADER_HEIGHT + GAP)
 	tabBar.Size = UDim2.new(1, 0, 0, TOUCH)
@@ -198,6 +201,7 @@ function Market.build(net: Instance, language: () -> string)
 
 	local hint = text(window, Theme.fonts.body, 14, COLORS.textMuted)
 	hint.Name = "Hint"
+	hint.ZIndex = 3
 	hint.Position = UDim2.fromOffset(2, HEADER_HEIGHT + TOUCH + 2 * GAP)
 	hint.Size = UDim2.new(1, -4, 0, HINT_HEIGHT)
 
@@ -467,9 +471,18 @@ function Market.build(net: Instance, language: () -> string)
 
 	-- Counts the openings, so the leave check of an earlier opening stops when the popup was closed and opened again.
 	local opening = 0
+	-- The Roblox hotbar is hidden while the popup shows and always restored by close (the gate says which).
+	local gate = PopupGate.new()
+	local function applyHotbar()
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, not PopupGate.hidden(gate))
+		end)
+	end
 	close = function()
 		opening += 1
 		gui.Enabled = false
+		PopupGate.close(gate, "market")
+		applyHotbar()
 	end
 
 	-- The place of the prompt that opened the popup, or nil when it is gone.
@@ -491,6 +504,8 @@ function Market.build(net: Instance, language: () -> string)
 		fit()
 		setTab(ShopView.tabs[1].id)
 		gui.Enabled = true
+		PopupGate.open(gate, "market")
+		applyHotbar()
 		if prompt == nil then
 			return
 		end
@@ -524,6 +539,21 @@ function Market.build(net: Instance, language: () -> string)
 			close()
 		end
 	end)
+	-- Death, respawn or a removed gui also close the popup, so the hotbar never stays hidden.
+	local function watchCharacter(character: Model)
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid ~= nil and humanoid:IsA("Humanoid") then
+			humanoid.Died:Connect(close)
+		end
+	end
+	player.CharacterAdded:Connect(function(character)
+		close()
+		watchCharacter(character)
+	end)
+	if player.Character ~= nil then
+		task.spawn(watchCharacter, player.Character)
+	end
+	gui.Destroying:Connect(close)
 
 	return {
 		open = open,
