@@ -1,0 +1,57 @@
+{
+	"name": "PowerGridTests",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"Shared": {
+				"$path": "src/shared"
+			},
+			"Tests": {
+				"$path": "tests"
+			}
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"Server": {
+				"$path": "src/server"
+			},
+			"Dev": {
+				"$path": "src/dev"
+			}
+		},
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"Models": {
+				"$path": "assets/models"
+			}
+		},
+		"Workspace": {
+			"$className": "Workspace",
+			"$properties": {
+				"StreamingEnabled": true,
+				"StreamingMinRadius": 192,
+				"StreamingTargetRadius": 640,
+				"StreamOutBehavior": "Opportunistic"
+			}
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"Client": {
+					"$path": "src/client"
+				}
+			}
+		}
+	},
+	"globIgnorePaths": [
+		"tests/agent",
+		"tests/agent/**",
+		"tests/**/*.py",
+		"tests/**/*.json",
+		"tests/Balance.test.luau",
+		"tests/Models.test.luau",
+		"**/__pycache__"
+	]
+}

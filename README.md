@@ -2,7 +2,9 @@
 
 Roblox incremental game about building a power grid. Plan: [Bauplan.md](Bauplan.md).
 Code is Luau in `src/` (Rojo: `default.project.json`). Tools are pinned in `rokit.toml` (`rokit install`).
-`make check` formats, lints, runs the Lune tests and builds the Rojo project; CI runs it.
+`make check` formats, lints, runs the Lune tests and builds both Rojo projects; CI runs it.
+The published place (`default.project.json`) contains no tests. To run the Studio tests, serve `test.project.json`
+(`rojo serve test.project.json`); `src/dev/TestRunner.server.luau` prints PASS or FAIL when you press Play.
 Rules for agents: `AGENTS.md` and `AGENTS.project.md`.
 
 ---

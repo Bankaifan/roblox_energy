@@ -32,3 +32,5 @@ lune run scripts/run-tests
 lune run scripts/balance
 git diff --exit-code -- docs/balance
 rojo build default.project.json -o "$(mktemp -d)/PowerGrid.rbxl"
+# The test project (adds the tests and the Studio TestRunner) must build too, so it does not rot.
+rojo build test.project.json -o "$(mktemp -d)/PowerGridTests.rbxl"

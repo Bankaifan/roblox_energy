@@ -6,9 +6,6 @@
 			"$className": "ReplicatedStorage",
 			"Shared": {
 				"$path": "src/shared"
-			},
-			"Tests": {
-				"$path": "tests"
 			}
 		},
 		"ServerScriptService": {
@@ -43,12 +40,6 @@
 		}
 	},
 	"globIgnorePaths": [
-		"tests/agent",
-		"tests/agent/**",
-		"tests/**/*.py",
-		"tests/**/*.json",
-		"tests/Balance.test.luau",
-		"tests/Models.test.luau",
-		"**/__pycache__"
+		"src/server/**/*.test.luau"
 	]
 }
