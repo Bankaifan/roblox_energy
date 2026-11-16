@@ -9,7 +9,7 @@ return function(t, load)
 		t.truthy(entry ~= nil, `plant {plant.id} has a model entry`)
 		t.truthy(type(entry.file) == "string" and entry.file ~= "", `plant {plant.id} names a file`)
 		t.truthy(entry.scale > 0 and entry.scale <= 1, `plant {plant.id} scale is in (0, 1]`)
-		t.equal(entry.cap, 4, `plant {plant.id} shows up to four copies`)
+		t.equal(entry.flat == true, plant.id == 1, `only the balcony panel lies flat (plant {plant.id})`)
 	end
 	t.equal(Assets.plants[4].scale, 0.4, "the mini turbine is shown at 40 percent")
 
@@ -18,58 +18,23 @@ return function(t, load)
 	t.equal(Assets.useModel(1, {}), false, "missing file: primitive")
 	t.equal(Assets.useModel(99, { plant1_panel = true }), false, "missing entry: primitive")
 
-	t.equal(Assets.visibleCopies(0, 8), 0, "no plants, no copies")
-	t.equal(Assets.visibleCopies(3, 8), 3, "below the cap, all shown")
-	t.equal(Assets.visibleCopies(50, 8), 8, "above the cap, capped")
-	t.equal(Assets.visibleCopies(-2, 8), 0, "never negative")
-
 	t.equal(Assets.fitScale(8, 2, 4, 0.5), 0.25, "the longest side is fitted, times the factor")
 
-	-- Plot layout (issue #90): pads, copies, furniture all inside the plot, nothing overlapping.
+	-- Furniture: inside the furniture rows of the plot (+z is the road side), nothing overlapping.
 	local PlotLayout = load("Core/PlotLayout")
 	local half = Assets.PLOT_SIZE / 2
 	t.truthy(Assets.PLOT_SPACING > Assets.PLOT_SIZE, "neighbouring plots do not touch")
-
-	local cell, offsets = PlotLayout.copies(1, Assets.SLOT, Assets.COPY_GAP, Assets.MAX_CELL)
-	t.equal(cell, Assets.MAX_CELL, "one copy is capped at the largest cell")
-	t.equal(offsets[1].x, 0, "one copy is centred in x")
-	cell, offsets = PlotLayout.copies(3, Assets.SLOT, Assets.COPY_GAP, Assets.MAX_CELL)
-	t.equal(#offsets, 3, "three offsets")
-	for i, a in offsets do
-		t.truthy(PlotLayout.reach(a, cell) <= Assets.SLOT / 2, `copy {i} stays on the pad`)
-		for j = i + 1, #offsets do
-			t.truthy(not PlotLayout.overlap(a, cell, offsets[j], cell), `copies {i} and {j} do not overlap`)
-		end
-	end
-
-	cell, offsets = PlotLayout.copies(4, Assets.SLOT, Assets.COPY_GAP, Assets.MAX_CELL)
-	t.equal(#offsets, 4, "four offsets")
-	t.equal(offsets[1].x, -offsets[2].x, "four copies sit 2 x 2: two columns")
-	t.equal(offsets[1].z, offsets[2].z, "four copies sit 2 x 2: first row")
-	t.equal(offsets[3].z, offsets[4].z, "four copies sit 2 x 2: second row")
-	t.truthy(offsets[3].z > offsets[1].z, "four copies sit 2 x 2: two rows")
-	for i, a in offsets do
-		t.truthy(PlotLayout.reach(a, cell) <= Assets.SLOT / 2, `of four, copy {i} stays on the pad`)
-		for j = i + 1, #offsets do
-			t.truthy(not PlotLayout.overlap(a, cell, offsets[j], cell), `of four, copies {i} and {j} do not overlap`)
-		end
-	end
-
-	local pads = PlotLayout.pads(#Plants, Assets.PAD_COLUMNS, Assets.PAD_PITCH, 0)
-	t.equal(#pads, #Plants, "one pad per plant")
+	local front = Assets.FURNITURE_ROWS.first * Assets.TILE - half
 	local pieces = {}
-	for i, pad in pads do
-		t.truthy(PlotLayout.reach(pad, Assets.SLOT) <= half, `pad {i} is on the ground`)
-		table.insert(pieces, { name = `pad{i}`, at = pad, size = Assets.SLOT })
-	end
 	for _, name in { "crank", "market", "control", "battery" } do
 		local piece = Assets.furniture[name]
 		t.truthy(piece ~= nil and piece.size > 0, `{name} has an entry`)
 		local at = { x = piece.x, z = piece.z }
 		local footprint = piece.depth or piece.size
-		t.truthy(PlotLayout.reach(at, footprint) <= half, `{name} is on the ground`)
+		t.truthy(piece.z - footprint / 2 >= front, `{name} stands in the furniture rows`)
+		t.truthy(piece.z + footprint / 2 <= half, `{name} is on the plot`)
 		t.truthy(math.abs(piece.x) + piece.size / 2 <= half, `{name} fits the plot width`)
-		table.insert(pieces, { name = name, at = at, size = footprint })
+		table.insert(pieces, { name = name, at = at, size = math.max(piece.size, footprint) })
 	end
 	for i, a in pieces do
 		for j = i + 1, #pieces do
@@ -78,10 +43,6 @@ return function(t, load)
 		end
 	end
 	t.truthy(Assets.furniture.market.size >= 3 * 13, "the market is about three times its old 14 studs")
-	-- The market's wide side must not reach over the pad rows (pads end at z = 31).
-	local lastPad = pads[#pads]
-	local market = Assets.furniture.market
-	t.truthy(market.z - market.depth / 2 > lastPad.z + Assets.SLOT / 2, "the market clears the pads")
 
 	-- Building box: a small add-on (sign) does not stretch it.
 	local building = Assets.buildingBox({
@@ -92,7 +53,6 @@ return function(t, load)
 	t.equal(building.maxY, 6, "the sign post does not raise the building box")
 	t.equal(building.minX, -1, "large parts such as the floor count")
 	t.equal(Assets.buildingBox({}, Assets.BUILDING_SHARE), nil, "no parts, no box")
-	t.equal(#PlotLayout.pads(0, 3, 34, 0), 0, "no plants, no pads")
 	t.equal(Assets.useFurniture("market", { market = true }), true, "furniture entry and file: model")
 	t.equal(Assets.useFurniture("market", {}), false, "furniture file missing: nothing built")
 	t.equal(Assets.useFurniture("nope", { nope = true }), false, "furniture entry missing: nothing built")
@@ -114,7 +74,7 @@ return function(t, load)
 		local last = field.rows[#field.rows] + field.size - 1
 		local rect = { c0 = field.col0, c1 = field.col0 + field.perRow * field.size - 1, r0 = first, r1 = last }
 		t.truthy(rect.c0 >= 0 and rect.c1 < tiles and rect.r0 >= 0, `field {id} is inside the plot`)
-		t.truthy(rect.r1 < Assets.LAND_FURNITURE_ROWS.first, `field {id} stays clear of the furniture rows`)
+		t.truthy(rect.r1 < Assets.FURNITURE_ROWS.first, `field {id} stays clear of the furniture rows`)
 		for other, o in rects do
 			local apart = rect.c1 < o.c0 or o.c1 < rect.c0 or rect.r1 < o.r0 or o.r1 < rect.r0
 			t.truthy(apart, `fields {id} and {other} do not overlap`)
@@ -162,6 +122,21 @@ return function(t, load)
 		end
 	end
 	t.equal(#PlotLayout.wild(panels, 4, 1, tile, tiles), 4, "wild shows only the owned panels")
+
+	-- What a plot shows: min(owned, sites); all sites count while the land rules are off (prepared = nil).
+	t.equal(PlotLayout.shown(panels, 3, nil), 3, "rules off: every owned panel up to the field")
+	t.equal(PlotLayout.shown(panels, 200, nil), 24, "rules off: capped at the field")
+	t.equal(PlotLayout.shown(panels, 10, 4), 4, "rules on: capped at the prepared sites")
+	t.equal(PlotLayout.shown(panels, 2, 4), 2, "rules on: never more than owned")
+	t.equal(PlotLayout.shown(panels, 30, 99), 24, "more prepared sites than the field has still cap at the field")
+	t.equal(PlotLayout.shown(panels, -1, nil), 0, "never negative")
+	t.equal(PlotLayout.tidy(panels, 9, nil), false, "rules off: nine panels still lie wild")
+	t.equal(PlotLayout.tidy(panels, 10, nil), true, "rules off: the tenth panel brings the rows of four")
+	t.equal(PlotLayout.tidy(panels, 24, false), false, "rules on: wild without the rails")
+	t.equal(PlotLayout.tidy(panels, 1, true), true, "rules on: rows with the rails")
+	t.equal(PlotLayout.thinAxis(8.2, 5.2, 0.12), "Z", "an upright panel is thinnest along z")
+	t.equal(PlotLayout.thinAxis(0.12, 5.2, 8.2), "X", "thinnest along x")
+	t.equal(PlotLayout.thinAxis(8.2, 0.12, 5.2), "Y", "a lying panel is thinnest along y")
 
 	local seen = {}
 	for n = 1, 8 do

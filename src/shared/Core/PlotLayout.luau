@@ -1,45 +1,9 @@
 --!strict
--- Pure layout math of a plot (issue #90): where each plant pad stands and how the copies sit on a pad.
+-- Pure layout math of a plot (issue #90, design 0018): where the sites of a field lie and how many units stand on them.
 -- No Roblox APIs. All lengths are studs; x and z are relative to the plot centre.
 local PlotLayout = {}
 
 export type Point = { x: number, z: number }
-
--- Centres of `count` pads in a grid of `columns` columns, `pitch` studs apart, the whole grid centred on (0, centreZ).
-function PlotLayout.pads(count: number, columns: number, pitch: number, centreZ: number): { Point }
-	local points: { Point } = {}
-	if count <= 0 or columns <= 0 then
-		return points
-	end
-	local used = math.min(count, columns)
-	local rows = math.ceil(count / columns)
-	for i = 0, count - 1 do
-		table.insert(points, {
-			x = (i % columns - (used - 1) / 2) * pitch,
-			z = centreZ + (i // columns - (rows - 1) / 2) * pitch,
-		})
-	end
-	return points
-end
-
--- `copies` models on a square pad of side `pad`: grid of side x side cells with `gap` studs between them.
--- Returns the cell size (at most `maxCell`) and the centre of each cell relative to the pad centre.
-function PlotLayout.copies(copies: number, pad: number, gap: number, maxCell: number): (number, { Point })
-	local offsets: { Point } = {}
-	if copies <= 0 then
-		return math.min(pad, maxCell), offsets
-	end
-	local side = math.ceil(math.sqrt(copies))
-	local cell = math.min(maxCell, (pad - gap * (side - 1)) / side)
-	local pitch = cell + gap
-	for i = 0, copies - 1 do
-		table.insert(offsets, {
-			x = (i % side - (side - 1) / 2) * pitch,
-			z = (i // side - (side - 1) / 2) * pitch,
-		})
-	end
-	return cell, offsets
-end
 
 -- Half-extent of a square of side `size` centred at `point`, as the largest absolute x or z reached.
 function PlotLayout.reach(point: Point, size: number): number
@@ -99,6 +63,11 @@ PlotLayout.WILD_SHIFT = 0.4
 PlotLayout.WILD_ANGLE = 12
 PlotLayout.WILD_PER_ROW = 3
 
+-- How many panels the wild layout of a field holds.
+function PlotLayout.wildCount(field: Field): number
+	return PlotLayout.WILD_PER_ROW * ((#field.rows + 1) // 2)
+end
+
 -- Wild layout of the first `count` panels (at most 9): three per row on every second mown row (rows 1, 3, 5 of the
 -- field), each shifted by up to WILD_SHIFT studs and turned by up to WILD_ANGLE degrees. The three panels of a row
 -- are spread over the field width, so even a turned panel does not touch its neighbour.
@@ -108,9 +77,7 @@ function PlotLayout.wild(field: Field, count: number, seed: number, tile: number
 	local width = field.perRow * field.size * tile
 	local left = tileCentre(field.col0, 0, tile, plotTiles).x - tile / 2
 	local pitch = width / perRow
-	local rowsUsed = (#field.rows + 1) // 2
-	local total = perRow * rowsUsed
-	for i = 0, math.min(math.floor(count), total) - 1 do
+	for i = 0, math.min(math.floor(count), PlotLayout.wildCount(field)) - 1 do
 		local row = field.rows[(i // perRow) * 2 + 1]
 		local centre = tileCentre(field.col0, row, tile, plotTiles)
 		local jx = (hash(seed, i, 1) / 999 * 2 - 1) * PlotLayout.WILD_SHIFT
@@ -119,6 +86,33 @@ function PlotLayout.wild(field: Field, count: number, seed: number, tile: number
 		table.insert(points, { x = left + (i % perRow + 0.5) * pitch + jx, z = centre.z + jz, angle = angle })
 	end
 	return points
+end
+
+-- Units shown on a field: min(owned, sites). `prepared` is the number of prepared sites; nil while the land rules
+-- are off (Config/Land.required), then every site of the field counts.
+function PlotLayout.shown(field: Field, owned: number, prepared: number?): number
+	local sites = field.perRow * #field.rows
+	if prepared ~= nil then
+		sites = math.min(sites, math.floor(prepared))
+	end
+	return math.clamp(math.floor(owned), 0, math.max(sites, 0))
+end
+
+-- Whether the panels stand in rows of four: with the Mounting Rails. `rails` is nil while the land rules are off;
+-- then the rows come as soon as more panels are owned than the wild layout holds.
+function PlotLayout.tidy(field: Field, owned: number, rails: boolean?): boolean
+	if rails ~= nil then
+		return rails
+	end
+	return owned > PlotLayout.wildCount(field)
+end
+
+-- The shortest side of a box: "X", "Y" or "Z" (Y wins a tie, then X). A flat unit is turned so this side points up.
+function PlotLayout.thinAxis(x: number, y: number, z: number): string
+	if y <= x and y <= z then
+		return "Y"
+	end
+	return if x <= z then "X" else "Z"
 end
 
 return PlotLayout

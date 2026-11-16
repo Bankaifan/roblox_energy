@@ -1,7 +1,8 @@
 --!strict
--- Plant models (issue #80): plant id -> model file in assets/models (ServerStorage.Models), a size factor and a cap for
--- the visible copies. No entry or no file: the plot builds the primitive column. Pure functions, no Roblox APIs.
-export type Entry = { file: string, scale: number, cap: number }
+-- Plant models (issue #80): plant id -> model file in assets/models (ServerStorage.Models) and a size factor. No entry
+-- or no file: the plot builds the primitive column. Pure functions, no Roblox APIs.
+-- `flat`: the unit lies on the ground, its thinnest side up (design 0018: balcony panels).
+export type Entry = { file: string, scale: number, flat: boolean? }
 
 local Assets = {}
 
@@ -14,15 +15,9 @@ Assets.PLOT_SIZE = Assets.TILE * Assets.PLOT_TILES
 Assets.PLOT_SPACING = 240
 Assets.PLOT_COLUMNS = 4
 Assets.PLOT_ROW_Z = 128
-
--- Side length of the pad a plant gets, the grid of pads (3 columns, 34 studs apart) and the layout of copies on a pad.
-Assets.SLOT = 28
-Assets.PAD_COLUMNS = 3
-Assets.PAD_PITCH = 34
-Assets.COPY_GAP = 4
-Assets.MAX_CELL = 14
--- Side of the primitive fallback column.
-Assets.COLUMN = 12
+-- Height of the walkable ground of a plot. Measured in Studio: the terrain surface of the flat meadow (Landscape
+-- height 0) lies half a voxel above it, at y = 2.
+Assets.GROUND_Y = 2
 
 -- Parts budget of all plants on a full plot, and the parts per model (counted in assets/models).
 Assets.MAX_PLANT_PARTS = 1300
@@ -38,8 +33,8 @@ Assets.fields = {
 	[5] = { size = 2, col0 = 11, perRow = 4, rows = { 7 } },
 	[6] = { size = 2, col0 = 8, perRow = 4, rows = { 2 } },
 } :: { [number]: { size: number, col0: number, perRow: number, rows: { number } } }
--- Furniture rows of the large plot (tile rows 19 to 23): market, crank, storage container, control board.
-Assets.LAND_FURNITURE_ROWS = { first = 19, last = 23 }
+-- Furniture rows of the plot (tile rows 19 to 23): market, crank, storage container, control board.
+Assets.FURNITURE_ROWS = { first = 19, last = 23 }
 
 -- Number of sites of a field.
 function Assets.siteCount(plantId: number): number
@@ -47,26 +42,25 @@ function Assets.siteCount(plantId: number): number
 	return field.perRow * #field.rows
 end
 
--- Visible copies per pad: at most 4 (2 x 2), so a pad never looks crowded.
+-- A unit is fitted to its site (field.size tiles), times `scale`; the size never depends on how many are owned.
 Assets.plants = {
-	[1] = { file = "plant1_panel", scale = 1, cap = 4 },
-	[2] = { file = "plant2_waterwheel", scale = 1, cap = 4 },
-	[3] = { file = "plant3_house", scale = 1, cap = 4 },
-	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 4 },
-	[5] = { file = "plant5_solarfarm", scale = 1, cap = 4 },
-	[6] = { file = "plant6_windturbine", scale = 1, cap = 4 },
+	[1] = { file = "plant1_panel", scale = 1, flat = true },
+	[2] = { file = "plant2_waterwheel", scale = 1 },
+	[3] = { file = "plant3_house", scale = 1 },
+	[4] = { file = "plant4_miniturbine", scale = 0.4 },
+	[5] = { file = "plant5_solarfarm", scale = 1 },
+	[6] = { file = "plant6_windturbine", scale = 1 },
 } :: { [number]: Entry }
 
--- Plot furniture: file, centre (x, z) relative to the plot centre and the longest footprint side in studs.
--- The pads fill x -48..48, z -31..31 in the middle of the ground; the furniture stands around them (the market at the
--- front in +z, its facade towards the plot centre) with walking room between.
--- `depth` (optional) is the assumed footprint depth in z of a wide piece; layout checks use it instead of `size`.
+-- Plot furniture: file, centre (x, z) relative to the plot centre (+z is the road side) and the longest footprint
+-- side in studs. It stands in the furniture rows in front of the fields; the market's facade looks at the road.
+-- `depth` (optional) is the footprint depth in z of a wide piece; layout checks use it instead of `size`.
 export type Furniture = { file: string, x: number, z: number, size: number, depth: number? }
 Assets.furniture = {
-	crank = { file = "crank", x = 0, z = -48, size = 4 },
-	market = { file = "market", x = -20, z = 48, size = 40, depth = 20 },
-	control = { file = "control", x = 35, z = 46, size = 5 },
-	battery = { file = "battery", x = 50, z = -48, size = 3 },
+	market = { file = "market", x = -40, z = 76, size = 40, depth = 34 },
+	crank = { file = "crank", x = 8, z = 70, size = 4 },
+	battery = { file = "battery", x = 32, z = 72, size = 3 },
+	control = { file = "control", x = 56, z = 72, size = 5 },
 } :: { [string]: Furniture }
 
 -- Studs between stacked battery units: none, the units sit directly on each other.
@@ -128,11 +122,6 @@ end
 function Assets.useModel(plantId: number, available: { [string]: boolean }): boolean
 	local entry = Assets.plants[plantId]
 	return entry ~= nil and available[entry.file] == true
-end
-
--- How many copies are shown for `count` owned plants.
-function Assets.visibleCopies(count: number, cap: number): number
-	return math.max(0, math.min(math.floor(count), cap))
 end
 
 -- Scale that fits a footprint (sizeX x sizeZ) into a cell, times the per-plant factor.

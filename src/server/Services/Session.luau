@@ -15,6 +15,8 @@ local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
 	return require(Config:WaitForChild(name) :: ModuleScript)
 end
+-- The plot shows min(owned, prepared sites) only once the land rules are on; until then every site counts.
+local landRequired = load("Land").required == true
 local config = {
 	plants = load("Plants"),
 	upgrades = load("Upgrades"),
@@ -145,6 +147,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			stage = storage.stage,
 			control = storage.ruleSlots > 0,
 			fill = storage.fill,
+			land = if landRequired then nextState.land else nil,
 		})
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
