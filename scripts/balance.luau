@@ -325,6 +325,8 @@ lines[#lines + 1] =
 lines[#lines + 1] =
 	"- Child: 8 cranks per second, as the optimal bot. It buys the cheapest affordable offer every second, storage nodes included, and sets no rules."
 lines[#lines + 1] =
+	"- Land (all bots): a plant needs a prepared site. For each revealed field the bot buys the tool as soon as it is affordable and prepares a row of 4 sites; that costs 3 s of walking plus the hold time per site, without cranks or purchases. The container comes with U17 (child: as an offer), the pliers and the wiring after U21."
+lines[#lines + 1] =
 	"- Z7 barely varies between runs: solar plants share one phase shape, and wind and Grundlast have no phase factor, so the storage gain depends mostly on the park type."
 lines[#lines + 1] =
 	"- Storage plan (optimal and occasional): the rules (charge 0.7, sell 1.2) once U21 is owned, then U17, U21, U18, U19, U20, U22, each as soon as it is affordable. The plan is not ranked by payback: the bot does not value the storage gain (known limitation)."

@@ -79,12 +79,20 @@ local function block(parent: Instance, name: string, size: Vector3, color: Color
 	return part
 end
 
--- The sites of a plant for `owned` units: min(owned, sites), each with the same footprint whatever the count. Panels
--- (plant 1) lie wild until Mounting Rails are owned (`tidy`), then in rows of four. Returns the sites and whether wild.
-local function unitSites(record: Record, index: number, owned: number, tidy: boolean): ({ any }, boolean)
+-- The sites of a plant for `owned` units: min(owned, prepared sites), each with the same footprint whatever the count,
+-- so a unit only ever stands on prepared ground. Panels (plant 1) lie wild until Mounting Rails are owned (`tidy`),
+-- then in rows of four. Returns the sites and whether wild.
+local function unitSites(
+	record: Record,
+	index: number,
+	owned: number,
+	prepared: number,
+	tidy: boolean
+): ({ any }, boolean)
 	local field = Assets.fields[index]
-	local count = math.min(math.floor(owned), Assets.siteCount(index))
+	local count = math.min(math.floor(owned), prepared, Assets.siteCount(index))
 	if index == 1 and not tidy then
+		count = math.min(count, PlotLayout.wildFit(field, prepared, Assets.TILE))
 		return PlotLayout.wild(field, count, record.slot, Assets.TILE, Assets.PLOT_TILES), true
 	end
 	return PlotLayout.sites(field, count, Assets.TILE, Assets.PLOT_TILES), false
@@ -95,9 +103,9 @@ local function sitePoint(record: Record, site: { x: number, z: number }): Vector
 	return record.origin + Vector3.new(site.x, 0, site.z * record.facing)
 end
 
--- Shows min(owned, sites) model units of a plant on its sites, rebuilt only when the count or the layout changes.
-local function updateUnits(record: Record, index: number, owned: number, tidy: boolean)
-	local sites, wild = unitSites(record, index, owned, tidy)
+-- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count or the layout changes.
+local function updateUnits(record: Record, index: number, owned: number, prepared: number, tidy: boolean)
+	local sites, wild = unitSites(record, index, owned, prepared, tidy)
 	local key = #sites .. if wild then "w" else "t"
 	if record.keys[index] == key then
 		return
@@ -216,23 +224,22 @@ end
 -- Studs of bare earth around a furniture piece.
 local FURNITURE_MARGIN = 8
 
--- The ground follows the land: bare earth with a wobbly outline around the crank and the market, under every prepared
--- site and under every unit; the rest stays meadow. A field whose tool is owned and whose plant is revealed gets a low
+-- The ground follows the land: bare earth with a wobbly outline around the crank and the market and under every prepared
+-- site; the rest stays meadow. Buying a unit never clears grass: only the tool does (Prepare). A field whose tool is owned and whose plant is revealed gets a low
 -- fence around the sites that are still to prepare. Terrain and fence are rebuilt only when their content changes.
-local function updateLand(record: Record, counts: { number }, land: any, tidy: boolean)
+local function updateLand(record: Record, counts: { number }, land: any)
 	local ground, fence = {}, {}
 	for index in Assets.fields do
 		local total = Assets.siteCount(index)
 		local prepared = math.min(land.sites[index] or 0, total)
-		local shown = math.min(math.floor(counts[index] or 0), total)
 		local open = prepared < total
 			and land.tools[Land.fieldTools[index]] == true
 			and (index == 1 or (counts[index - 1] or 0) >= 1)
-		table.insert(ground, `{prepared}.{shown}`)
+		table.insert(ground, tostring(prepared))
 		table.insert(fence, if open then tostring(prepared) else "-")
 	end
 	local container = land.container == true or #record.batteries > 0
-	local groundKey = table.concat(ground, " ") .. `{tidy} {record.control ~= nil} {container}`
+	local groundKey = table.concat(ground, " ") .. ` {record.control ~= nil} {container}`
 	if record.groundKey ~= groundKey then
 		record.groundKey = groundKey
 		local patches = {}
@@ -247,17 +254,9 @@ local function updateLand(record: Record, counts: { number }, land: any, tidy: b
 		end
 		for index, field in Assets.fields do
 			local side = field.size * Assets.TILE
-			local total = Assets.siteCount(index)
-			local shown = math.min(math.floor(counts[index] or 0), total)
-			local wild = index == 1 and not tidy
-			local tiles = math.max(math.min(land.sites[index] or 0, total), if wild then 0 else shown)
+			local tiles = math.min(land.sites[index] or 0, Assets.siteCount(index))
 			for _, site in PlotLayout.sites(field, tiles, Assets.TILE, Assets.PLOT_TILES) do
 				table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
-			end
-			if wild then
-				for _, site in PlotLayout.wild(field, shown, record.slot, Assets.TILE, Assets.PLOT_TILES) do
-					table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
-				end
 			end
 		end
 		PlotGround.clear(record.slot, record.facing, groundKey, patches)
@@ -354,7 +353,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	return true
 end
 
--- Units from the plant counts (index = plant id): min(owned, sites) of constant size per plant, and the ground from
+-- Units from the plant counts (index = plant id): min(owned, prepared sites) of constant size, and the ground from
 -- `land` (the state field; a fresh land when missing). Once the player owns Mounting Rails the panels sit in rows of
 -- four instead of the wild layout.
 function PlotService.update(
@@ -370,10 +369,10 @@ function PlotService.update(
 	local ownLand = land or Land.start
 	local tidy = ownLand.tools.rails == true
 	updateFurniture(record, extras or { stage = 0, control = false })
-	updateLand(record, counts, ownLand, tidy)
+	updateLand(record, counts, ownLand)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
-			updateUnits(record, index, math.min(counts[index] or 0, 100), tidy)
+			updateUnits(record, index, math.min(counts[index] or 0, 100), ownLand.sites[index] or 0, tidy)
 		end
 	end
 	for index, column in record.columns do

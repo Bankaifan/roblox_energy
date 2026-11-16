@@ -67,7 +67,7 @@ return function(t, load)
 	t.equal(#plants, 6, "one card per plant")
 	t.equal(plants[1].state, "hint", "a plant without a site is a hint")
 	t.equal(plants[1].button.tab, "tools", "its button opens the Tools tab")
-	t.equal(plants[2].info, "Prepare the ground first: Shovel", "the water wheel names the shovel")
+	t.equal(plants[2].info, "Prepare the ground first: Shovel in hand", "the water wheel names the shovel")
 	state.land = table.clone(Land.start)
 	state.land.tools = { scythe = true }
 	state.land.sites = { 1, 0, 0, 0, 0, 0 }

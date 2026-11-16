@@ -9,6 +9,7 @@ local Formulas = require(Shared:WaitForChild("Core"):WaitForChild("Formulas") ::
 local Env = require(script.Parent.Env)
 local PlotService = require(script.Parent.PlotService)
 local LandService = require(script.Parent.LandService)
+local ToolService = require(script.Parent.ToolService)
 local DataService = require(script.Parent.DataService)
 local BoostService = require(script.Parent.BoostService)
 
@@ -69,6 +70,7 @@ function Session.start(player: Player)
 	welcomes[player] = { away = away, coins = credited.coins - state.coins }
 	states[player] = credited
 	DataService.sync(player, credited)
+	ToolService.refresh(player, credited.land or config.land.start)
 	if job.remotes ~= nil then
 		Session.ready(job.remotes, player)
 	end
@@ -127,6 +129,11 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	end
 	states[player] = nextState
 	DataService.sync(player, nextState)
+	if action.type == "BuyTool" then
+		ToolService.refresh(player, nextState.land or config.land.start)
+	elseif action.type == "Prepare" then
+		LandService.refresh(player, nextState) -- the prompt moves to the next site at once
+	end
 	if action.type == "Prestige" then
 		remotes.Snapshot:FireClient(player, nextState)
 	end
@@ -149,6 +156,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			fill = storage.fill,
 		}, nextState.land)
 		LandService.refresh(player, nextState)
+		ToolService.refresh(player, nextState.land or config.land.start)
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,

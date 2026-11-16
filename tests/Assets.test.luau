@@ -162,6 +162,19 @@ return function(t, load)
 		end
 	end
 	t.equal(#PlotLayout.wild(panels, 4, 1, tile, tiles), 4, "wild shows only the owned panels")
+	-- A wild panel shows only once the tile under its centre is mown (tiles are mown in the order of `sites`).
+	for prepared, fit in { [0] = 0, [1] = 1, [2] = 2, [3] = 2, [4] = 3, [8] = 3, [9] = 4, [12] = 6, [24] = 9 } do
+		t.equal(PlotLayout.wildFit(panels, prepared, tile), fit, `{prepared} mown tiles carry {fit} wild panels`)
+		local mown = PlotLayout.sites(panels, prepared, tile, tiles)
+		for _, panel in PlotLayout.wild(panels, fit, 1, tile, tiles) do
+			local onEarth = false
+			for _, site in mown do
+				local near = math.abs(panel.x - site.x) <= tile / 2 + 0.5 and math.abs(panel.z - site.z) <= tile / 2
+				onEarth = onEarth or near
+			end
+			t.truthy(onEarth, `{prepared} mown tiles: every shown wild panel has its centre on a mown tile`)
+		end
+	end
 
 	local seen = {}
 	for n = 1, 8 do

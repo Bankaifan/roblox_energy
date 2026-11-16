@@ -8,6 +8,13 @@ return function(t)
 	t.equal(first.coins, again.coins, "same seed gives the same ten minutes")
 	t.truthy(first.plants[1] >= 1, "the optimal bot owns a balcony module within ten minutes")
 	t.truthy(first.coins >= 0, "coins never go negative")
+	-- Land rules are on: the bot mows before the first panel and digs before the first water wheel.
+	local early, _ = Sim.play(Sim.BOTS.optimal, Sim.fresh(), 1, 0, 120, Sim.record())
+	t.truthy(early.plants[1] >= 1 and early.land.sites[1] >= 4, "a mown row and a panel within two minutes")
+	t.truthy(early.plants[2] >= 1 and early.land.tools.shovel, "the shovel and a water wheel within two minutes")
+	for index, owned in first.plants do
+		t.truthy(owned == 0 or first.land.sites[index] >= 1, `plant {index} is only owned with a prepared site`)
+	end
 
 	local stage4 = Sim.withStorage(first, 4)
 	t.truthy(stage4.nodes.U20 == true and stage4.nodes.U22 == nil, "stage 4 is U17 to U20 without U22")

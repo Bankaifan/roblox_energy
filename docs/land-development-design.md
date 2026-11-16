@@ -78,6 +78,9 @@ row behind), so the state is one number per field and one prompt per field. A la
 **How the action is triggered.** Roblox `Tool` objects need the backpack bar (bad on phones). A custom hold button needs new UI and a client
 message. Chosen: `ProximityPrompt` with `HoldDuration` on the next site: tap-and-hold with a progress ring on touch, E on keyboard, a pad button
 on a controller, and `Triggered` arrives on the server. The tool is shown in the hand while holding (cosmetic, client side).
+Owner decision after play-testing (2026-11-16): the tools are real `Tool` objects in the hotbar after all (`ToolService`, models from
+`Config/Tools`). The hold prompt stays, but it shows and counts only while the matching tool is in the hand (`Core/Toolbelt`, checked
+on the server). Units stand only on prepared sites and buying never clears grass; `Land.required` is on.
 
 **Tools: free or bought.** All free keeps the first minute fast but leaves "buyable" (R4) unmet. All bought delays the first panel. Chosen: scythe
 free, every other tool costs about a fifth of the base cost of the plant it serves (table below).
