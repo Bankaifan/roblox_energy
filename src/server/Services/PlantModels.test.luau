@@ -26,9 +26,14 @@ return function(t)
 		"StringValue",
 		"IntValue",
 		"Weld",
+		"NoCollisionConstraint",
 	}
 	for _, class in removed do
-		Instance.new(class).Parent = if class == "Weld" or class == "WeldConstraint" then second else part
+		Instance.new(class).Parent = if class == "Weld"
+				or class == "WeldConstraint"
+				or class == "NoCollisionConstraint"
+			then second
+			else part
 	end
 
 	PlantModels.sanitise(model)

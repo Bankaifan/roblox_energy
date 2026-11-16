@@ -66,6 +66,8 @@ local function isRemoved(item: Instance): boolean
 		or item:IsA("Beam")
 		or item:IsA("Trail")
 		or item:IsA("Constraint")
+		or item:IsA("WeldConstraint")
+		or item:IsA("NoCollisionConstraint")
 		or item:IsA("JointInstance")
 		or item:IsA("BindableEvent")
 		or item:IsA("RemoteEvent")
