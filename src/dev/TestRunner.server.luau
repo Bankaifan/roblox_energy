@@ -1,7 +1,8 @@
 --!strict
--- Milestone 0: runs the tests in Studio only, to prove the same files work there. Remove or gate before release.
+-- Runs the tests in Studio. Only built by test.project.json, never part of the published place (default.project.json).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 if not RunService:IsStudio() then
 	return
@@ -26,16 +27,17 @@ for _, child in Tests:GetChildren() do
 		table.insert(cases, { name = name, fn = require(child) })
 	end
 end
+local Services = ServerScriptService:WaitForChild("Server"):WaitForChild("Services")
 -- Server tests need server modules, so they live next to them (src/server) and are added here.
-local serverTest = script.Parent:WaitForChild("Services"):WaitForChild("DataService.test") :: ModuleScript
+local serverTest = Services:WaitForChild("DataService.test") :: ModuleScript
 table.insert(cases, { name = "DataService", fn = require(serverTest) })
-local sessionTest = script.Parent:WaitForChild("Services"):WaitForChild("Session.test") :: ModuleScript
+local sessionTest = Services:WaitForChild("Session.test") :: ModuleScript
 table.insert(cases, { name = "Session", fn = require(sessionTest) })
-local boostTest = script.Parent:WaitForChild("Services"):WaitForChild("BoostService.test") :: ModuleScript
+local boostTest = Services:WaitForChild("BoostService.test") :: ModuleScript
 table.insert(cases, { name = "BoostService", fn = require(boostTest) })
-local plantModelsTest = script.Parent:WaitForChild("Services"):WaitForChild("PlantModels.test") :: ModuleScript
+local plantModelsTest = Services:WaitForChild("PlantModels.test") :: ModuleScript
 table.insert(cases, { name = "PlantModels", fn = require(plantModelsTest) })
-local purchaseTest = script.Parent:WaitForChild("Services"):WaitForChild("PurchaseService.test") :: ModuleScript
+local purchaseTest = Services:WaitForChild("PurchaseService.test") :: ModuleScript
 table.insert(cases, { name = "PurchaseService", fn = require(purchaseTest) })
 
 local _, failed = Harness.run(cases, load)

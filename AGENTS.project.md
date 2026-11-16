@@ -13,6 +13,10 @@ Project: "Power Grid Incremental", a Roblox incremental game (Luau). Plan: `Baup
 - A test is `tests/<Name>.test.luau`, returns `function(t, load)`, and loads code with `load("Core/<Module>")`. No other require.
 - Keep it lean: no test a reviewer would call unnecessary.
 
+## Tests in Studio
+- `default.project.json` is the published place and has no tests. `test.project.json` adds `tests/`, `src/server/**/*.test.luau`
+  and `src/dev/` (TestRunner); serve it with `rojo serve test.project.json`. Keep both trees in sync (`tests/test_studio_project.py`).
+
 ## Studio MCP (local only, never in CI)
 - Allowed (read and test): get_studio_state, start_stop_play, get_console_output, screen_capture, character_navigation,
   user_keyboard_input, user_mouse_input, search_game_tree, inspect_instance, script_read, script_grep, execute_luau (read only).
