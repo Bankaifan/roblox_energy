@@ -5,10 +5,15 @@ export type Entry = { file: string, scale: number, cap: number }
 
 local Assets = {}
 
--- Plot size (issue #90): one constant for the ground of a plot. The world (terrain meadow) follows it too.
-Assets.PLOT_SIZE = 120
--- Distance between the centres of two neighbouring plots (a walkway of 40 studs between the grounds).
-Assets.PLOT_SPACING = Assets.PLOT_SIZE + 40
+-- Land grid (design 0018): a tile is 8 studs, a plot 24 x 24 tiles = 192 studs. The world (terrain meadow) follows it.
+Assets.TILE = 8
+Assets.PLOT_TILES = 24
+Assets.PLOT_SIZE = Assets.TILE * Assets.PLOT_TILES
+-- Plots stand in two rows of PLOT_COLUMNS at z = +-PLOT_ROW_Z beside the road, their centres PLOT_SPACING apart in x
+-- (48 studs between two grounds). PlotLayout.slot gives the place of a slot.
+Assets.PLOT_SPACING = 240
+Assets.PLOT_COLUMNS = 4
+Assets.PLOT_ROW_Z = 128
 
 -- Side length of the pad a plant gets, the grid of pads (3 columns, 34 studs apart) and the layout of copies on a pad.
 Assets.SLOT = 28
@@ -19,13 +24,6 @@ Assets.MAX_CELL = 14
 -- Side of the primitive fallback column.
 Assets.COLUMN = 12
 
--- Land grid (design 0018): a tile is 8 studs, a plot 24 x 24 tiles = 192 studs, plots 240 studs apart in two rows of
--- four at z = +-128 beside the road. Used by PlotLayout.slot/sites/wild; the old constants above stay until the world moves.
-Assets.TILE = 8
-Assets.PLOT_TILES = 24
-Assets.LAND_PLOT_SIZE = Assets.TILE * Assets.PLOT_TILES
-Assets.LAND_PLOT_SPACING = 240
-Assets.LAND_ROW_Z = 128
 -- Parts budget of all plants on a full plot, and the parts per model (counted in assets/models).
 Assets.MAX_PLANT_PARTS = 1300
 Assets.partsPerModel = { [1] = 9, [2] = 19, [3] = 49, [4] = 4, [5] = 75, [6] = 20 } :: { [number]: number }
@@ -60,7 +58,7 @@ Assets.plants = {
 } :: { [number]: Entry }
 
 -- Plot furniture: file, centre (x, z) relative to the plot centre and the longest footprint side in studs.
--- The pads fill x -48..48, z -31..31 of the 120 x 120 ground; the furniture stands around them (the market at the
+-- The pads fill x -48..48, z -31..31 in the middle of the ground; the furniture stands around them (the market at the
 -- front in +z, its facade towards the plot centre) with walking room between.
 -- `depth` (optional) is the assumed footprint depth in z of a wide piece; layout checks use it instead of `size`.
 export type Furniture = { file: string, x: number, z: number, size: number, depth: number? }

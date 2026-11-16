@@ -5,19 +5,24 @@ export type Prop = { kind: string, x: number, y: number, z: number, yaw: number,
 
 local Module = {}
 
--- The landscape for `slots` plots of side `plotSize` whose centres stand at x = slot * plotSpacing, z = 0, on ground
--- height 0 (PlotService, Config/Assets). Everything else follows from these three numbers.
-function Module.new(plotSize: number, plotSpacing: number, slots: number)
+-- The landscape for two rows of `columns` plots of side `plotSize` on ground height 0: centres at
+-- x = column * plotSpacing and z = +-rowZ, the road between the rows (PlotLayout.slot, Config/Assets). Everything
+-- else follows from these four numbers.
+function Module.new(plotSize: number, plotSpacing: number, columns: number, rowZ: number)
 	local Landscape = {}
 	local half = plotSize / 2
 
-	Landscape.PLOTS = { minX = plotSpacing - half, maxX = slots * plotSpacing + half, minZ = -half, maxZ = half }
-	-- Flat meadow at height 0: the plots, the spawn at the origin and the road beside them.
-	Landscape.MEADOW = { minX = -48, maxX = Landscape.PLOTS.maxX + 48, minZ = -half - 16, maxZ = half + 44 }
+	-- The box around both rows; the strip |z| < rowZ - half between them holds the road and no plot.
+	Landscape.PLOTS =
+		{ minX = plotSpacing - half, maxX = columns * plotSpacing + half, minZ = -rowZ - half, maxZ = rowZ + half }
+	local PLOTS = Landscape.PLOTS
+	-- Flat meadow at height 0: the plots, the road between them and the spawn at the origin on the road end.
+	Landscape.MEADOW = { minX = -48, maxX = PLOTS.maxX + 48, minZ = PLOTS.minZ - 16, maxZ = PLOTS.maxZ + 16 }
 	local MEADOW = Landscape.MEADOW
-	-- CELL is the terrain voxel size. The road centre lies on a cell centre, so the asphalt is three cells wide.
+	-- CELL is the terrain voxel size. The road centre lies on the cell centre next to z = 0, so the asphalt is three
+	-- cells wide.
 	Landscape.CELL = 4
-	local ROAD_Z = math.floor((half + 26) / 4) * 4 + 2
+	local ROAD_Z = 2
 	local LAKE =
 		{ x = (Landscape.PLOTS.minX + Landscape.PLOTS.maxX) / 2, z = MEADOW.minZ - 165, radiusX = 260, radiusZ = 95 }
 
@@ -62,6 +67,11 @@ function Module.new(plotSize: number, plotSpacing: number, slots: number)
 		return math.clamp(0.5 + 0.62 * sum, 0, 1)
 	end
 
+	-- True when (x, z) lies on the ground of a plot (one of the two rows, not the road strip between them).
+	function Landscape.onPlot(x: number, z: number): boolean
+		return x > PLOTS.minX and x < PLOTS.maxX and math.abs(z) > rowZ - half and math.abs(z) < rowZ + half
+	end
+
 	-- Distance in studs to the flat meadow; 0 on it.
 	function Landscape.meadowDistance(x: number, z: number): number
 		local dx = math.max(MEADOW.minX - x, 0, x - MEADOW.maxX)
@@ -69,7 +79,7 @@ function Module.new(plotSize: number, plotSpacing: number, slots: number)
 		return math.sqrt(dx * dx + dz * dz)
 	end
 
-	-- z of the road centre line at x. Straight beside the plots, a gentle S bend beyond the meadow.
+	-- z of the road centre line at x. Straight between the plot rows, a gentle S bend beyond the meadow.
 	function Landscape.roadZ(x: number): number
 		if x < MEADOW.minX then
 			return ROAD_Z + 70 * smooth(0, 240, MEADOW.minX - x)

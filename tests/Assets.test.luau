@@ -28,7 +28,6 @@ return function(t, load)
 	-- Plot layout (issue #90): pads, copies, furniture all inside the plot, nothing overlapping.
 	local PlotLayout = load("Core/PlotLayout")
 	local half = Assets.PLOT_SIZE / 2
-	t.truthy(Assets.PLOT_SIZE >= 120, "the plot is at least 120 studs")
 	t.truthy(Assets.PLOT_SPACING > Assets.PLOT_SIZE, "neighbouring plots do not touch")
 
 	local cell, offsets = PlotLayout.copies(1, Assets.SLOT, Assets.COPY_GAP, Assets.MAX_CELL)
@@ -103,7 +102,7 @@ return function(t, load)
 
 	-- Land layout (design 0018): fields, fixed-size sites, wild panels, slots.
 	local tile, tiles = Assets.TILE, Assets.PLOT_TILES
-	t.equal(Assets.LAND_PLOT_SIZE, 192, "the large plot is 192 studs")
+	t.equal(Assets.PLOT_SIZE, 192, "the plot is 192 studs")
 	local rects = {}
 	local parts = 0
 	for id = 1, #Plants do
@@ -132,7 +131,7 @@ return function(t, load)
 		local pitch = field.size * tile
 		t.equal(all[2].x - all[1].x, pitch, `field {id}: neighbours are one footprint apart`)
 		for i, a in all do
-			t.truthy(PlotLayout.reach(a, pitch) <= Assets.LAND_PLOT_SIZE / 2, `field {id} site {i} is on the plot`)
+			t.truthy(PlotLayout.reach(a, pitch) <= Assets.PLOT_SIZE / 2, `field {id} site {i} is on the plot`)
 			for j = i + 1, #all do
 				t.truthy(not PlotLayout.overlap(a, pitch, all[j], pitch), `field {id} sites {i} and {j} do not overlap`)
 			end
@@ -153,7 +152,7 @@ return function(t, load)
 			t.equal(a.x, again[i].x, "wild x is identical on a second call")
 			t.equal(a.angle, again[i].angle, "wild angle is identical on a second call")
 			t.truthy(math.abs(a.angle) <= PlotLayout.WILD_ANGLE, "the turn is at most 12 degrees")
-			t.truthy(PlotLayout.reach(a, tile) <= Assets.LAND_PLOT_SIZE / 2, "a wild panel is on the plot")
+			t.truthy(PlotLayout.reach(a, tile) <= Assets.PLOT_SIZE / 2, "a wild panel is on the plot")
 			for j = i + 1, #wild do
 				t.truthy(
 					not PlotLayout.overlap(a, 9.6, wild[j], 9.6),
@@ -166,8 +165,8 @@ return function(t, load)
 
 	local seen = {}
 	for n = 1, 8 do
-		local s = PlotLayout.slot(n, Assets.LAND_PLOT_SPACING, Assets.LAND_ROW_Z)
-		t.truthy(math.abs(s.z) >= Assets.LAND_PLOT_SIZE / 2 / 1 - 64, `slot {n} is off the road`)
+		local s = PlotLayout.slot(n, Assets.PLOT_SPACING, Assets.PLOT_ROW_Z)
+		t.truthy(math.abs(s.z) >= Assets.PLOT_SIZE / 2, `slot {n} is off the road`)
 		t.equal(s.facing, if s.z > 0 then -1 else 1, `slot {n} faces the road`)
 		local key = `{s.x},{s.z}`
 		t.truthy(not seen[key], `slot {n} is a new place`)

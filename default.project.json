@@ -23,6 +23,15 @@
 				"$path": "assets/models"
 			}
 		},
+		"Workspace": {
+			"$className": "Workspace",
+			"$properties": {
+				"StreamingEnabled": true,
+				"StreamingMinRadius": 192,
+				"StreamingTargetRadius": 640,
+				"StreamOutBehavior": "Opportunistic"
+			}
+		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {

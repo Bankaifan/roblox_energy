@@ -7,11 +7,12 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared:WaitForChild("Config"):WaitForChild("Assets") :: ModuleScript) :: any
--- 8 plots: one per player of a full server (PlotService).
+-- Two rows of plots: one plot per player of a full server (PlotService).
 local Landscape = (require(Shared:WaitForChild("Core"):WaitForChild("Landscape") :: ModuleScript) :: any).new(
 	Assets.PLOT_SIZE,
 	Assets.PLOT_SPACING,
-	8
+	Assets.PLOT_COLUMNS,
+	Assets.PLOT_ROW_Z
 )
 local DayCycle = require(Shared:WaitForChild("Core"):WaitForChild("DayCycle") :: ModuleScript) :: any
 local Phases = require(Shared:WaitForChild("Config"):WaitForChild("Phases") :: ModuleScript) :: any
