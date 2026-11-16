@@ -42,4 +42,18 @@ return function(t)
 	end
 	t.equal(#model:GetDescendants(), 2, "both parts are kept")
 	model:Destroy()
+
+	-- place: the scale depends on the cell only, a turned copy keeps the size of a straight one.
+	local function placed(angle: number?): number
+		local copy = Instance.new("Model")
+		local body = Instance.new("Part")
+		body.Size = Vector3.new(4, 2, 2)
+		body.Parent = copy
+		copy.PrimaryPart = body
+		PlantModels.place(copy, 1, 8, Vector3.new(0, 0, 0), 0, angle)
+		local scale = copy:GetScale()
+		copy:Destroy()
+		return scale
+	end
+	t.equal(placed(12), placed(nil), "a turned copy keeps its size")
 end
