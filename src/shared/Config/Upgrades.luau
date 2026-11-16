@@ -27,7 +27,7 @@ Upgrades.run = {
 	{ id = "U18", name = "Battery Expansion", cost = 30000, requiresNode = "U17", info = "Storage 2: 60 s of sun" },
 	{ id = "U19", name = "District Storage", cost = 400000, requiresNode = "U18", info = "Storage 3: 100 s of sun" },
 	{ id = "U20", name = "Large Storage", cost = 5000000, requiresNode = "U19", info = "Storage 4: 150 s of sun" },
-	{ id = "U21", name = "Control Center", cost = 3000, requiresNode = "U17", info = "Two rule slots: charge, sell" },
+	{ id = "U21", name = "Control Center", cost = 3000, requiresNode = "U17", info = "Two rules: charge, sell" },
 	{ id = "U22", name = "New Cell Chemistry", cost = 150000, requiresNode = "U17", info = "Storage efficiency 95%" },
 }
 

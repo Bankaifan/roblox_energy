@@ -43,6 +43,7 @@ return function(t, load)
 			plants = config.plants,
 			upgrades = config.upgrades,
 			land = land,
+			ruleStep = config.effects.ruleStep,
 			t = function(key: string, args: any): string
 				return Locale.t(key, lang or "en", args)
 			end,
@@ -97,7 +98,7 @@ return function(t, load)
 	t.equal(upgrades.U01.state, "affordable", "200 coins cover U01")
 	t.equal(upgrades.U01.button.payload.node, "U01", "Buy sends the node id")
 
-	-- Storage: the container first, modes locked before U17, rule cards per owned slot.
+	-- Storage: the container first, modes locked before U17, the rules one locked card before U21.
 	local storage = cards("storage", state)
 	t.equal(storage[1].id, "container", "the tab starts with the container")
 	t.equal(storage[1].state, "short", "200 coins do not cover the container")
@@ -106,15 +107,24 @@ return function(t, load)
 	state.coins = 500
 	state.nodes.U17 = true
 	state.nodes.U21 = true
-	state.rules[1] = { id = "sell", th = 1.2, on = true }
 	state.land.wired = true
+	state.storage.mode = "charge"
 	local stored = byId(cards("storage", state))
 	t.equal(stored.container.button.remote, "Prepare", "the container is prepared")
-	t.equal(stored["mode.auto"].state, "active", "the current mode is active")
-	t.equal(stored["mode.sell"].button.payload.mode, "sell", "another mode can be selected")
-	t.equal(stored["rule.1"].button.payload.on, false, "the switch turns a running rule off")
-	t.equal(stored["rule.2"].button, nil, "an empty slot has no switch")
-	t.equal(stored["rule.2.charge"].button.payload.th, ShopView.CHARGE_BELOW, "a slot can be set to charge")
+	t.equal(stored["mode.charge"].state, "active", "the current mode is active")
+	t.equal(stored["mode.auto"].button, nil, "Auto cannot be selected without a rule")
+	t.equal(stored["mode.auto"].status, "Auto needs a rule", "and says why")
+	t.truthy(stored.rules.info:find("Price x0.70", 1, true) ~= nil, "the rule section shows the price now")
+	t.equal(stored["rule.charge"].info, "Charges below price 0.7, off", "an unset rule is off at its default")
+	t.equal(stored["rule.charge"].button.payload.on, true, "the switch turns it on")
+	t.equal(stored["rule.charge"].steps.up.payload.th, 0.8, "the stepper raises by a tenth")
+	t.equal(stored["rule.sell"].steps.down.payload.th, 1.1, "the stepper lowers by a tenth")
+	t.equal(stored["rule.sell"].steps.down.enabled, true, "the sell rule can go down from 1.2")
+	state.rules.charge = { th = 0.3, on = true }
+	stored = byId(cards("storage", state))
+	t.equal(stored["rule.charge"].steps.down.enabled, false, "the charge rule stops at 0.3")
+	t.equal(stored["rule.charge"].button.payload.on, false, "the switch turns a running rule off")
+	t.equal(stored["mode.auto"].button.payload.mode, "auto", "a rule on makes Auto selectable")
 
 	-- Tools: owned, not yet available, buyable; every card explains what the tool unlocks.
 	state.coins = 40

@@ -165,10 +165,13 @@ return function(t, load)
 	-- Locale.t fills placeholders, keeps unknown ones visible, and falls back to English and to the key
 	t.equal(Locale.t("hud.coins", "de", { value = "5" }), "Coins 5", "fills a placeholder")
 	t.equal(
-		Locale.t("rule.status", "en", { slot = 1, rule = "charge cheap", threshold = 0.8, state = "on" }),
-		"Slot 1: charge cheap at 0.8, on",
+		Locale.t("rule.chargeStatus", "en", { threshold = 0.8, state = "on" }),
+		"Charges below price 0.8, on",
 		"fills several placeholders, numbers included"
 	)
+	t.equal(Locale.t("mode.autoNeedsRule", "en"), "Auto needs a rule", "the Auto hint")
+	t.equal(Locale.t("rules.title", "de"), "Regelautomatik", "the rules section is Regelautomatik")
+	t.equal(Locale.t("rule.slotCharge", "en"), "rule.slotCharge", "the slot labels are gone")
 	t.equal(Locale.t("hud.coins", "en"), "Coins {value}", "a missing argument stays visible")
 	t.equal(Locale.t("plant.1", "fr"), "Balcony Panel", "an unknown language falls back to English")
 	t.equal(Locale.t("no.such.key", "de"), "no.such.key", "an unknown key is returned as it is")

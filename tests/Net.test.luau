@@ -28,10 +28,11 @@ return function(t, load)
 	t.equal(Net.check("Snapshot", {}), false, "server messages are not accepted from clients")
 	t.equal(Net.check("Unknown", {}), false, "unknown message names are rejected")
 
-	local rulesOk, rule = Net.check("SetRule", { slot = 1, rule = "sell", th = 1.2, on = true })
+	local rulesOk, rule = Net.check("SetRule", { rule = "sell", th = 1.2, on = true })
 	t.truthy(rulesOk, "a valid SetRule is accepted")
 	t.equal(rule.th, 1.2, "threshold is kept")
-	t.equal(Net.check("SetRule", { slot = 1, rule = "sell", th = 1.2, on = "yes" }), false, "on must be a boolean")
+	t.equal(Net.check("SetRule", { rule = "sell", th = 1.2, on = "yes" }), false, "on must be a boolean")
+	t.equal(Net.check("SetRule", { rule = 1, th = 1.2, on = true }), false, "a rule is an id, not a slot")
 
 	local toolOk, tool = Net.check("BuyTool", { tool = "shovel" })
 	t.truthy(toolOk, "a valid BuyTool is accepted")

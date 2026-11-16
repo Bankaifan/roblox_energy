@@ -18,7 +18,7 @@ Net.messages = {
 	Crank = { direction = "client", fields = {}, limit = { max = 8, per = 1 } },
 	SetRule = {
 		direction = "client",
-		fields = { slot = "int", rule = { "charge", "sell" }, th = "number", on = "boolean" },
+		fields = { rule = { "charge", "sell" }, th = "number", on = "boolean" },
 		limit = { max = 2, per = 1 },
 	},
 	SetStorageMode = {

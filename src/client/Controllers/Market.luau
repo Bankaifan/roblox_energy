@@ -13,6 +13,7 @@ local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local Plants = require(Config:WaitForChild("Plants") :: ModuleScript) :: any
 local Upgrades = require(Config:WaitForChild("Upgrades") :: ModuleScript) :: any
+local Effects = require(Config:WaitForChild("Effects") :: ModuleScript) :: any
 local ShopView = require(Shared:WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript) :: any
 local Theme = require(script.Parent.Parent.Theme)
 
@@ -39,6 +40,7 @@ local CARD_HEIGHT = 96
 local CARD_HEIGHT_NARROW = 112
 local ICON = 48
 local BUTTON_WIDTH = 104
+local STEP_WIDTH = 64
 -- The popup closes when the player is this many studs beyond the prompt's reach.
 local LEAVE_SLACK = 6
 local LEAVE_CHECK_SECONDS = 0.3
@@ -231,6 +233,8 @@ function Market.build(net: Instance, language: () -> string)
 		info: TextLabel,
 		status: TextLabel,
 		action: TextButton,
+		down: TextButton,
+		up: TextButton,
 		data: any,
 	}
 	local pool: { CardUi } = {}
@@ -247,10 +251,18 @@ function Market.build(net: Instance, language: () -> string)
 		card.info.Size = UDim2.new(width, UDim.new(0, cardHeight - 60))
 		card.status.Position = UDim2.fromOffset(left, cardHeight - 28)
 		card.status.Size = UDim2.new(width, UDim.new(0, 20))
+		-- A card with steppers (a rule): one line of text, then the two steppers left of the switch at the bottom.
+		if card.data ~= nil and card.data.steps ~= nil then
+			card.info.Size = UDim2.new(width, UDim.new(0, 18))
+			card.status.Visible = false
+			card.down.Position = UDim2.new(0, left, 1, -GAP)
+			card.up.Position = UDim2.new(0, left + STEP_WIDTH + GAP, 1, -GAP)
+		else
+			card.status.Visible = true
+		end
 	end
 
-	local function act(card: CardUi)
-		local button = if card.data ~= nil then card.data.button else nil
+	local function act(button: any)
 		if button == nil or not button.enabled then
 			return
 		end
@@ -287,6 +299,14 @@ function Market.build(net: Instance, language: () -> string)
 		action.AnchorPoint = Vector2.new(1, 1)
 		action.Position = UDim2.new(1, -GAP, 1, -GAP)
 		action.Size = UDim2.fromOffset(BUTTON_WIDTH, TOUCH)
+		local function step(name: string): TextButton
+			local control = pill(frame, 16)
+			control.Name = name
+			control.AnchorPoint = Vector2.new(0, 1)
+			control.Size = UDim2.fromOffset(STEP_WIDTH, TOUCH)
+			control.Visible = false
+			return control
+		end
 		local card: CardUi = {
 			frame = frame,
 			stroke = Theme.outline(frame, COLORS.stroke),
@@ -295,11 +315,19 @@ function Market.build(net: Instance, language: () -> string)
 			info = info,
 			status = text(frame, Theme.fonts.bold, 14, COLORS.accent),
 			action = action,
+			down = step("Down"),
+			up = step("Up"),
 			data = nil,
 		}
 		arrange(card)
 		action.Activated:Connect(function()
-			act(card)
+			act(card.data ~= nil and card.data.button or nil)
+		end)
+		card.down.Activated:Connect(function()
+			act(card.data ~= nil and card.data.steps ~= nil and card.data.steps.down or nil)
+		end)
+		card.up.Activated:Connect(function()
+			act(card.data ~= nil and card.data.steps ~= nil and card.data.steps.up or nil)
 		end)
 		frame.Parent = list
 		return card
@@ -334,6 +362,18 @@ function Market.build(net: Instance, language: () -> string)
 		card.stroke.Color = strokeColor
 		card.status.TextColor3 = statusColor
 		local button = data.button
+		local steps = data.steps
+		card.down.Visible = steps ~= nil
+		card.up.Visible = steps ~= nil
+		if steps ~= nil then
+			for control, item in { [card.down] = steps.down, [card.up] = steps.up } do
+				control.Text = item.text
+				control.Active = item.enabled
+				control.AutoButtonColor = item.enabled
+				control.BackgroundColor3 = if item.enabled then COLORS.panel else COLORS.disabled
+				control.TextColor3 = if item.enabled then COLORS.text else COLORS.textMuted
+			end
+		end
 		arrange(card)
 		card.action.Visible = button ~= nil
 		if button ~= nil then
@@ -373,6 +413,7 @@ function Market.build(net: Instance, language: () -> string)
 			plants = Plants,
 			upgrades = Upgrades,
 			land = Land,
+			ruleStep = Effects.ruleStep,
 			t = t,
 		})
 		for index, data in cards do
