@@ -13,8 +13,8 @@ local PlantModels = require(script.Parent.PlantModels)
 
 local PlotService = {}
 
--- One server holds 8 players (Bauplan, section 4), so 8 plots.
-local MAX_PLOTS = 8
+-- One server holds 8 players (Bauplan, section 4), so 8 plots: two rows of four beside the road.
+local MAX_PLOTS = 2 * Assets.PLOT_COLUMNS
 
 local COLORS: { [string]: Color3 } = {
 	Solar = Color3.fromRGB(255, 200, 60),
@@ -193,9 +193,12 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	if slot == nil then
 		return false
 	end
-	local origin = Vector3.new(slot * Assets.PLOT_SPACING, 0, 0)
+	local place = PlotLayout.slot(slot, Assets.PLOT_SPACING, Assets.PLOT_ROW_Z)
+	local origin = Vector3.new(place.x, 0, place.z)
 	local model = Instance.new("Model")
 	model.Name = player.Name
+	-- With streaming a client gets a plot whole or not at all.
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	block(
 		model,
 		"Ground",
