@@ -17,7 +17,7 @@ Third-party free models (Creator Store, public domain), taken from the Studio pl
 | File | Asset id | Asset name | Creator |
 | --- | --- | --- | --- |
 | `plant1_panel.rbxmx` | 138971850808156 | Solar Panel | Cultist_Yellow |
-| `plant2_waterwheel.rbxmx` | 149796590 | a water wheel | ziplocBag |
+| `plant2_waterwheel.rbxmx` | supplied by Daniel (replaces 149796590) | water wheel with stands, 47 parts | (see Creator Store) |
 | `plant3_house.rbxmx` | 8207033915 | house with roof PV | Snowfox_Brinson |
 | `plant4_miniturbine.rbxmx` | 1101863864 | Wind turbine | iNfinite_SE |
 | `plant5_solarfarm.rbxmx` | 8974359787 | Paneles Solares | Roclotes |
