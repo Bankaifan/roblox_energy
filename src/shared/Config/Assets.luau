@@ -120,6 +120,10 @@ Assets.furniture = {
 	battery = { file = "battery", x = 36, z = 78, size = 3 },
 } :: { [string]: Furniture }
 
+-- The walk-in battery container (built from primitives once it is bought): a shell of `size` x `depth` studs, `height` high,
+-- centred on the battery spot, with a door of `door` x `doorHeight` studs in the front wall (the side facing the plot centre).
+Assets.container = { size = 12, depth = 8, height = 8, wall = 0.4, door = 4, doorHeight = 6.5 }
+
 -- Studs between stacked battery units: none, the units sit directly on each other.
 Assets.BATTERY_GAP = 0
 -- Texture ids of the poster decals removed from the market (cola posters), and the part names removed whole.
