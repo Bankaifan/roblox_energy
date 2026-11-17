@@ -12,6 +12,7 @@ local Ambience = require(Shared:WaitForChild("Ambience") :: ModuleScript) :: any
 
 local MOOD_SECONDS = 0.25
 local ROTOR_SPEED = 0.8 -- radians per second
+local WHEEL_SPEED = 0.6 -- water wheels, radians per second
 
 -- Wind turbine rotors (models tagged "Rotor") and the pivot each one turns around.
 local rotors: { [Model]: CFrame } = {}
@@ -26,6 +27,22 @@ CollectionService:GetInstanceRemovedSignal("Rotor"):Connect(function(instance: I
 end)
 for _, instance in CollectionService:GetTagged("Rotor") do
 	addRotor(instance)
+end
+
+-- Water wheels: the model tagged "WheelRotor" (only the wheel, never the stands) turns about its axle at the point the server
+-- measured (attributes SpinAxis, SpinCentre, SpinSense). The angle follows the server clock, so every client agrees.
+local wheels: { [Model]: CFrame } = {}
+local function addWheel(instance: Instance)
+	if instance:IsA("Model") then
+		wheels[instance] = instance:GetPivot()
+	end
+end
+CollectionService:GetInstanceAddedSignal("WheelRotor"):Connect(addWheel)
+CollectionService:GetInstanceRemovedSignal("WheelRotor"):Connect(function(instance: Instance)
+	wheels[instance :: Model] = nil
+end)
+for _, instance in CollectionService:GetTagged("WheelRotor") do
+	addWheel(instance)
 end
 
 -- Parts tagged "NightGlow" turn to neon at night; a PointLight inside follows with the strength in attribute "Glow".
@@ -76,6 +93,16 @@ RunService.Heartbeat:Connect(function(delta: number)
 	Lighting.ClockTime = clock
 	for rotor, pivot in rotors do
 		rotor:PivotTo(pivot * CFrame.Angles(0, 0, (now * ROTOR_SPEED + pivot.Position.X) % (2 * math.pi)))
+	end
+
+	for wheel, base in wheels do
+		local axis = wheel:GetAttribute("SpinAxis")
+		local centre = wheel:GetAttribute("SpinCentre")
+		if typeof(axis) == "Vector3" and typeof(centre) == "Vector3" then
+			local sense = (wheel:GetAttribute("SpinSense") :: number?) or 1
+			local angle = (now * WHEEL_SPEED * sense) % (2 * math.pi)
+			wheel:PivotTo(CFrame.new(centre) * CFrame.fromAxisAngle(axis, angle) * CFrame.new(-centre) * base)
+		end
 	end
 
 	sinceMood += delta
