@@ -35,7 +35,7 @@ type Record = {
 	columns: { [number]: BasePart }, -- index -> the primitive column (only for plants without a model)
 	modelPlants: { boolean }, -- index -> built from a model (else the primitive column)
 	copies: { { Model } }, -- index -> the model units shown now
-	keys: { string }, -- index -> "<units><w|t>" of the units shown now (w wild, t tidy)
+	keys: { string }, -- index -> "<cells>|<aligned cells>" of the units shown now
 	control: Model?, -- the control center, built once U21 is owned
 	batteries: { Model }, -- one unit per storage stage
 	shell: Model?, -- the walk-in container, built once it is bought
@@ -86,25 +86,25 @@ local function block(parent: Instance, name: string, size: Vector3, color: Color
 end
 
 -- The sites of a plant for `owned` units: min(owned, prepared sites), each with the same footprint whatever the count,
--- so a unit only ever stands on prepared ground. Panels (plant 1) lie wild until Mounting Rails are owned (`tidy`),
--- then in rows of four. Returns the sites and whether wild.
-local function unitSites(
-	record: Record,
-	index: number,
-	owned: number,
-	cells: { number },
-	tidy: boolean
-): ({ any }, boolean)
+-- so a unit only ever stands on prepared ground. Panels (plant 1) lie wild on their mown cell; a cell in `aligned` (the
+-- Align action with the Mounting Rails) holds its panel straight on the cell centre. Returns the sites.
+local function unitSites(record: Record, index: number, owned: number, cells: { number }, aligned: { number }): { any }
 	local field = Assets.fields[index]
 	local count = math.min(math.floor(owned), #cells)
 	local chosen = table.move(cells, 1, count, 1, {})
-	if index == 1 and not tidy then
-		-- Wild: on the mown cells in the order they were mown.
-		return PlotLayout.wild(PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES), record.slot), true
+	local points = PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES)
+	if index ~= 1 then
+		table.sort(chosen)
+		return PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES)
 	end
-	-- Tidy: the first `count` mown cells, laid out in fill order so the units stand in rows.
-	table.sort(chosen)
-	return PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES), false
+	-- Panels: wild on the mown cells in the order they were mown, a cell with rails straight on its centre.
+	local sites: { any } = PlotLayout.wild(points, record.slot)
+	for i, cell in chosen do
+		if table.find(aligned, cell) ~= nil then
+			sites[i] = { x = points[i].x, z = points[i].z, angle = 0, rail = true }
+		end
+	end
+	return sites
 end
 
 -- The world position of a plot-relative site: the plot is mirrored in z when it faces the other way.
@@ -155,10 +155,28 @@ local function updateWheels(record: Record, owned: number)
 	end
 end
 
+-- Two dark steel rails under an aligned panel: a Model of two thin bars along the plot's z axis, 3 studs apart.
+local function railsFor(record: Record, site: { x: number, z: number }): Model
+	local rails = Instance.new("Model")
+	rails.Name = "Rails"
+	for side = -1, 1, 2 do
+		local bar = Instance.new("Part")
+		bar.Name = "Rail"
+		bar.Anchored = true
+		bar.CanCollide = false
+		bar.Material = Enum.Material.Metal
+		bar.Color = Color3.fromRGB(70, 74, 82)
+		bar.Size = Vector3.new(0.5, 0.4, 6.8)
+		bar.Position = sitePoint(record, site) + Vector3.new(side * 1.5, 0.2, 0)
+		bar.Parent = rails
+	end
+	return rails
+end
+
 -- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count or the layout changes.
-local function updateUnits(record: Record, index: number, owned: number, cells: { number }, tidy: boolean)
-	local sites, wild = unitSites(record, index, owned, cells, tidy)
-	local key = (if wild then "w" else "t") .. table.concat(cells, ",", 1, #sites)
+local function updateUnits(record: Record, index: number, owned: number, cells: { number }, aligned: { number })
+	local sites = unitSites(record, index, owned, cells, aligned)
+	local key = table.concat(cells, ",", 1, #sites) .. "|" .. table.concat(aligned, ",")
 	if record.keys[index] == key then
 		return
 	end
@@ -180,6 +198,9 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y + lift, angle)
 		copy.Parent = record.model
 		table.insert(shown, copy)
+		if site.rail == true then
+			table.insert(shown, railsFor(record, site))
+		end
 	end
 end
 
@@ -501,7 +522,6 @@ function PlotService.update(
 		return
 	end
 	local ownLand = land or Land.start
-	local tidy = ownLand.tools.rails == true
 	updateFurniture(record, extras or { stage = 0, control = false })
 	updateLand(record, counts, ownLand)
 	updateFoundations(record, ownLand)
@@ -515,7 +535,7 @@ function PlotService.update(
 			if index == 2 then
 				updateWheels(record, counts[2] or 0)
 			else
-				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, tidy)
+				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, ownLand.aligned or {})
 			end
 		end
 	end

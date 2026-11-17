@@ -7,7 +7,7 @@ return function(t, load)
 	for _ in Net.messages do
 		count += 1
 	end
-	t.equal(count, 19, "19 messages")
+	t.equal(count, 20, "20 messages")
 	t.equal(Net.messages.RankList.direction, "server", "RankList comes from the server")
 	t.truthy(Net.check("RankRequest", nil), "the leaderboard asks without fields")
 	t.equal(Net.messages.RankRequest.limit.per, 4, "RankRequest allows one request per 4 seconds")
@@ -58,6 +58,10 @@ return function(t, load)
 	t.equal(Net.check("Prepare", { target = 7 }), false, "field 7 does not exist")
 	t.truthy(Net.check("BuyContainer", {}), "the container can be bought from the client")
 	t.equal(Net.check("Prepare", { target = "x" }), false, "an unknown target is rejected")
+
+	t.equal(Net.messages.Align.direction, "internal", "Align never crosses the network")
+	t.truthy(Net.check("Align", { cell = 3 }), "Align may name a cell")
+	t.equal(Net.check("Align", { cell = 1.5 }), false, "the cell is a whole number")
 
 	local limit = Net.messages.BuyPlant.limit
 	t.equal(limit.max, 8, "BuyPlant allows 8 per second")

@@ -62,6 +62,7 @@ local function template(): Profile
 			sites = { 0, 0, 0, 0, 0, 0 },
 			cells = { {}, {}, {}, {}, {}, {} },
 			steps = { {}, {}, {}, {}, {}, {} },
+			aligned = {},
 			tools = { scythe = true },
 			container = false,
 			wired = false,
@@ -270,6 +271,22 @@ local function land(value: any, default: any): any
 		cells[index] = list
 		steps[index] = done
 	end
+	-- Aligned panel cells (F1): whole prepared cell numbers, each once, in the order they were aligned.
+	local aligned, alignedSeen = {}, {}
+	if type(source.aligned) == "table" then
+		for _, cell in source.aligned do
+			if
+				type(cell) == "number"
+				and cell % 1 == 0
+				and table.find(cells[1], cell) ~= nil
+				and (table.find(cells[1], cell) :: number) <= sites[1]
+				and not alignedSeen[cell]
+			then
+				alignedSeen[cell] = true
+				table.insert(aligned, cell)
+			end
+		end
+	end
 	local tools = { scythe = true }
 	if type(source.tools) == "table" then
 		for id in TOOLS do
@@ -282,6 +299,7 @@ local function land(value: any, default: any): any
 		sites = sites,
 		cells = cells,
 		steps = steps,
+		aligned = aligned,
 		tools = tools,
 		container = source.container == true,
 		wired = source.wired == true,

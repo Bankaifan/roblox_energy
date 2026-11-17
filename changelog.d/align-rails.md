@@ -1,0 +1,1 @@
+- Mounting Rails no longer straighten panels when bought: hold on a mown panel with the rails in your hand to align it (it counts twice and sits straight on two rails).

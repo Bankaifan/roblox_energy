@@ -118,13 +118,46 @@ local function plantMultiplier(state: State, env: Env, plant: Plant): number
 	return plantPart * globalMultiplier(state, env)
 end
 
+-- The panels (plant 1) that stand on aligned cells: cell i (in the order the cells were mown) holds
+-- clamp(owned - perCell x (i - 1), 0, perCell) of them. 0 without land config or without aligned cells.
+local function alignedPanels(state: State, env: Env): number
+	local config = if env.config.land ~= nil then env.config.land.align else nil
+	local land = state.land
+	if config == nil or land == nil or land.aligned == nil or land.cells == nil then
+		return 0
+	end
+	local cells = land.cells[1] or {}
+	local sites = land.sites[1] or 0
+	local total = 0
+	for _, cell in land.aligned do
+		local index = table.find(cells, cell)
+		if index ~= nil and index <= sites then
+			total += math.max(0, math.min(state.plants[1] - config.perCell * (index - 1), config.perCell))
+		end
+	end
+	return total
+end
+
+-- The count a plant produces with: its real units, plus an aligned panel counting `factor` times (milestones and prices
+-- use the real count).
+local function effectiveCount(state: State, env: Env, plant: Plant): number
+	local count = state.plants[plant.id]
+	if plant.id == 1 then
+		local config = if env.config.land ~= nil then env.config.land.align else nil
+		if config ~= nil then
+			count += alignedPanels(state, env) * (config.factor - 1)
+		end
+	end
+	return count
+end
+
 -- Erzeugung/s of all plants under the given phase and weather.
 local function production(state: State, env: Env, phase: Phase, weather: Weather): number
 	local total = 0
 	for _, plant in env.config.plants do
 		local factor = env.formulas.factor(plant.kind, phase, weather)
 		local multiplier = plantMultiplier(state, env, plant)
-		total += env.formulas.production(plant.nominalPower, state.plants[plant.id], multiplier, factor)
+		total += env.formulas.production(plant.nominalPower, effectiveCount(state, env, plant), multiplier, factor)
 	end
 	return total
 end
@@ -139,7 +172,7 @@ local function middayOutput(state: State, env: Env): number
 			expected += weather.share / 100 * env.formulas.factor(plant.kind, noon, weather)
 		end
 		local multiplier = plantMultiplier(state, env, plant)
-		total += env.formulas.production(plant.nominalPower, state.plants[plant.id], multiplier, expected)
+		total += env.formulas.production(plant.nominalPower, effectiveCount(state, env, plant), multiplier, expected)
 	end
 	return total
 end
@@ -579,6 +612,43 @@ local function prepare(state: State, env: Env, action: { [string]: any }): boole
 	return true
 end
 
+-- Align { cell? }: Mounting Rails are owned; the named mown cell of F1 (or the first one that qualifies) holds all its panels
+-- and is not aligned yet. Its panels then count `align.factor` times. Hold time and the tool in the hand: the server checks.
+local function align(state: State, env: Env, action: { [string]: any }): boolean
+	local config = if env.config.land ~= nil then env.config.land.align else nil
+	if config == nil then
+		return false
+	end
+	local land = landOf(state, env)
+	if not land.tools.rails then
+		return false
+	end
+	land.aligned = land.aligned or {}
+	local cells = if land.cells ~= nil then land.cells[1] or {} else {}
+	local sites = land.sites[1] or 0
+	local function qualifies(cell: number): boolean
+		local index = table.find(cells, cell)
+		return index ~= nil
+			and index <= sites
+			and state.plants[1] >= config.perCell * index
+			and table.find(land.aligned, cell) == nil
+	end
+	local cell = action.cell
+	if cell == nil then
+		for index = 1, math.min(sites, #cells) do
+			if qualifies(cells[index]) then
+				cell = cells[index]
+				break
+			end
+		end
+	end
+	if not isCount(cell) or not qualifies(cell) then
+		return false
+	end
+	table.insert(land.aligned, cell)
+	return true
+end
+
 -- SetPaint { color }: S5 Sign Paint must be owned; the colour is a whole number from 1 to paintColors.
 local function setPaint(state: State, env: Env, action: { [string]: any }): boolean
 	local color = action.color
@@ -661,6 +731,8 @@ function GameCore.apply(state: State, action: { [string]: any }, env: Env): (Sta
 		ok = setPaint(result, env, action)
 	elseif action.type == "Prepare" then
 		ok = prepare(result, env, action)
+	elseif action.type == "Align" then
+		ok = align(result, env, action)
 	elseif action.type == "BuyContainer" then
 		ok = prepare(result, env, { type = "Prepare", target = "container" })
 	elseif action.type == "Prestige" then
@@ -696,7 +768,7 @@ function GameCore.offline(state: State, seconds: number, env: Env): State
 	for _, plant in env.config.plants do
 		local expected = env.formulas.expectedIncome(plant.kind, env.config.phases, env.config.weathers)
 		local multiplier = plantMultiplier(state, env, plant)
-		rate += env.formulas.production(plant.nominalPower, state.plants[plant.id], multiplier, expected)
+		rate += env.formulas.production(plant.nominalPower, effectiveCount(state, env, plant), multiplier, expected)
 	end
 	local away = math.min(seconds, hours * 3600)
 	credit(result, rate * market(state, env, nil) * away * efficiency)
