@@ -191,7 +191,8 @@ function LandService.refresh(player: Player, state: any)
 				and state.nodes.U21 == true
 				and land.tools[WIRE_HOLD_TOOL] == true
 		end
-		entry.possible = enabled and Toolbelt.inHand(land, target, hand, Land, nil)
+		-- The tool of a field depends on the cell under the player's feet (follow), so only the other steps check it here.
+		entry.possible = enabled and (type(target) == "number" or Toolbelt.inHand(land, target, hand, Land, nil))
 		if type(target) == "number" then
 			LandService.follow(player, plot, entry)
 		else

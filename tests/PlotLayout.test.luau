@@ -55,4 +55,10 @@ return function(t, load)
 	t.equal(#PlotLayout.mown(nil, 99, 24), 24, "the mown list never passes the field")
 	t.equal(PlotLayout.cellCount(Assets.fields[6]), 4, "a field is its cell list: four wind pads")
 	t.equal(PlotLayout.cellAt(Assets.fields[6], -80, -80, tile, tiles), 1, "a 4 x 4 pad is found anywhere on its tiles")
+	-- Started cells: prepared ones and those in work (listed beyond the prepared count) have their grass cut.
+	t.equal(table.concat(PlotLayout.started({ 4, 6, 2 }, 1, 7), ","), "4,6,2", "cells in work count as started")
+	t.equal(table.concat(PlotLayout.started({ 4, 6 }, 2, 7), ","), "4,6", "done cells still count")
+	t.equal(#PlotLayout.started(nil, 0, 7), 0, "an empty field has no started cell")
+	t.equal(#PlotLayout.started({ 1, 2, 3, 4 }, 0, 3), 3, "never more than the field has")
+	t.equal(#PlotLayout.started(nil, 3, 7), 3, "a state that only knows a count pads the lowest cells")
 end

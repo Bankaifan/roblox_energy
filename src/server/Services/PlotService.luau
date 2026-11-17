@@ -286,8 +286,10 @@ local function updateLand(record: Record, counts: { number }, land: any)
 	for index in Assets.fields do
 		local total = Assets.siteCount(index)
 		local mown = PlotLayout.mown(land.cells and land.cells[index], land.sites[index] or 0, total)
+		-- Bare earth shows from the first stage on: a cell in work has its grass cut already.
+		local started = PlotLayout.started(land.cells and land.cells[index], land.sites[index] or 0, total)
 		local open = #mown < total and (index == 1 or (counts[index - 1] or 0) >= 1)
-		table.insert(ground, table.concat(mown, ","))
+		table.insert(ground, table.concat(started, ","))
 		table.insert(fence, if open then "open" else "-")
 	end
 	local container = land.container == true or #record.batteries > 0
@@ -322,9 +324,9 @@ local function updateLand(record: Record, counts: { number }, land: any)
 			if field.river == true then
 				continue
 			end
-			local mown =
-				PlotLayout.mown(land.cells and land.cells[index], land.sites[index] or 0, Assets.siteCount(index))
-			for _, site in PlotLayout.cellSites(field, mown, Assets.TILE, Assets.PLOT_TILES) do
+			local started =
+				PlotLayout.started(land.cells and land.cells[index], land.sites[index] or 0, Assets.siteCount(index))
+			for _, site in PlotLayout.cellSites(field, started, Assets.TILE, Assets.PLOT_TILES) do
 				table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
 			end
 		end
