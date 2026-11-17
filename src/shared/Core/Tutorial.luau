@@ -1,12 +1,15 @@
 --!strict
--- Tutorial (Bauplan.md, section 1, "Die ersten 10 Minuten"; issue #71): the opening steps in order, up to the storage.
+-- Tutorial (Bauplan.md, section 1, "Die ersten 10 Minuten"; issues #71, #117): crank, market, mowing, shovel, container, storage.
 -- Pure functions: the caller passes the facts of the run in `facts`, nothing is read from the game, the profile or Roblox.
 -- The tutorial never shows a purchase hint (Core/Hints). Skipping or finishing it is final.
-export type Step = "crank" | "panel" | "wheel" | "storage"
+export type Step = "crank" | "market" | "mowing" | "shovel" | "container" | "storage"
 export type Facts = {
 	seconds: number, -- seconds since the tutorial started
 	cranks: number, -- crank clicks in this run
-	plants: { [number]: number }, -- plant counts by id (Config/Plants): 1 Balcony Panel, 2 Water Wheel
+	marketOpened: boolean, -- the market popup was opened once
+	mown: number, -- tiles mown so far (land.cells, design 0018 section 8)
+	shovel: boolean, -- the shovel is owned
+	container: boolean, -- the container is bought (land.container)
 	nodes: { [string]: boolean }, -- run nodes owned; U17 is the Home Battery (the storage)
 }
 -- index: the current step (1 to #STEPS), done: the tutorial is finished or skipped. Saved as profile.tutorial and tutorialDone.
@@ -15,8 +18,10 @@ export type Progress = { index: number, done: boolean }
 -- The steps in order. `from` is the earliest second a step can be left (the timeline of Bauplan section 1).
 local STEPS: { { id: Step, from: number } } = {
 	{ id = "crank", from = 0 }, -- an arrow points to the crank
-	{ id = "panel", from = 5 }, -- the first Balcony Panel after about 5 s
-	{ id = "wheel", from = 60 }, -- the first Water Wheel after a minute
+	{ id = "market", from = 0 }, -- an arrow points to the market; its popup is opened once
+	{ id = "mowing", from = 0 }, -- one tile is mown
+	{ id = "shovel", from = 0 }, -- the shovel is owned
+	{ id = "container", from = 0 }, -- the container is bought
 	{ id = "storage", from = 0 }, -- the storage (U17) ends the tutorial
 }
 
@@ -27,10 +32,14 @@ Tutorial.COUNT = #STEPS
 function Tutorial.condition(id: Step, facts: Facts): boolean
 	if id == "crank" then
 		return facts.cranks >= 1
-	elseif id == "panel" then
-		return (facts.plants[1] or 0) >= 1
-	elseif id == "wheel" then
-		return (facts.plants[2] or 0) >= 1
+	elseif id == "market" then
+		return facts.marketOpened == true
+	elseif id == "mowing" then
+		return facts.mown >= 1
+	elseif id == "shovel" then
+		return facts.shovel == true
+	elseif id == "container" then
+		return facts.container == true
 	elseif id == "storage" then
 		return facts.nodes.U17 == true
 	end
