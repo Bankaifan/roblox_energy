@@ -39,6 +39,8 @@ Net.messages = {
 		optional = { cell = "int" }, -- the cell of the field the player stands on (any free one, in any order)
 		limit = { max = 2, per = 1 },
 	},
+	-- Align is internal as well: LandService sends it after the hold on a mown panel cell (Mounting Rails in the hand).
+	Align = { direction = "internal", fields = {}, optional = { cell = "int" }, limit = { max = 2, per = 1 } },
 	Ready = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
 	Snapshot = { direction = "server", fields = {} }, -- the whole run state of the player
 	-- turbo: seconds of the owner's own Turbo Feed-in left (0 = off).

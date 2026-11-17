@@ -85,6 +85,29 @@ local function freeCellUnder(player: Player, plot: Plot, field: number): number?
 	return cell
 end
 
+-- The mown F1 cell under the player's feet that may be aligned now (holds its panels, not aligned yet), or nil.
+local function alignCellUnder(player: Player, plot: Plot): number?
+	local character = player.Character
+	local root = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
+	if root == nil or not root:IsA("BasePart") or plot.state == nil then
+		return nil
+	end
+	local at = (root :: BasePart).Position - plot.frame.origin
+	local cell = PlotLayout.cellAt(Assets.fields[1], at.X, at.Z * plot.frame.facing, Assets.TILE, Assets.PLOT_TILES)
+	local land = plot.state.land or Land.start
+	local cells = if land.cells ~= nil then land.cells[1] or {} else {}
+	local index = if cell ~= nil then table.find(cells, cell) else nil
+	if
+		index == nil
+		or index > (land.sites[1] or 0)
+		or (plot.state.plants[1] or 0) < Land.align.perCell * index
+		or table.find(land.aligned or {}, cell) ~= nil
+	then
+		return nil
+	end
+	return cell
+end
+
 -- True when the player's character stands within MAX_DISTANCE studs of `point`.
 local function nearby(player: Player, point: Vector3): boolean
 	local character = player.Character
@@ -113,7 +136,7 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 	prompt.ActionText = Locale.t(key, lang)
 	prompt.ObjectText = if tool ~= nil then Locale.t(TOOL_KEYS[tool], lang) else ""
 	prompt.HoldDuration = hold
-	prompt.MaxActivationDistance = if type(target) == "number" then 8 else 10
+	prompt.MaxActivationDistance = if type(target) == "number" or target == "align" then 8 else 10
 	prompt.RequiresLineOfSight = false
 	prompt.Enabled = false -- refresh() switches it on once the step is possible
 	prompt.Parent = anchor
@@ -133,9 +156,16 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 		-- A hold of 0 needs no timer; every other hold must have run at least 0.9 x its duration on the server clock.
 		local held = if entry.hold > 0 then Work.finish(plot.work, name, os.clock(), entry.hold) else true
 		local land = if plot.state ~= nil then plot.state.land or Land.start else Land.start
-		local under = if type(target) == "number" then freeCellUnder(player, plot, target) else nil
+		local under = if type(target) == "number"
+			then freeCellUnder(player, plot, target)
+			elseif target == "align" then alignCellUnder(player, plot)
+			else nil
 		local inHand = Toolbelt.inHand(land, target, ToolService.equipped(player), Land, under)
-		if type(target) == "number" then
+		if target == "align" then
+			if held and inHand and under ~= nil and entry.held ~= nil then
+				sender(player, "Align", { cell = entry.held })
+			end
+		elseif type(target) == "number" then
 			-- A field is worked on the cell the hold began on; the player must still stand on an unworked cell of the field
 			-- (a step over the tile edge while holding does not cancel the work).
 			local cell = entry.held
@@ -159,6 +189,7 @@ function LandService.build(player: Player, frame: Frame)
 		local hold = Land.chains[field][1].hold
 		makeEntry(player, plot, field, FIELD_KEYS[field], hold, frame.origin) -- the anchor then follows the owner
 	end
+	makeEntry(player, plot, "align", "prompt.align", Land.align.hold, frame.origin) -- follows the owner like a field prompt
 	local battery = Assets.furniture.battery
 	makeEntry(player, plot, "container", "tool.container", 0, worldPoint(frame, battery.x, battery.z))
 	local control = Assets.furniture.control
@@ -183,6 +214,8 @@ function LandService.refresh(player: Player, state: any)
 			enabled = land.tools[Toolbelt.toolFor(target, Land, land) or ""] == true
 				and (target == 1 or (state.plants[target - 1] or 0) >= 1)
 				and done < Land.fields[target]
+		elseif target == "align" then
+			enabled = land.tools.rails == true and (state.plants[1] or 0) >= 1
 		elseif target == "container" then
 			enabled = not land.container
 		else
@@ -192,8 +225,9 @@ function LandService.refresh(player: Player, state: any)
 				and land.tools[WIRE_HOLD_TOOL] == true
 		end
 		-- The tool of a field depends on the cell under the player's feet (follow), so only the other steps check it here.
-		entry.possible = enabled and (type(target) == "number" or Toolbelt.inHand(land, target, hand, Land, nil))
-		if type(target) == "number" then
+		entry.possible = enabled
+			and (type(target) == "number" or target == "align" or Toolbelt.inHand(land, target, hand, Land, nil))
+		if type(target) == "number" or target == "align" then
 			LandService.follow(player, plot, entry)
 		else
 			entry.prompt.Enabled = entry.possible
@@ -206,7 +240,12 @@ end
 function LandService.follow(player: Player, plot: Plot, entry: Entry)
 	local character = player.Character
 	local root = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
-	local cell = if entry.possible then freeCellUnder(player, plot, entry.target) else nil
+	local cell = nil
+	if entry.possible then
+		cell = if entry.target == "align"
+			then alignCellUnder(player, plot)
+			else freeCellUnder(player, plot, entry.target)
+	end
 	entry.cell = cell
 	local land = if plot.state ~= nil then plot.state.land or Land.start else Land.start
 	local stage, tool, hold = Toolbelt.stage(land, entry.target, cell, Land)
@@ -228,7 +267,7 @@ task.spawn(function()
 		task.wait(0.15)
 		for player, plot in plots do
 			for _, entry in plot.entries do
-				if type(entry.target) == "number" and entry.possible then
+				if (type(entry.target) == "number" or entry.target == "align") and entry.possible then
 					LandService.follow(player, plot, entry)
 				end
 			end

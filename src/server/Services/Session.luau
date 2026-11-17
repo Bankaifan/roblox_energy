@@ -146,7 +146,7 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	DataService.sync(player, nextState)
 	if action.type == "BuyTool" then
 		ToolService.refresh(player, nextState.land or config.land.start)
-	elseif action.type == "Prepare" or action.type == "BuyContainer" then
+	elseif action.type == "Prepare" or action.type == "Align" or action.type == "BuyContainer" then
 		LandService.refresh(player, nextState) -- the prompt moves to the next site at once
 	end
 	if action.type == "Prestige" then

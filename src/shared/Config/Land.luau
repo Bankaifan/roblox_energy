@@ -37,6 +37,9 @@ return {
 		{ { tool = "scythe", hold = 1 }, { tool = "tamper", hold = 4 }, { tool = "drum", hold = 3 } },
 	},
 	downstream = { [2] = true },
+	-- Align (Mounting Rails, section 5): a held action on a mown F1 cell with its panels; each aligned panel counts `factor`
+	-- times. perCell: panels a cell holds (1 until the units per cell of step 7 arrive, then 4 = a row).
+	align = { factor = 2, hold = 1.5, perCell = 1 },
 	-- The tool that comes with each field (index = plant id): bought with its plant and named on its card.
 	fieldTools = { "scythe", "shovel", "hammer", "wrench", "drum", "tamper" },
 	containerCost = 500,
@@ -44,6 +47,7 @@ return {
 		sites = { 0, 0, 0, 0, 0, 0 },
 		cells = { {}, {}, {}, {}, {}, {} },
 		steps = { {}, {}, {}, {}, {}, {} },
+		aligned = {},
 		tools = { scythe = true },
 		container = false,
 		wired = false,

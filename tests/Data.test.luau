@@ -110,6 +110,7 @@ return function(t, load)
 		sites = { 4, 7, 0, 1, 0, 0 },
 		cells = { { 5, 1, 24, 2 }, { 1, 2, 3, 4, 5, 6, 7 }, { 3 }, { 6 }, {}, {} },
 		steps = { { 1, 1, 1, 1 }, { 2, 2, 2, 2, 2, 2, 2 }, { 1 }, { 2 }, {}, {} },
+		aligned = { 24, 5 },
 		tools = { scythe = true, shovel = true },
 		container = true,
 		wired = false,
@@ -128,6 +129,13 @@ return function(t, load)
 		Data.migrate({ v = 3, land = { sites = { 3, 0, 0, 0, 0, 0 }, cells = { { 9, 9, 99, 4 } } } }, Steps)
 	)
 	t.truthy(same(messy.land.cells[1], { 9, 4, 1 }), "repeated or foreign cells are dropped and the count is kept")
+	local junk = Data.toState(
+		Data.migrate(
+			{ v = 7, land = { sites = { 2, 0, 0, 0, 0, 0 }, cells = { { 4, 6 } }, aligned = { 6, 6, 9, "x" } } },
+			Steps
+		)
+	)
+	t.truthy(same(junk.land.aligned, { 6 }), "aligned keeps prepared cells once and drops the rest")
 	state.land.sites[1] = 5
 	t.equal(run.land.sites[1], 4, "toState copies the land")
 

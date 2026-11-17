@@ -46,10 +46,12 @@ function Toolbelt.stage(land: any, field: any, cell: number?, config: any): (num
 end
 
 -- The tool a step needs in the hand: a field (plant id) needs the tool of its next stage (of `cell`, see stage), "wired" the
--- pliers. Nil means bare hands (the market shutter, the container), an unknown target or a cell that is done.
+-- pliers, "align" the mounting rails. Nil means bare hands (the market shutter, the container), an unknown target or a cell that is done.
 function Toolbelt.toolFor(target: any, config: any, land: any?, cell: number?): string?
 	if target == "wired" then
 		return "pliers"
+	elseif target == "align" then
+		return "rails"
 	elseif type(target) == "number" then
 		local _, tool = Toolbelt.stage(land or {}, target, cell, config)
 		return tool
