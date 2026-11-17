@@ -267,4 +267,12 @@ return function(t, load)
 		-- About 175 studs of 12-stud water: 2100 square studs, 131 cells of 16.
 		t.truthy(area > 100 and area < 190, `slot {seed}: the river covers {area} cells`)
 	end
+	-- The stages from a saved land: steps say what is done, finished cells without steps are flooded, others dry.
+	local function equal(a: { number }, b: { number }): boolean
+		return table.concat(a, ",") == table.concat(b, ",")
+	end
+	t.truthy(equal(River.fromLand({ 1, 2, 3 }, { 2, 2, 1 }, 2, 7), { 2, 2, 1, 0, 0, 0, 0 }), "steps give the stages")
+	t.truthy(equal(River.fromLand({ 1, 2 }, nil, 1, 7), { 2, 1, 0, 0, 0, 0, 0 }), "finished flooded, in work dry")
+	t.truthy(equal(River.fromLand({ 2 }, { 2 }, 1, 7), { 0, 1, 0, 0, 0, 0, 0 }), "no water without the spring flooded")
+	t.truthy(equal(River.fromLand(nil, nil, 0, 7), { 0, 0, 0, 0, 0, 0, 0 }), "nothing dug")
 end

@@ -8,6 +8,7 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
 local Spin = require(Core:WaitForChild("Spin") :: ModuleScript) :: any
+local River = require(Core:WaitForChild("River") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
@@ -251,6 +252,14 @@ local function updateLand(record: Record, counts: { number }, land: any)
 		record.shell = PlantModels.container(record.origin, record.origin.Y, record.facing)
 		record.shell.Parent = record.model
 	end
+	-- The river (field F2): each started cell is a segment, dug and then flooded; the trench replaces its bare patch.
+	local river = River.fromLand(
+		land.cells and land.cells[2],
+		land.steps and land.steps[2],
+		land.sites[2] or 0,
+		Assets.river.segments
+	)
+	PlotGround.river(record.slot, record.facing, river)
 	local groundKey = table.concat(ground, " ") .. ` {record.control ~= nil} {container}`
 	if record.groundKey ~= groundKey then
 		record.groundKey = groundKey
@@ -266,6 +275,9 @@ local function updateLand(record: Record, counts: { number }, land: any)
 		end
 		for index, field in Assets.fields do
 			local side = field.size * Assets.TILE
+			if field.river == true then
+				continue
+			end
 			local mown =
 				PlotLayout.mown(land.cells and land.cells[index], land.sites[index] or 0, Assets.siteCount(index))
 			for _, site in PlotLayout.cellSites(field, mown, Assets.TILE, Assets.PLOT_TILES) do

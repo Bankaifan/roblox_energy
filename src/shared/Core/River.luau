@@ -369,6 +369,21 @@ function River.fromCount(flooded: number, segments: number): { number }
 	return result
 end
 
+-- The stage of each segment from the saved land of field F2: `cells` are the started cells (the cell number is the segment),
+-- `steps[i]` the stages done of cells[i], `sites` how many cells are finished (a finished cell is flooded). A state without
+-- steps counts its finished cells as flooded and the others as dry trenches. Feed the result to River.stages.
+function River.fromLand(cells: { number }?, steps: { number }?, sites: number, segments: number): { number }
+	local saved: { number } = {}
+	for index, cell in cells or {} do
+		if type(cell) == "number" and cell >= 1 and cell <= segments then
+			saved[cell] = if steps ~= nil and type(steps[index]) == "number"
+				then steps[index]
+				else (if index <= sites then River.FLOODED else River.DRY)
+		end
+	end
+	return River.stages(saved, segments)
+end
+
 -- Number of flooded segments.
 function River.flooded(stages: { number }): number
 	local n = 0

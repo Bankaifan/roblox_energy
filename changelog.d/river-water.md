@@ -1,0 +1,1 @@
+- The river is now a real trench: digging a river cell shows a dry trench, the second shovel stage floods it with shallow water you can wade through.
