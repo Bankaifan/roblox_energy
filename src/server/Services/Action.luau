@@ -6,6 +6,7 @@ local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net")
 local Session = require(script.Parent.Session)
 local PlotService = require(script.Parent.PlotService)
 local LandService = require(script.Parent.LandService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
 
 local FLOOD_LIMIT = 30
 local FLOOD_STRIKES = 3
@@ -47,6 +48,8 @@ local function receive(remotes: { [string]: RemoteEvent }, player: Player, name:
 	end
 	if action.type == "Ready" then
 		Session.ready(remotes, player)
+	elseif action.type == "RankRequest" then
+		LeaderboardService.send(remotes, player)
 	else
 		Session.apply(remotes, player, action)
 	end

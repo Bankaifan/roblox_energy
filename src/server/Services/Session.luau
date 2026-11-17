@@ -13,6 +13,7 @@ local ToolService = require(script.Parent.ToolService)
 local DataService = require(script.Parent.DataService)
 local BoostService = require(script.Parent.BoostService)
 local PurchaseService = require(script.Parent.PurchaseService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
 
 local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
@@ -92,6 +93,7 @@ function Session.stop(player: Player)
 	states[player] = nil
 	welcomes[player] = nil
 	BoostService.forget(player)
+	LeaderboardService.forget(player)
 	DataService.release(player, state)
 	PlotService.remove(player)
 end
@@ -159,6 +161,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
 		DataService.sync(player, nextState)
+		LeaderboardService.observe(player, nextState.level, nextState.runEarned)
 		local view = GameCore.view(nextState, env)
 		local storage = view.storage
 		PlotService.update(player, nextState.plants, {
