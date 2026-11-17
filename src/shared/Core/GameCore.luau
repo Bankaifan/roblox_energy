@@ -460,7 +460,8 @@ local function buyTool(state: State, env: Env, action: { [string]: any }): boole
 	return true
 end
 
--- Prepare { target, cell? }: a field (plant id 1 to 6: its tool is owned, one more mown cell, the named free one or the lowest), "market" (once), "container"
+-- Prepare { target, cell? }: a field (plant id 1 to 6): one more stage of the named cell (or the first one in work, or the lowest
+-- free one); the tool of that stage is owned, a river cell only after the one upstream. "market" (once), "container"
 -- (costs coins, once) or "wired" (needs U21, the container and the pliers, once). Hold time is checked by the server.
 local function prepare(state: State, env: Env, action: { [string]: any }): boolean
 	local config = env.config.land
@@ -492,42 +493,79 @@ local function prepare(state: State, env: Env, action: { [string]: any }): boole
 	if not isCount(target) or config.fields[target] == nil then
 		return false
 	end
-	if not land.tools[config.fieldTools[target]] or not toolRevealed(state, { plant = target }) then
+	if not toolRevealed(state, { plant = target }) then
 		return false
 	end
+	local chain = config.chains[target]
 	local total = config.fields[target]
-	if (land.sites[target] or 0) >= total then
-		return false
-	end
-	-- The mown cells in mowing order; padded with the lowest free cells for a state that only knows the count.
+	-- The started cells: the prepared ones first (in the order they were finished), then those still in work, with the
+	-- stages done of each. A state that only knows the count is padded with the lowest free cells, all stages done.
 	land.cells = land.cells or {}
+	land.steps = land.steps or {}
 	local cells = land.cells[target] or {}
+	local steps = land.steps[target] or {}
+	local sites = land.sites[target] or 0
 	local used: { [number]: boolean } = {}
 	for _, cell in cells do
 		used[cell] = true
 	end
 	local free = 1
-	while #cells < (land.sites[target] or 0) do
+	while #cells < sites do
 		if not used[free] then
 			used[free] = true
 			table.insert(cells, free)
 		end
 		free += 1
 	end
-	-- A cell is named by the caller (the tile under the player's feet) or, without one, the lowest free cell.
+	for index = 1, #cells do
+		steps[index] = steps[index] or (if index <= sites then #chain else 1)
+	end
+	-- A cell is named by the caller (the tile under the player's feet) or, without one, the first cell in work or the
+	-- lowest free cell.
 	local cell = action.cell
 	if cell == nil then
-		cell = 1
-		while used[cell] do
-			cell += 1
+		if cells[sites + 1] ~= nil then
+			cell = cells[sites + 1]
+		else
+			cell = 1
+			while used[cell] do
+				cell += 1
+			end
 		end
 	end
-	if not isCount(cell) or cell > total or used[cell] then
+	if not isCount(cell) or cell > total then
 		return false
 	end
-	table.insert(cells, cell)
+	local index = table.find(cells, cell)
+	if index ~= nil and index <= sites then
+		return false -- prepared already
+	end
+	-- Downstream fields (the river) are worked from the first cell on: the cell before must be prepared.
+	if config.downstream ~= nil and config.downstream[target] and cell > 1 then
+		local before = table.find(cells, cell - 1)
+		if before == nil or before > sites then
+			return false
+		end
+	end
+	local stage = if index ~= nil then steps[index] + 1 else 1
+	if not land.tools[chain[stage].tool] then
+		return false
+	end
+	if index == nil then
+		table.insert(cells, cell)
+		index = #cells
+	end
+	steps[index] = stage
+	if stage == #chain then
+		-- Done: the cell moves behind the prepared ones.
+		table.remove(cells, index)
+		table.remove(steps, index)
+		table.insert(cells, sites + 1, cell)
+		table.insert(steps, sites + 1, stage)
+		land.sites[target] = sites + 1
+	end
 	land.cells[target] = cells
-	land.sites[target] = #cells
+	land.steps[target] = steps
 	return true
 end
 

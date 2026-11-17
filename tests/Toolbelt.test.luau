@@ -14,6 +14,32 @@ return function(t, load)
 	t.truthy(not Toolbelt.inHand(land, 1, nil, Land), "mowing needs a tool in the hand")
 	t.truthy(not Toolbelt.inHand(land, 1, "shovel", Land), "the shovel does not mow")
 	t.truthy(not Toolbelt.inHand(land, 3, "hammer", Land), "a tool in the hand that is not owned does not count")
+
+	-- A field step needs the tool of its next stage; the hammer never mows.
+	local working = {
+		tools = { scythe = true, hammer = true, drum = true },
+		sites = { 0, 0, 0, 0, 1, 0 },
+		cells = { {}, {}, { 4 }, {}, { 2, 7 }, {} },
+		steps = { {}, {}, { 1 }, {}, { 3, 1 }, {} },
+	}
+	t.truthy(
+		not Toolbelt.inHand(working, 3, "hammer", Land, 9),
+		"a new house lot is mown with the scythe, not the hammer"
+	)
+	t.truthy(Toolbelt.inHand(working, 3, "scythe", Land, 9), "a new house lot is mown with the scythe")
+	t.truthy(Toolbelt.inHand(working, 3, "hammer", Land, 4), "the mown lot takes the hammer")
+	t.truthy(not Toolbelt.inHand(working, 3, "scythe", Land, 4), "the mown lot no longer takes the scythe")
+	t.truthy(Toolbelt.inHand(working, 5, "hammer", Land, 7), "the farm cell takes the hammer for its fence")
+	t.truthy(Toolbelt.inHand(working, 5, "hammer", Land), "without a cell the first cell in work decides")
+	t.truthy(not Toolbelt.inHand(working, 5, "drum", Land, 7), "the drum waits for the fence")
+	t.truthy(not Toolbelt.inHand(working, 5, "drum", Land, 2), "a prepared cell takes no tool")
+	local stage, stageTool, hold = Toolbelt.stage(working, 5, 7, Land)
+	t.truthy(stage == 2 and stageTool == "hammer" and hold == 2.5, "stage 2 of the farm is the hammer for 2.5 seconds")
+	local _, houseTool, houseHold = Toolbelt.stage(working, 3, 4, Land)
+	t.truthy(houseTool == "hammer" and houseHold == Land.chains[3][2].hold, "the mown lot takes the hold of the hammer")
+	local _, lotTool, lotHold = Toolbelt.stage(working, 3, 9, Land)
+	t.truthy(lotTool == "scythe" and lotHold == Land.chains[3][1].hold, "a new lot takes the hold of the scythe")
+	t.equal(Toolbelt.stage(working, 6, nil, Land), 1, "a new wind pad starts at stage 1")
 	t.truthy(not Toolbelt.inHand(land, 7, "scythe", Land), "an unknown field is never worked")
 	t.truthy(Toolbelt.inHand(land, "container", nil, Land), "the container needs no tool")
 	t.truthy(not Toolbelt.inHand(land, "wired", "scythe", Land), "wiring needs the pliers")

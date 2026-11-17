@@ -235,9 +235,7 @@ local function updateLand(record: Record, counts: { number }, land: any)
 	for index in Assets.fields do
 		local total = Assets.siteCount(index)
 		local mown = PlotLayout.mown(land.cells and land.cells[index], land.sites[index] or 0, total)
-		local open = #mown < total
-			and land.tools[Land.fieldTools[index]] == true
-			and (index == 1 or (counts[index - 1] or 0) >= 1)
+		local open = #mown < total and (index == 1 or (counts[index - 1] or 0) >= 1)
 		table.insert(ground, table.concat(mown, ","))
 		table.insert(fence, if open then "open" else "-")
 	end

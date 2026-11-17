@@ -91,6 +91,10 @@ return function(t, load)
 	-- Land: tools serve a plant or a node that exists, every field has a tool, the scythe is free
 	local Land = load("Config/Land")
 	t.equal(Land.required, true, "the land gates are on: a site before the first plant")
+	local Data = load("Core/Data")
+	for field, chain in Land.chains do
+		t.equal(#chain, Data.CHAIN_LENGTH[field], `field {field}: the migration knows the chain length`)
+	end
 	t.equal(#Land.fields, #Plants, "one field per plant")
 	t.equal(#Land.fieldTools, #Plants, "one field tool per plant")
 	local toolIds: { [string]: any } = {}
