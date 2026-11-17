@@ -29,8 +29,8 @@ Assets.MAX_CELL = 14
 Assets.COLUMN = 12
 
 -- Parts budget of all plants on a full plot, and the parts per model (counted in assets/models).
-Assets.MAX_PLANT_PARTS = 1300
-Assets.partsPerModel = { [1] = 9, [2] = 19, [3] = 49, [4] = 4, [5] = 75, [6] = 20 } :: { [number]: number }
+Assets.MAX_PLANT_PARTS = 1400
+Assets.partsPerModel = { [1] = 9, [2] = 47, [3] = 49, [4] = 4, [5] = 75, [6] = 20 } :: { [number]: number }
 
 -- Fields by plant id (land design v2, section 3). A field is `size` x `size` tiles per cell and a list of cells; a cell
 -- is the (column, row) of its top-left tile and its number is its index in the list, which is also the fill order.
