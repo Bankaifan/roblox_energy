@@ -17,15 +17,17 @@ local PANEL_PADDING = 12
 local TITLE_TEXT = 18
 local ROW_TEXT = 14
 local ROW_MIN_HEIGHT = 36
+-- The Collect button is a touch target: at least 44 px high.
+local BUTTON_MIN_HEIGHT = 44
 local ROW_SIDE_PADDING = 8
 local ROW_VERTICAL_PADDING = 4
 
 -- Gives a text row or the button the shared look: wrapped text, inner padding, and a height that grows with the text.
-local function fitRow(control: GuiObject)
-	control.Size = UDim2.new(1, 0, 0, ROW_MIN_HEIGHT)
+local function fitRow(control: GuiObject, minimum: number)
+	control.Size = UDim2.new(1, 0, 0, minimum)
 	control.AutomaticSize = Enum.AutomaticSize.Y
 	local minHeight = Instance.new("UISizeConstraint")
-	minHeight.MinSize = Vector2.new(0, ROW_MIN_HEIGHT)
+	minHeight.MinSize = Vector2.new(0, minimum)
 	minHeight.Parent = control
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, ROW_SIDE_PADDING)
@@ -41,7 +43,7 @@ local function row(parent: Instance, order: number, size: number): TextLabel
 	text.TextSize = size
 	text.TextWrapped = true
 	text.LayoutOrder = order
-	fitRow(text)
+	fitRow(text, ROW_MIN_HEIGHT)
 	text.Parent = parent
 	return text
 end
@@ -95,7 +97,7 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 	collect.TextSize = ROW_TEXT
 	collect.TextWrapped = true
 	collect.LayoutOrder = 4
-	fitRow(collect)
+	fitRow(collect, BUTTON_MIN_HEIGHT)
 	collect.Parent = panel
 	collect.Activated:Connect(function()
 		gui.Enabled = false

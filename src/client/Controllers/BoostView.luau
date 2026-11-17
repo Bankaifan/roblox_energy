@@ -15,7 +15,8 @@ local BoostView = {}
 local GOLDEN = Color3.fromRGB(255, 214, 120)
 local BANNER_TEXT = 16
 local BUTTON_TEXT = 14
-local BUTTON_HEIGHT = 36
+-- The Sunshine Hour button is a touch target: at least 44 px high.
+local BUTTON_HEIGHT = 44
 
 -- "m:ss" for a number of seconds, never negative.
 local function clock(seconds: number): string
