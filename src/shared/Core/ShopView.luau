@@ -35,6 +35,7 @@ ShopView.tabs = {
 	{ id = "upgrades", key = "tab.upgrades", hint = "market.hint.upgrades" },
 	{ id = "storage", key = "tab.storage", hint = "market.hint.storage" },
 	{ id = "tools", key = "tab.tools", hint = "market.hint.tools" },
+	{ id = "sparks", key = "tab.sparks", hint = "market.hint.sparks" },
 }
 ShopView.STORAGE_MODES = { "charge", "sell", "auto" }
 
@@ -309,11 +310,40 @@ local function toolCards(input: Input): { Card }
 	return cards
 end
 
+-- One card per permanent node and spark item (view.sparks.items): name, price in sparks, the effect line, owned or Buy.
+local function sparkCards(input: Input): { Card }
+	local cards: { Card } = {}
+	local sparks = input.view.sparks
+	if sparks == nil then
+		return cards
+	end
+	for _, item in sparks.items do
+		local card: Card = {
+			id = item.id,
+			icon = "spark",
+			title = `{item.id} {input.t(`perm.{item.id}.name`)}`,
+			info = input.t(`perm.{item.id}.info`),
+			state = "short",
+		}
+		if item.owned then
+			card.state = "owned"
+			card.status = input.t("reason.bought")
+		else
+			card.state = if item.buyable then "affordable" else "short"
+			card.price = input.t("market.sparkPrice", { cost = item.sparks })
+			card.button = buy(input, item.buyable, "BuyNode", { node = item.id })
+		end
+		table.insert(cards, card)
+	end
+	return cards
+end
+
 local BUILDERS: { [string]: (Input) -> { Card } } = {
 	plants = plantCards,
 	upgrades = upgradeCards,
 	storage = storageCards,
 	tools = toolCards,
+	sparks = sparkCards,
 }
 
 -- The cards of `tab` for the server's view; an unknown tab or a missing view has no cards.

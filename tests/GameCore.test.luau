@@ -390,6 +390,81 @@ return function(t, load)
 		"prestige keeps the land"
 	)
 
+	-- Spark items (design v2, section 9): bought with sparks like the permanent nodes, kept on prestige.
+	local rich5 = fresh()
+	rich5.sparks, rich5.sparksSpent = 25, 0
+	local function buySpark(state: any, id: string): any
+		local result, ok = GameCore.apply(state, { type = "BuyNode", node = id }, gated)
+		t.truthy(ok, `{id} is bought with sparks`)
+		return result
+	end
+	local _, s4Ok = GameCore.apply(rich5, { type = "BuyNode", node = "S4" }, gated)
+	t.truthy(not s4Ok, "S4 is not in the game yet")
+	local rebated = buySpark(rich5, "S2")
+	t.equal(rebated.sparksSpent, 2, "S2 costs 2 sparks")
+	t.truthy(rebated.pnodes.S2 == true, "S2 is a permanent flag")
+	local _, twiceSpark = GameCore.apply(rebated, { type = "BuyNode", node = "S2" }, gated)
+	t.truthy(not twiceSpark, "a spark item is bought once")
+	local _, poorSpark = GameCore.apply(fresh(), { type = "BuyNode", node = "S1" }, gated)
+	t.truthy(not poorSpark, "a spark item needs its sparks")
+
+	-- S2 Tool Rebate: a tool not yet owned costs half (view and buying agree); the scythe stays free.
+	rebated.plants[1] = 1
+	rebated.coins = 15
+	local cheap, cheapOk = GameCore.apply(rebated, { type = "BuyTool", tool = "shovel" }, gated)
+	t.truthy(cheapOk and cheap.coins == 0, "the shovel costs 15 with S2")
+	t.equal(GameCore.view(rebated, gated).tools[3].price, 15, "the view shows the rebate price")
+	t.equal(GameCore.view(rebated, gated).tools[1].price, 0, "a free tool stays free")
+
+	-- S3 Quick Hands: every hold takes half the time.
+	local quick = buySpark(rich5, "S3")
+	t.equal(GameCore.view(quick, gated).holdFactor, 0.5, "the view gives the hold factor")
+	t.equal(GameCore.view(quick, gated).tools[3].hold, 0.5, "the shovel hold is halved")
+	t.equal(GameCore.view(rich5, gated).holdFactor, 1, "no factor without S3")
+
+	-- S1 Starter Kit: a new run starts with 4 Balcony Panels and 2 Water Wheels where the ground is prepared.
+	local kit = buySpark(rich5, "S1")
+	kit.runEarned = 10000000
+	local kitNoLand, kitNoLandOk = GameCore.apply(kit, { type = "Prestige" }, gated)
+	t.truthy(kitNoLandOk and kitNoLand.plants[1] == 0 and kitNoLand.plants[2] == 0, "no prepared ground, no units")
+	kit.land = { sites = { 1, 0, 0, 0, 0, 0 }, cells = { { 1 }, {}, {}, {}, {}, {} }, tools = { scythe = true } }
+	local kitRun = GameCore.apply(kit, { type = "Prestige" }, gated)
+	t.truthy(kitRun.plants[1] == 1 and kitRun.plants[2] == 0, "one mown cell holds one unit (unitsPerSite 1)")
+	kit.land.sites[1], kit.land.sites[2] = 6, 2
+	local kitFull = GameCore.apply(kit, { type = "Prestige" }, gated)
+	t.truthy(kitFull.plants[1] == 4 and kitFull.plants[2] == 2 and kitFull.plants[3] == 0, "4 panels and 2 wheels")
+	t.equal(kitFull.pnodes.S1, true, "S1 is kept on prestige")
+	local kitOpen = GameCore.apply(kit, { type = "Prestige" }, open)
+	t.truthy(kitOpen.plants[1] == 4 and kitOpen.plants[2] == 2, "without required land the units come anyway")
+
+	-- S5 Sign Paint: SetPaint needs S5 and a colour from 1 to 6; the choice survives prestige. S6 is a flag.
+	local _, noPaintOk = GameCore.apply(rich5, { type = "SetPaint", color = 2 }, gated)
+	t.truthy(not noPaintOk, "SetPaint needs S5")
+	local paintOwner = buySpark(rich5, "S5")
+	local painted = GameCore.apply(paintOwner, { type = "SetPaint", color = 3 }, gated)
+	t.equal(painted.paint, 3, "the colour is stored")
+	for _, bad in { 0, 7, 1.5, "red" } do
+		local _, badOk = GameCore.apply(painted, { type = "SetPaint", color = bad }, gated)
+		t.truthy(not badOk, `colour {bad} is rejected`)
+	end
+	painted.runEarned = 10000000
+	t.equal(GameCore.apply(painted, { type = "Prestige" }, gated).paint, 3, "the colour is kept on prestige")
+	t.equal(buySpark(rich5, "S6").pnodes.S6, true, "S6 is an owned flag")
+
+	-- The spark view: sparks left, a card per item, the grid multiplier now and after the next expansion.
+	local sparkState = fresh()
+	sparkState.sparks, sparkState.sparksSpent, sparkState.level = 10, 3, 1
+	sparkState.pnodes.P1 = true
+	local sparkView = GameCore.view(sparkState, gated).sparks
+	t.equal(sparkView.available, 7, "sparks left")
+	t.equal(#sparkView.items, 13, "eight permanent nodes and five spark items")
+	t.truthy(sparkView.items[1].owned and not sparkView.items[1].buyable, "P1 is owned")
+	t.truthy(sparkView.items[2].buyable and not sparkView.items[3].buyable, "P2 (5) is buyable, P3 (8) is not")
+	t.equal(sparkView.gridNow, 1.6, "grid output now")
+	t.equal(sparkView.gridNext, 2.6, "grid output after the next expansion")
+	t.equal(sparkView.sparksNext, 8, "sparks of the next expansion")
+	t.equal(GameCore.view(fresh(), gated).sparks.gridNow, 1, "level 0 is x1")
+
 	-- Offline: nothing under 60 seconds, capped at 2 hours; the Langzeit-Zähler adds 4 hours on top (cap 6 h).
 	local away = fresh()
 	away.plants[1] = 10

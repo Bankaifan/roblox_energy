@@ -157,6 +157,24 @@ return function(t, load)
 	t.equal(#noLand, #Land.tools, "without land rules every tool is still listed")
 	t.equal(noLand[1].state, "locked", "as not available yet")
 
+	-- Sparks: a card per permanent node and spark item; the Buy button sends BuyNode with the sparks as price.
+	local sparkState = fresh()
+	sparkState.sparks, sparkState.sparksSpent = 7, 3
+	sparkState.pnodes.P1 = true
+	local sparkCards = cards("sparks", sparkState)
+	t.equal(#sparkCards, 13, "eight permanent nodes and five spark items")
+	local sparks = byId(sparkCards)
+	t.equal(sparks.P1.state, "owned", "an owned node says so")
+	t.equal(sparks.P1.title, "P1 Starting Capital", "the title has id and name")
+	t.equal(sparks.S2.state, "affordable", "S2 costs 2 of the 4 sparks left")
+	t.equal(sparks.S2.price, "2 sparks", "the price is in sparks")
+	t.equal(sparks.S2.button.remote, "BuyNode", "Buy sends BuyNode")
+	t.equal(sparks.S2.button.payload.node, "S2", "with the item id")
+	t.equal(sparks.S3.state, "short", "S3 costs 6 sparks, 4 are left")
+	t.truthy(not sparks.S3.button.enabled, "its button is off")
+	t.equal(sparks.S4, nil, "S4 is not listed yet")
+	t.equal(byId(cards("sparks", sparkState, "de")).S2.title, "S2 Werkzeug-Rabatt", "German item name")
+
 	for _, tab in ShopView.tabs do
 		t.truthy(Locale.tables.de[tab.key] ~= nil and Locale.tables.de[tab.hint] ~= nil, `texts for tab {tab.id}`)
 	end

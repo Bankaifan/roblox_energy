@@ -3,6 +3,8 @@
 -- and the short English effect text (info, at most 60 characters) here.
 -- run: 22 run nodes, cost coins, reset on grid expansion.
 -- permanent: 8 permanent nodes, cost sparks, kept forever.
+-- spark: spark items (docs/land-development-design-v2.md, section 9), cost sparks, kept forever, stored beside the
+-- permanent nodes in state.pnodes. S4 Fine Tuning (aligned rows x2.5) waits for the aligned rows of step 4.
 -- requiresPlant: plant ID that must be owned once. requiresNode: ID of another run node.
 local Upgrades = {}
 
@@ -40,6 +42,14 @@ Upgrades.permanent = {
 	{ id = "P6", sparks = 25, info = "Offline cap 8 hours" },
 	{ id = "P7", sparks = 44, info = "Milestones give x2.5 instead of x2" },
 	{ id = "P8", sparks = 70, info = "All three rules run at the same time" },
+}
+
+Upgrades.spark = {
+	{ id = "S1", sparks = 4, info = "Runs start with 4 Balcony Panels, 2 Water Wheels" },
+	{ id = "S2", sparks = 2, info = "Tools not yet owned cost half" },
+	{ id = "S3", sparks = 6, info = "Every hold takes half the time" },
+	{ id = "S5", sparks = 3, info = "Pick the colour of sign, rope and blade tips" },
+	{ id = "S6", sparks = 5, info = "A golden crank with a faint glow" },
 }
 
 return Upgrades

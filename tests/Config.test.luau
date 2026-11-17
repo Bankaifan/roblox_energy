@@ -46,6 +46,8 @@ return function(t, load)
 	assertUnique(idsOf(Weather), "weather")
 	assertUnique(idsOf(Upgrades.run), "run nodes")
 	assertUnique(idsOf(Upgrades.permanent), "permanent nodes")
+	t.equal(#Upgrades.spark, 5, "spark items (S4 waits for the aligned rows)")
+	assertUnique(idsOf(Upgrades.spark), "spark items")
 
 	-- Prerequisites must exist; a node costs more than the node it requires
 	local plantIds: { [number]: boolean } = {}
@@ -81,7 +83,7 @@ return function(t, load)
 	end
 
 	-- Every upgrade node has a short English effect text for the HUD detail area
-	for _, list in { Upgrades.run, Upgrades.permanent } do
+	for _, list in { Upgrades.run, Upgrades.permanent, Upgrades.spark } do
 		for _, node in list do
 			t.truthy(type(node.info) == "string" and node.info ~= "", `{node.id}: info`)
 			t.truthy(#node.info <= 60, `{node.id}: info longer than 60 characters`)
@@ -126,5 +128,6 @@ return function(t, load)
 	t.equal(sumOf(Weather, "share"), 100, "weather shares in percent")
 	t.equal(sumOf(Phases, "duration"), 720, "day length in seconds")
 	t.equal(sumOf(Upgrades.permanent, "sparks"), 185, "sparks of all permanent nodes")
+	t.equal(sumOf(Upgrades.spark, "sparks"), 20, "sparks of the spark items S1, S2, S3, S5, S6")
 	t.equal(sumOf(Prestige, "sparks"), 185, "sparks of grid expansion levels 1 to 10")
 end
