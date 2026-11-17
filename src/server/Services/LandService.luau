@@ -136,9 +136,10 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 		local under = if type(target) == "number" then freeCellUnder(player, plot, target) else nil
 		local inHand = Toolbelt.inHand(land, target, ToolService.equipped(player), Land, under)
 		if type(target) == "number" then
-			-- A field is worked where the player stands: the cell must be the one the hold began on, still under his feet.
-			local cell = under
-			if held and inHand and cell ~= nil and cell == entry.held then
+			-- A field is worked on the cell the hold began on; the player must still stand on an unworked cell of the field
+			-- (a step over the tile edge while holding does not cancel the work).
+			local cell = entry.held
+			if held and inHand and under ~= nil and cell ~= nil then
 				sender(player, "Prepare", { target = target, cell = cell })
 			end
 		elseif held and inHand and nearby(player, anchor.Position) then
