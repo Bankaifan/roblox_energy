@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared:WaitForChild("Config"):WaitForChild("Assets") :: ModuleScript) :: any
 local PlotLayout = require(Shared:WaitForChild("Core"):WaitForChild("PlotLayout") :: ModuleScript) :: any
 local Meadow = require(Shared:WaitForChild("Core"):WaitForChild("Meadow") :: ModuleScript) :: any
+local River = require(Shared:WaitForChild("Core"):WaitForChild("River") :: ModuleScript) :: any
 
 local PlotGround = {}
 
@@ -25,6 +26,9 @@ type Saved = { region: Region3, materials: any, occupancies: any }
 type Entry = {
 	patches: { any }, -- the cleared patches in world orientation, relative to the plot centre
 	key: string, -- what the patches stand for
+	facing: number, -- 1, or -1 when the plot is mirrored in z
+	river: { number }?, -- the dig stage of each river segment (River.stages), nil = none
+	riverKey: string,
 	written: string?, -- the key the terrain shows now
 	saved: Saved?, -- the meadow as it was
 }
@@ -34,7 +38,8 @@ local worldReady = false
 local slots: { [number]: Entry } = {}
 
 local function write(slot: number, entry: Entry)
-	if entry.written == entry.key then
+	local fullKey = entry.key .. "|" .. entry.riverKey
+	if entry.written == fullKey then
 		return
 	end
 	local terrain = workspace.Terrain
@@ -51,6 +56,23 @@ local function write(slot: number, entry: Entry)
 	local materials = saved.materials
 	local size = materials.Size
 	local mask = Meadow.mask(entry.patches, slot, size.X, CELL)
+	-- The river: a trench of its dug segments, 3 studs under the meadow, and water 1 stud under it for the flooded ones.
+	-- The trench empties the top layer [-4, 0] to a quarter, the water fills the layer below and a quarter of the layer above.
+	local course = if entry.river ~= nil then River.course(Assets.river, slot) else nil
+	local cells = size.X
+	local trench = if course ~= nil then River.mask(course, entry.river, River.DRY, cells, CELL) else nil
+	local water = if course ~= nil then River.mask(course, entry.river, River.FLOODED, cells, CELL) else nil
+	local top = size.Y - 1 -- the layer [-4, 0]
+	local occupied = saved.occupancies
+	if trench ~= nil then
+		occupied = table.create(size.X)
+		for ix = 1, size.X do
+			occupied[ix] = table.create(size.Y)
+			for iy = 1, size.Y do
+				occupied[ix][iy] = table.clone(saved.occupancies[ix][iy])
+			end
+		end
+	end
 	local painted = table.create(size.X)
 	for ix = 1, size.X do
 		painted[ix] = table.create(size.Y)
@@ -59,12 +81,24 @@ local function write(slot: number, entry: Entry)
 			for iz = 1, size.Z do
 				local old = materials[ix][iy][iz]
 				row[iz] = if old ~= Enum.Material.Air and mask[ix][iz] then Enum.Material.Ground else old
+				if trench ~= nil then
+					local rz = if entry.facing == -1 then size.Z - iz + 1 else iz -- the course is unmirrored
+					if trench[ix][rz] then
+						if iy == top then
+							row[iz] = if water[ix][rz] then Enum.Material.Water else Enum.Material.Ground
+							occupied[ix][iy][iz] = if water[ix][rz] then 1 else 0.25
+						elseif iy == top + 1 then
+							row[iz] = if water[ix][rz] then Enum.Material.Water else Enum.Material.Air
+							occupied[ix][iy][iz] = if water[ix][rz] then 0.25 else 0
+						end
+					end
+				end
 			end
 			painted[ix][iy] = row
 		end
 	end
-	terrain:WriteVoxels(saved.region, CELL, painted, saved.occupancies)
-	entry.written = entry.key
+	terrain:WriteVoxels(saved.region, CELL, painted, occupied)
+	entry.written = fullKey
 end
 
 -- Sets the cleared patches of a slot ({ x, z, r } relative to the plot centre, unmirrored). `key` names their content:
@@ -72,9 +106,10 @@ end
 function PlotGround.clear(slot: number, facing: number, key: string, patches: { any })
 	local entry = slots[slot]
 	if entry == nil then
-		entry = { patches = {}, key = "" }
+		entry = { patches = {}, key = "", facing = facing, riverKey = "" }
 		slots[slot] = entry
 	end
+	entry.facing = facing
 	if entry.key == key and entry.written ~= nil then
 		return
 	end
@@ -84,6 +119,25 @@ function PlotGround.clear(slot: number, facing: number, key: string, patches: { 
 	end
 	entry.patches = turned
 	entry.key = key
+	if worldReady then
+		write(slot, entry)
+	end
+end
+
+-- Sets the dig stages of the river segments of a slot (River.stages: 0 meadow, 1 dry trench, 2 flooded).
+function PlotGround.river(slot: number, facing: number, stages: { number })
+	local entry = slots[slot]
+	if entry == nil then
+		entry = { patches = {}, key = "", facing = facing, riverKey = "" }
+		slots[slot] = entry
+	end
+	local riverKey = table.concat(stages, "")
+	entry.facing = facing
+	if entry.riverKey == riverKey and entry.written ~= nil then
+		return
+	end
+	entry.river = if string.find(riverKey, "[12]") ~= nil then stages else nil
+	entry.riverKey = riverKey
 	if worldReady then
 		write(slot, entry)
 	end
