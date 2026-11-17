@@ -1,0 +1,1 @@
+- Anchoring a wind plant (wrench for the mini turbines, tamper for the wind turbines) builds a round concrete foundation of two steps; the turbine stands on it.

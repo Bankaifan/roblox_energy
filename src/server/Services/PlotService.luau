@@ -42,6 +42,8 @@ type Record = {
 	groundKey: string, -- what the cleared patches show now
 	fenceKey: string, -- what the fences show now
 	fences: Folder?, -- stakes and ropes around the fields that wait for their tool
+	foundationKey: string, -- what the foundations show now
+	foundations: Folder?, -- concrete steps under the anchored wind plants
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -173,7 +175,9 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 			break
 		end
 		local angle = if site.angle ~= nil then site.angle * record.facing else nil
-		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y, angle)
+		-- A plant on a foundation stands on top of its two steps.
+		local lift = if Assets.foundations[index] ~= nil then 2 * Assets.FOUNDATION_STEP - 0.15 else 0
+		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y + lift, angle)
 		copy.Parent = record.model
 		table.insert(shown, copy)
 	end
@@ -346,6 +350,64 @@ local function updateLand(record: Record, counts: { number }, land: any)
 	end
 end
 
+-- The cells of a field whose stages are done up to `stage` (the prepared ones count as done).
+local function anchored(land: any, index: number, stage: number): { number }
+	local cells = (land.cells and land.cells[index]) or {}
+	local steps = (land.steps and land.steps[index]) or {}
+	local sites = land.sites[index] or 0
+	local list = {}
+	for i, cell in cells do
+		if i <= sites or (steps[i] or 0) >= stage then
+			table.insert(list, cell)
+		end
+	end
+	return list
+end
+
+-- Round concrete foundations of two steps under the anchored cells of the wind fields; the plant stands in the middle.
+local function updateFoundations(record: Record, land: any)
+	local parts = {}
+	local keys = {}
+	for index, foundation in Assets.foundations do
+		local cells = anchored(land, index, foundation.stage)
+		table.insert(keys, `{index}:{table.concat(cells, ",")}`)
+		for _, site in PlotLayout.cellSites(Assets.fields[index], cells, Assets.TILE, Assets.PLOT_TILES) do
+			table.insert(parts, { site = site, radius = foundation.radius })
+		end
+	end
+	local key = table.concat(keys, " ")
+	if record.foundationKey == key then
+		return
+	end
+	record.foundationKey = key
+	if record.foundations ~= nil then
+		record.foundations:Destroy()
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Foundations"
+	local step = Assets.FOUNDATION_STEP
+	for _, item in parts do
+		local centre = sitePoint(record, item.site)
+		for level = 1, 2 do
+			local radius = if level == 1 then item.radius else item.radius * 2 / 3
+			local disc = Instance.new("Part")
+			disc.Name = "Foundation" .. level
+			disc.Shape = Enum.PartType.Cylinder
+			disc.Material = Enum.Material.Concrete
+			disc.Color = Color3.fromRGB(168, 168, 164)
+			disc.Anchored = true
+			disc.CanCollide = true
+			disc.Size = Vector3.new(step, radius * 2, radius * 2)
+			-- A cylinder's axis is its X axis: turn it upright; the lower step sinks 0.15 studs into the ground.
+			disc.CFrame = CFrame.new(centre.X, record.origin.Y + step * (level - 0.5) - 0.15, centre.Z)
+				* CFrame.Angles(0, 0, math.pi / 2)
+			disc.Parent = folder
+		end
+	end
+	folder.Parent = record.model
+	record.foundations = folder
+end
+
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
@@ -395,6 +457,8 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		groundKey = "",
 		fenceKey = "",
 		fences = nil,
+		foundationKey = "",
+		foundations = nil,
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -438,6 +502,7 @@ function PlotService.update(
 	local tidy = ownLand.tools.rails == true
 	updateFurniture(record, extras or { stage = 0, control = false })
 	updateLand(record, counts, ownLand)
+	updateFoundations(record, ownLand)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
 			local cells = PlotLayout.mown(

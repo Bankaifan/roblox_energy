@@ -254,4 +254,13 @@ return function(t, load)
 	t.equal(PlotLayout.slot(1, 240, 128).x, 240, "slot 1 is the first column")
 	t.equal(PlotLayout.slot(2, 240, 128).z, -128, "slot 2 is on the other side of the road")
 	t.equal(PlotLayout.slot(8, 240, 128).x, 960, "slot 8 is the fourth column")
+
+	-- Foundations: a known field, the stage exists in its chain, and the round base fits the cell.
+	local Land = load("Config/Land")
+	for id, foundation in Assets.foundations do
+		local field = Assets.fields[id]
+		t.truthy(field ~= nil and field.river ~= true, `foundation {id} is on a land field`)
+		t.truthy(foundation.stage <= #Land.chains[id], `foundation {id} stage is in the chain`)
+		t.truthy(foundation.radius * 2 <= field.size * Assets.TILE, `foundation {id} fits its cell`)
+	end
 end
