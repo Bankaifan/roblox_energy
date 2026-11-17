@@ -1,0 +1,1 @@
+- Working a field no longer fails when the character steps over a tile edge while the key is held.
