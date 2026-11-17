@@ -163,7 +163,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 		local storage = view.storage
 		PlotService.update(player, nextState.plants, {
 			stage = storage.stage,
-			control = storage.rulesUnlocked,
+			control = storage.controlOwned, -- the board stands once U21 is owned; wiring it is what unlocks the rules
 			fill = storage.fill,
 		}, nextState.land)
 		LandService.refresh(player, nextState)
