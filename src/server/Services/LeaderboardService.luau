@@ -5,11 +5,21 @@
 -- Core/Ranking; Studio tests replace the store with useStore.
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Ranking = require(Shared:WaitForChild("Core"):WaitForChild("Ranking") :: ModuleScript) :: any
 
 local STORE_NAME = "WorldLeaderboard"
+
+-- A DataStore that cannot be reached is expected in Studio (unpublished place), so there it is only a note, not a warning.
+local function problem(text: string)
+	if RunService:IsStudio() then
+		print(text)
+	else
+		warn(text)
+	end
+end
 
 type Seen = {
 	name: string,
@@ -43,7 +53,7 @@ local function getStore(): any
 		if ok then
 			store = result
 		else
-			warn(`Leaderboard store unavailable: {result}`)
+			problem(`Leaderboard store unavailable: {result}`)
 		end
 	end
 	return store
@@ -70,7 +80,7 @@ local function write(entry: Seen)
 			target:SetAsync(key, score)
 		end)
 		if not ok then
-			warn(`Leaderboard write failed: {err}`)
+			problem(`Leaderboard write failed: {err}`)
 		end
 	end)
 end
@@ -142,7 +152,7 @@ local function worldList(): { WorldRow }
 		if ok then
 			worldRows = rows
 		else
-			warn(`Leaderboard read failed: {rows}`)
+			problem(`Leaderboard read failed: {rows}`)
 		end
 	end
 	fetching = false
