@@ -1,7 +1,7 @@
 --!strict
 -- Network messages (Bauplan.md, section 5): names, direction, field rules and the limit per player.
 -- Net.check turns a client payload into a clean table: only the declared fields, each of its declared type.
--- Field rules: "int" (finite whole number), "number" (finite), "string", "boolean", or a list of allowed values.
+-- Field rules: "int" (finite whole number), "number" (finite), "string", "boolean", "table", or a list of allowed values.
 -- The server checks in Core/GameCore (IDs from Config, prices, ownership) come after this.
 export type Limit = { max: number, per: number }
 export type Message = { direction: string, fields: { [string]: any }, optional: { [string]: any }?, limit: Limit? }
@@ -58,7 +58,12 @@ Net.messages = {
 		},
 	},
 	Welcome = { direction = "server", fields = { away = "number", coins = "number" } }, -- once per join, after Ready
-	PlotPublic = { direction = "server", fields = {} },
+	-- Core/Cosmetics builds it: owner (the plot's model name), level, plants (count per plant id), cosmetics (flags).
+	-- Sent to all players at most every plotPublicSeconds per plot (PlotPublicService).
+	PlotPublic = {
+		direction = "server",
+		fields = { owner = "string", level = "int", plants = "table", cosmetics = "table" },
+	},
 	Notice = { direction = "server", fields = { text = "string" } },
 	-- The leaderboard screen asks for both lists while it is open (about every 5 seconds, see the limit).
 	RankRequest = { direction = "client", fields = {}, limit = { max = 1, per = 4 } },
@@ -81,6 +86,8 @@ local function accepts(rule: any, value: any): boolean
 		return type(value) == "string" and #value <= 64
 	elseif rule == "boolean" then
 		return type(value) == "boolean"
+	elseif rule == "table" then
+		return type(value) == "table"
 	end
 	return false
 end

@@ -14,6 +14,7 @@ local DataService = require(script.Parent.DataService)
 local BoostService = require(script.Parent.BoostService)
 local PurchaseService = require(script.Parent.PurchaseService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
+local PlotPublicService = require(script.Parent.PlotPublicService)
 
 local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
@@ -94,6 +95,7 @@ function Session.stop(player: Player)
 	welcomes[player] = nil
 	BoostService.forget(player)
 	LeaderboardService.forget(player)
+	PlotPublicService.forget(player)
 	DataService.release(player, state)
 	PlotService.remove(player)
 end
@@ -171,6 +173,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 		}, nextState.land)
 		LandService.refresh(player, nextState)
 		ToolService.refresh(player, nextState.land or config.land.start)
+		PlotPublicService.tick(remotes, player, nextState)
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,
