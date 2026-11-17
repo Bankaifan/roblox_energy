@@ -1,0 +1,1 @@
+- Studio no longer warns when the leaderboard store cannot be reached (unpublished place).
