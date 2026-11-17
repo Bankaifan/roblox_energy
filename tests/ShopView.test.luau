@@ -111,6 +111,15 @@ return function(t, load)
 	t.equal(storage[1].state, "short", "200 coins do not cover the container")
 	t.equal(storage[2].state, "locked", "modes are locked before U17")
 	t.equal(storage[#storage].id, "rules", "rules are one locked card before U21")
+	t.equal(storage[#storage].info, Locale.t("rules.locked", "en"), "before U21 the card asks for U21")
+	state.nodes.U21 = true
+	local unwired = cards("storage", state)
+	t.equal(
+		unwired[#unwired].info,
+		Locale.t("rules.unwired", "en"),
+		"with U21 but no wiring the card asks for the wiring"
+	)
+	state.nodes.U21 = nil
 	state.coins = 500
 	state.nodes.U17 = true
 	state.nodes.U21 = true

@@ -722,6 +722,7 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 		stage = stage,
 		mode = state.storage.mode,
 		rulesUnlocked = unlocked,
+		controlOwned = state.nodes.U21 == true, -- U21 bought; the rules still need the wiring (Cable Pliers) when it is false above
 		autoReady = autoReady(state, env),
 		rules = rules,
 		fill = env.formulas.storageFill(state.storage.charge, capacity),
