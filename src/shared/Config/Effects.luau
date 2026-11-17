@@ -31,4 +31,5 @@ return {
 	longMeterHours = 4, -- Pass Langzeit-Zähler, on top
 	offlineEfficiency = 0.5, -- Wirkungsgrad offline
 	offlineEfficiencyP4 = 0.75, -- P4 Nachtschicht
+	plotPublicSeconds = 5, -- PlotPublic: at most one message per plot in this many seconds (Bauplan, section 5)
 }
