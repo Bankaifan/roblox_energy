@@ -228,8 +228,9 @@ function PlantModels.cleanMarket(market: Model)
 	end
 end
 
--- Mounts two small solar panels (clones of the plant 1 model) on the market's front, the side facing the plot centre.
--- `facing` -1: the market was turned by 180 degrees, so its front is on the +Z side.
+-- Mounts two small solar panels (clones of the plant 1 model) on the market's roof, tilted towards the plot centre, so door
+-- and window stay free. `facing` -1: the market was turned by 180 degrees, so its front is on the +Z side.
+local ROOF_TILT = 0.42 -- sideways share of the panel normal: about 25 degrees from the vertical
 function PlantModels.mountPanels(market: Model, facing: number?)
 	-- The building's own box: small add-ons (sign poster, banner posts) would stretch the whole-model box.
 	local boxes: { any } = {}
@@ -244,21 +245,21 @@ function PlantModels.mountPanels(market: Model, facing: number?)
 	local high = Vector3.new(building.maxX, building.maxY, building.maxZ)
 	local boxCFrame = CFrame.new((low + high) / 2)
 	local size = high - low
+	local side = if facing == -1 then -1 else 1
 	for i = 1, 2 do
 		local panel = PlantModels.clone(1)
 		if panel == nil then
 			return
 		end
-		-- Flat against the wall: the glass side looks along Z towards the plot centre.
-		local side = if facing == -1 then -1 else 1
-		lay(panel, Vector3.new(0, 0, -side))
+		-- Glass up and tilted towards the front (the plot centre side).
+		lay(panel, Vector3.new(0, 1 - ROOF_TILT * 0.2, -side * ROOF_TILT).Unit)
 		local _, panelSize = worldBox(panel)
-		panel:ScaleTo(panel:GetScale() * Assets.fitScale(panelSize.X, panelSize.Y, size.X / 4, 1))
+		panel:ScaleTo(panel:GetScale() * Assets.fitScale(panelSize.X, panelSize.Z, size.X / 4, 1))
 		local centre, scaled = worldBox(panel)
 		local x = boxCFrame.Position.X + (i - 1.5) * size.X / 3
-		-- Touching the facade: the back of the panel sits 0.05 studs inside the wall, never floating.
-		local z = boxCFrame.Position.Z - side * (size.Z / 2 + scaled.Z / 2 - 0.05)
-		local y = boxCFrame.Position.Y - size.Y / 2 + size.Y * 0.6
+		local z = boxCFrame.Position.Z - side * size.Z * 0.1
+		-- Resting on the roof: the lowest edge sits 0.1 studs into it, never floating.
+		local y = high.Y + scaled.Y / 2 - 0.1
 		panel:PivotTo(panel:GetPivot() + Vector3.new(x, y, z) - centre)
 		panel.Parent = market
 	end

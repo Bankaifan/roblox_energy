@@ -1,0 +1,1 @@
+- The two solar modules of the Mini Market now sit tilted on its roof instead of in front of the door and the window.
