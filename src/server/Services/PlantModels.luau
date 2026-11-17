@@ -308,6 +308,51 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number)
 	CollectionService:AddTag(wheel, "WheelRotor")
 end
 
+-- The walk-in container around the battery spot: floor, roof, back and end walls and a front wall with a door opening.
+-- `facing` mirrors z for a plot that faces the other way; the front always looks at the plot centre.
+function PlantModels.container(origin: Vector3, groundY: number, facing: number?): Model
+	local c = Assets.container
+	local spot = Assets.furniture.battery
+	local side = facing or 1
+	local model = Instance.new("Model")
+	model.Name = "Container"
+	local centre = origin + Vector3.new(spot.x, 0, spot.z * side)
+	local function box(
+		name: string,
+		dx: number,
+		y: number,
+		dz: number,
+		sx: number,
+		sy: number,
+		sz: number,
+		glow: boolean?
+	)
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Anchored = true
+		part.CanQuery = false
+		part.Material = if glow then Enum.Material.Neon else Enum.Material.Metal
+		part.Color = if glow then Color3.fromRGB(255, 244, 214) else Color3.fromRGB(70, 110, 150)
+		part.Size = Vector3.new(sx, sy, sz)
+		part.Position = Vector3.new(centre.X + dx, groundY + y, centre.Z + dz * side)
+		part.CanCollide = not glow
+		part.Parent = model
+	end
+	local w, d, h, t = c.size, c.depth, c.height, c.wall
+	box("Floor", 0, t / 2, 0, w, t, d)
+	box("Roof", 0, h - t / 2, 0, w, t, d)
+	box("Back", 0, h / 2, d / 2 - t / 2, w, h, t) -- road side
+	box("EndLeft", -w / 2 + t / 2, h / 2, 0, t, h, d)
+	box("EndRight", w / 2 - t / 2, h / 2, 0, t, h, d)
+	local gap = c.door
+	local piece = (w - gap) / 2
+	box("FrontLeft", -(gap / 2 + piece / 2), h / 2, -d / 2 + t / 2, piece, h, t)
+	box("FrontRight", gap / 2 + piece / 2, h / 2, -d / 2 + t / 2, piece, h, t)
+	box("Lintel", 0, (h + c.doorHeight) / 2, -d / 2 + t / 2, gap, h - c.doorHeight, t)
+	box("Light", 0, h - t - 0.2, 0, w - 2, 0.2, 0.6, true)
+	return model
+end
+
 -- Fits `copy` into a cell of `cell` studs centred on `centre` (x, z), standing on `groundY`. A `flat` plant is laid
 -- down first, glass side up. The size depends on the cell only; `angle` (degrees about the world's Y, optional) turns
 -- the copy after it is scaled, so a turned copy keeps its size. All boxes are along the world axes.

@@ -38,6 +38,7 @@ type Record = {
 	keys: { string }, -- index -> "<units><w|t>" of the units shown now (w wild, t tidy)
 	control: Model?, -- the control center, built once U21 is owned
 	batteries: { Model }, -- one unit per storage stage
+	shell: Model?, -- the walk-in container, built once it is bought
 	groundKey: string, -- what the cleared patches show now
 	fenceKey: string, -- what the fences show now
 	fences: Folder?, -- stakes and ropes around the fields that wait for their tool
@@ -246,6 +247,10 @@ local function updateLand(record: Record, counts: { number }, land: any)
 		table.insert(fence, if open then "open" else "-")
 	end
 	local container = land.container == true or #record.batteries > 0
+	if container and record.shell == nil then
+		record.shell = PlantModels.container(record.origin, record.origin.Y, record.facing)
+		record.shell.Parent = record.model
+	end
 	local groundKey = table.concat(ground, " ") .. ` {record.control ~= nil} {container}`
 	if record.groundKey ~= groundKey then
 		record.groundKey = groundKey
@@ -332,6 +337,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		keys = {},
 		control = nil,
 		batteries = {},
+		shell = nil,
 		groundKey = "",
 		fenceKey = "",
 		fences = nil,

@@ -118,6 +118,17 @@ return function(t, load)
 		end
 	end
 	t.truthy(parts <= Assets.MAX_PLANT_PARTS, `a full plot has {parts} plant parts, within the budget`)
+	-- The walk-in container stands around the battery spot, clear of the control board and the market.
+	local box, battery = Assets.container, Assets.furniture.battery
+	t.truthy(
+		battery.x + box.size / 2 < Assets.furniture.control.x - Assets.furniture.control.size / 2,
+		"the container is clear of the board"
+	)
+	t.truthy(
+		battery.x - box.size / 2 > Assets.furniture.market.x + Assets.furniture.market.size / 2,
+		"the container is clear of the market"
+	)
+	t.truthy(box.door < box.size and box.doorHeight < box.height, "the door fits the front wall")
 	t.equal(Assets.siteCount(1), 25, "25 panel tiles")
 	t.equal(Assets.siteCount(2), 7, "7 river segments")
 	t.equal(#PlotLayout.sites(Assets.fields[1], 99, tile, tiles), 25, "sites are capped at the field")
