@@ -5,11 +5,13 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local Hud = require(script.Parent.Controllers.Hud)
 local Market = require(script.Parent.Controllers.Market)
 local WelcomeScreen = require(script.Parent.WelcomeScreen)
+local LeaderboardScreen = require(script.Parent.LeaderboardScreen)
 
 local net = ReplicatedStorage:WaitForChild("Net")
 local hud = Hud.build(net)
 local market = Market.build(net, hud.language)
 local welcome = WelcomeScreen.build(hud.language)
+LeaderboardScreen.build(net, hud.language)
 local snapshot = net:WaitForChild("Snapshot") :: RemoteEvent
 local delta = net:WaitForChild("Delta") :: RemoteEvent
 local env = net:WaitForChild("Env") :: RemoteEvent

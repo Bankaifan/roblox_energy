@@ -60,6 +60,10 @@ Net.messages = {
 	Welcome = { direction = "server", fields = { away = "number", coins = "number" } }, -- once per join, after Ready
 	PlotPublic = { direction = "server", fields = {} },
 	Notice = { direction = "server", fields = { text = "string" } },
+	-- The leaderboard screen asks for both lists while it is open (about every 5 seconds, see the limit).
+	RankRequest = { direction = "client", fields = {}, limit = { max = 1, per = 4 } },
+	-- RankList: `server` rows { name, level, earned } and `world` rows { name, score } (Core/Ranking).
+	RankList = { direction = "server", fields = {} },
 } :: { [string]: Message }
 
 local function isFinite(value: any): boolean
