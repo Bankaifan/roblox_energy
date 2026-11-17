@@ -227,7 +227,15 @@ function ShopView.ruleCards(input: Input): { Card }
 	local t = input.t
 	local stored = input.view.storage
 	if not stored.rulesUnlocked then
-		return { { id = "rules", icon = "rule", title = t("rules.title"), info = t("rules.locked"), state = "locked" } }
+		return {
+			{
+				id = "rules",
+				icon = "rule",
+				title = t("rules.title"),
+				info = t(if stored.controlOwned then "rules.unwired" else "rules.locked"),
+				state = "locked",
+			},
+		}
 	end
 	local step = input.ruleStep or 0.1
 	local cards: { Card } = {

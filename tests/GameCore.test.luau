@@ -374,6 +374,7 @@ return function(t, load)
 	t.truthy(storedOk, "U17 with the container")
 	stored.nodes.U21 = true
 	t.equal(GameCore.view(stored, gated).storage.rulesUnlocked, false, "the rules need the wiring")
+	t.equal(GameCore.view(stored, gated).storage.controlOwned, true, "U21 is owned while the wiring is missing")
 	stored.coins = 1000
 	local _, unwiredOk = GameCore.apply(stored, { type = "Prepare", target = "wired" }, gated)
 	t.truthy(not unwiredOk, "wiring needs the pliers")
