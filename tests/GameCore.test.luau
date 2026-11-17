@@ -251,6 +251,88 @@ return function(t, load)
 	)
 	t.truthy(not pastOk, "Prepare stops at the sites of the field")
 
+	-- Tool chains: a cell is worked stage by stage, each stage needs its tool, a cell counts when its chain is done.
+	do
+		local function work(state: any, action: any): (any, boolean)
+			action.type = "Prepare"
+			return GameCore.apply(state, action, gated)
+		end
+		local chained = fresh()
+		chained.plants = { 1, 1, 0, 1, 1, 1 }
+		chained.coins = 1e6
+		chained.land = table.clone(gated.config.land.start)
+		chained.land.tools = { scythe = true, hammer = true }
+		local _, riverNoShovel = work(chained, { target = 2, cell = 1 })
+		t.truthy(not riverNoShovel, "the river needs the shovel")
+		local lot, lotOk = work(chained, { target = 3, cell = 5 })
+		t.truthy(
+			lotOk and lot.land.sites[3] == 0 and lot.land.steps[3][1] == 1,
+			"the scythe mows the lot, no house yet"
+		)
+		t.equal(table.concat(lot.land.cells[3], ","), "5", "the cell in work is listed")
+		local _, hammerFirst = work(chained, { target = 5, cell = 2 })
+		t.truthy(hammerFirst, "a farm cell starts with the scythe")
+		local house, houseOk = work(lot, { target = 3, cell = 5 })
+		t.truthy(
+			houseOk and house.land.sites[3] == 1 and house.land.steps[3][1] == 2,
+			"the hammer builds the house, the cell counts"
+		)
+		local _, doneAgain = work(house, { target = 3, cell = 5 })
+		t.truthy(not doneAgain, "a prepared cell takes no more stages")
+		local _, farmLocked = GameCore.apply(lot, { type = "BuyPlant", plant = 3, qty = 1 }, gated)
+		t.truthy(not farmLocked, "the roof panels need a house: a mown lot is not enough")
+		local roofed = GameCore.apply(house, { type = "BuyPlant", plant = 3, qty = 1 }, gated)
+		t.equal(roofed.plants[3], 1, "with a house standing the roof panels can be bought")
+		local noHammer = table.clone(chained)
+		noHammer.land = table.clone(chained.land)
+		noHammer.land.tools = { scythe = true }
+		local mownOnly = (work(noHammer, { target = 3, cell = 5 }))
+		local _, noHammerOk = work(mownOnly, { target = 3, cell = 5 })
+		t.truthy(not noHammerOk, "the second stage needs its tool: without the hammer no house")
+		local farm = (work(chained, { target = 5, cell = 2 }))
+		local fenced = work(farm, { target = 5, cell = 2 })
+		t.truthy(fenced.land.steps[5][1] == 2 and fenced.land.sites[5] == 0, "the hammer fences the farm cell")
+		local _, noDrum = work(fenced, { target = 5, cell = 2 })
+		t.truthy(not noDrum, "the cable drum is needed after the fence")
+		fenced.land.tools.drum = true
+		local cabled = work(fenced, { target = 5, cell = 2 })
+		t.truthy(
+			cabled.land.sites[5] == 1 and cabled.land.steps[5][1] == 3,
+			"the drum lays the cables, the cell counts"
+		)
+		local wind = work(work(chained, { target = 6 }), { target = 6 })
+		t.truthy(
+			wind.land.steps[6][1] == 1 and wind.land.sites[6] == 0,
+			"the tamper is not owned: the wind pad stays mown"
+		)
+		local first = (work(chained, { target = 3, cell = 5 }))
+		local second = work(first, { target = 3, cell = 2 })
+		local both = work(second, { target = 3 })
+		t.truthy(
+			both.land.steps[3][1] == 2 and both.land.cells[3][1] == 5 and both.land.sites[3] == 1,
+			"without a cell the first cell in work continues"
+		)
+		local ordered = work(second, { target = 3, cell = 2 })
+		t.equal(table.concat(ordered.land.cells[3], ","), "2,5", "prepared cells are listed before the cell in work")
+		t.equal(table.concat(ordered.land.steps[3], ","), "2,1", "and so are their stages")
+
+		-- The river is dug downstream: segment k only after segment k - 1 is flooded.
+		local digger = fresh()
+		digger.plants = { 1, 1, 0, 0, 0, 0 }
+		digger.land = table.clone(gated.config.land.start)
+		digger.land.tools = { scythe = true, shovel = true }
+		local _, third = work(digger, { target = 2, cell = 3 })
+		t.truthy(not third, "the third segment cannot be dug first")
+		local trench = work(digger, { target = 2, cell = 1 })
+		t.truthy(trench.land.steps[2][1] == 1 and trench.land.sites[2] == 0, "the first stroke digs the trench only")
+		local _, secondTrench = work(trench, { target = 2, cell = 2 })
+		t.truthy(not secondTrench, "the next segment waits until this one is flooded")
+		local flooded = work(trench, { target = 2, cell = 1 })
+		t.truthy(flooded.land.sites[2] == 1 and flooded.land.steps[2][1] == 2, "the second stroke floods the segment")
+		local next = work(flooded, { target = 2 })
+		t.truthy(next.land.cells[2][2] == 2 and next.land.sites[2] == 1, "without a cell the next segment is dug")
+	end
+
 	local owner = fresh()
 	owner.plants[1] = 1
 	owner.coins = 29

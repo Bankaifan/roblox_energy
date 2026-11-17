@@ -76,4 +76,59 @@ Steps[3] = function(profile: any): any
 	return profile
 end
 
+-- Version 4 -> 5 (docs/land-development-design-v2.md, section 10): cells get stages (`land.steps`) and every field holds
+-- units per cell. Per field n = min(max(old sites, ceil(owned / capacity)), cell count); cells 1..n are prepared with every
+-- stage done (the river: its first n segments), so no old profile owns more units than its ground carries. The numbers
+-- are literal on purpose, so the step never changes when the land config does.
+local CAPACITY = { 4, 16, 16, 16, 25, 25 }
+local CELLS = { 25, 7, 7, 7, 4, 4 }
+local STAGES = { 1, 2, 2, 2, 3, 3 }
+Steps[4] = function(profile: any): any
+	local land = profile.land
+	if type(land) ~= "table" then
+		return profile
+	end
+	local sites, cells, steps = {}, {}, {}
+	for field = 1, 6 do
+		local owned = if type(profile.plants) == "table" and type(profile.plants[field]) == "number"
+			then profile.plants[field]
+			else 0
+		local old = if type(land.sites) == "table" and type(land.sites[field]) == "number" then land.sites[field] else 0
+		local n = math.min(math.max(math.floor(old), math.ceil(owned / CAPACITY[field])), CELLS[field])
+		local list, done, used = {}, {}, {}
+		local saved = if type(land.cells) == "table" and type(land.cells[field]) == "table"
+			then land.cells[field]
+			else {}
+		if field ~= 2 then
+			for _, cell in saved do
+				if
+					#list < n
+					and type(cell) == "number"
+					and cell % 1 == 0
+					and cell >= 1
+					and cell <= CELLS[field]
+					and not used[cell]
+				then
+					used[cell] = true
+					table.insert(list, cell)
+				end
+			end
+		end
+		local free = 1
+		while #list < n do
+			if not used[free] then
+				used[free] = true
+				table.insert(list, free)
+			end
+			free += 1
+		end
+		for _ = 1, n do
+			table.insert(done, STAGES[field])
+		end
+		sites[field], cells[field], steps[field] = n, list, done
+	end
+	land.sites, land.cells, land.steps = sites, cells, steps
+	return profile
+end
+
 return Steps

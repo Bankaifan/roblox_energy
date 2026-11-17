@@ -15,22 +15,53 @@ function Toolbelt.owned(land: any, config: any): { string }
 	return ids
 end
 
--- The tool a step needs in the hand: a field (plant id) needs its field tool, "wired" the pliers. Nil means bare
--- hands (the market shutter, the container) or an unknown target.
-function Toolbelt.toolFor(target: any, config: any): string?
+-- The stage a field step would work next: its number (1 = first stage), its tool and its hold seconds. `cell` names the
+-- cell under the player; without one it is the first cell still in work, else a new cell (stage 1). Nil when the cell is
+-- prepared already or the field is unknown.
+function Toolbelt.stage(land: any, field: any, cell: number?, config: any): (number?, string?, number?)
+	local chain = if type(field) == "number" then config.chains[field] else nil
+	if chain == nil then
+		return nil, nil, nil
+	end
+	local cells = if land.cells ~= nil then land.cells[field] or {} else {}
+	local steps = if land.steps ~= nil then land.steps[field] or {} else {}
+	local sites = if land.sites ~= nil then land.sites[field] or 0 else 0
+	local index = nil
+	if cell == nil then
+		if cells[sites + 1] ~= nil then
+			index = sites + 1
+		end
+	else
+		index = table.find(cells, cell)
+	end
+	local done = 0
+	if index ~= nil then
+		done = steps[index] or (if index <= sites then #chain else 1)
+	end
+	local entry = chain[done + 1]
+	if entry == nil then
+		return nil, nil, nil
+	end
+	return done + 1, entry.tool, entry.hold
+end
+
+-- The tool a step needs in the hand: a field (plant id) needs the tool of its next stage (of `cell`, see stage), "wired" the
+-- pliers. Nil means bare hands (the market shutter, the container), an unknown target or a cell that is done.
+function Toolbelt.toolFor(target: any, config: any, land: any?, cell: number?): string?
 	if target == "wired" then
 		return "pliers"
 	elseif type(target) == "number" then
-		return config.fieldTools[target]
+		local _, tool = Toolbelt.stage(land or {}, target, cell, config)
+		return tool
 	end
 	return nil
 end
 
 -- True when the step may be worked now: it needs no tool, or the needed tool is owned and is the one equipped.
-function Toolbelt.inHand(land: any, target: any, equipped: string?, config: any): boolean
-	local tool = Toolbelt.toolFor(target, config)
+function Toolbelt.inHand(land: any, target: any, equipped: string?, config: any, cell: number?): boolean
+	local tool = Toolbelt.toolFor(target, config, land, cell)
 	if tool == nil then
-		return type(target) ~= "number"
+		return type(target) ~= "number" and target ~= "wired"
 	end
 	return land.tools[tool] == true and equipped == tool
 end

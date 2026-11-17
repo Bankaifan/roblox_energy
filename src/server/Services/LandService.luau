@@ -38,7 +38,8 @@ type Entry = {
 	hold: number,
 	cell: number?, -- field cell under the owner's feet now (fields only)
 	held: number?, -- the cell the hold began on (fields only)
-	possible: boolean, -- the step may be worked now, apart from where the player stands
+	possible: boolean, -- the step may be worked now, apart from where the player stands and the tool in the hand
+	stage: number?, -- stage of the cell under the owner's feet (fields only), to retitle the prompt on a change
 }
 type Plot = { frame: Frame, work: any, entries: { Entry }, state: any? } -- state: the run at the last refresh
 local plots: { [Player]: Plot } = {}
@@ -108,7 +109,7 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "LandPrompt" .. tostring(target)
 	local lang = Locale.resolve(player.LocaleId)
-	local tool = Toolbelt.toolFor(target, Land)
+	local tool = Toolbelt.toolFor(target, Land, Land.start, nil)
 	prompt.ActionText = Locale.t(key, lang)
 	prompt.ObjectText = if tool ~= nil then Locale.t(TOOL_KEYS[tool], lang) else ""
 	prompt.HoldDuration = hold
@@ -132,10 +133,11 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 		-- A hold of 0 needs no timer; every other hold must have run at least 0.9 x its duration on the server clock.
 		local held = if entry.hold > 0 then Work.finish(plot.work, name, os.clock(), entry.hold) else true
 		local land = if plot.state ~= nil then plot.state.land or Land.start else Land.start
-		local inHand = Toolbelt.inHand(land, target, ToolService.equipped(player), Land)
+		local under = if type(target) == "number" then freeCellUnder(player, plot, target) else nil
+		local inHand = Toolbelt.inHand(land, target, ToolService.equipped(player), Land, under)
 		if type(target) == "number" then
 			-- A field is worked where the player stands: the cell must be the one the hold began on, still under his feet.
-			local cell = freeCellUnder(player, plot, target)
+			local cell = under
 			if held and inHand and cell ~= nil and cell == entry.held then
 				sender(player, "Prepare", { target = target, cell = cell })
 			end
@@ -153,7 +155,7 @@ function LandService.build(player: Player, frame: Frame)
 	local plot: Plot = { frame = frame, work = Work.new(), entries = {} }
 	plots[player] = plot
 	for field = 1, #Land.fields do
-		local hold = toolHold(Land.fieldTools[field])
+		local hold = Land.chains[field][1].hold
 		makeEntry(player, plot, field, FIELD_KEYS[field], hold, frame.origin) -- the anchor then follows the owner
 	end
 	local battery = Assets.furniture.battery
@@ -177,7 +179,7 @@ function LandService.refresh(player: Player, state: any)
 		local enabled = false
 		if type(target) == "number" then
 			local done = land.sites[target] or 0
-			enabled = land.tools[Land.fieldTools[target]] == true
+			enabled = land.tools[Toolbelt.toolFor(target, Land, land) or ""] == true
 				and (target == 1 or (state.plants[target - 1] or 0) >= 1)
 				and done < Land.fields[target]
 		elseif target == "container" then
@@ -188,7 +190,7 @@ function LandService.refresh(player: Player, state: any)
 				and state.nodes.U21 == true
 				and land.tools[WIRE_HOLD_TOOL] == true
 		end
-		entry.possible = enabled and Toolbelt.inHand(land, target, hand, Land)
+		entry.possible = enabled and Toolbelt.inHand(land, target, hand, Land, nil)
 		if type(target) == "number" then
 			LandService.follow(player, plot, entry)
 		else
@@ -204,10 +206,19 @@ function LandService.follow(player: Player, plot: Plot, entry: Entry)
 	local root = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
 	local cell = if entry.possible then freeCellUnder(player, plot, entry.target) else nil
 	entry.cell = cell
+	local land = if plot.state ~= nil then plot.state.land or Land.start else Land.start
+	local stage, tool, hold = Toolbelt.stage(land, entry.target, cell, Land)
 	if cell ~= nil and root ~= nil and root:IsA("BasePart") then
 		entry.anchor.Position = (root :: BasePart).Position
 	end
-	entry.prompt.Enabled = cell ~= nil
+	-- The prompt shows the tool and hold of the stage under his feet and only while that tool is in his hand.
+	if stage ~= nil and tool ~= nil and entry.stage ~= stage then
+		entry.stage = stage
+		entry.hold = hold or 0
+		entry.prompt.HoldDuration = entry.hold
+		entry.prompt.ObjectText = Locale.t(TOOL_KEYS[tool], Locale.resolve(player.LocaleId))
+	end
+	entry.prompt.Enabled = cell ~= nil and Toolbelt.inHand(land, entry.target, ToolService.equipped(player), Land, cell)
 end
 
 task.spawn(function()

@@ -5,8 +5,9 @@
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 4 -- 3: the land field; 4: the rules are keyed by their id, no slots (Migrations/Steps)
+local VERSION = 5 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps, the stages of the tool chains (Migrations/Steps)
 local MAX_SITES = { 25, 7, 7, 7, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design-v2.md, section 2)
+local CHAIN_LENGTH = { 1, 2, 2, 2, 3, 3 } -- stages of one cell per field (Config/Land chains)
 local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
 	scythe = true,
 	rails = true,
@@ -38,6 +39,7 @@ local STATE_FIELDS = {
 
 local Data = {}
 Data.VERSION = VERSION
+Data.CHAIN_LENGTH = CHAIN_LENGTH
 
 -- The default profile, version 3. Every call returns a new table.
 local function template(): Profile
@@ -57,6 +59,7 @@ local function template(): Profile
 		land = {
 			sites = { 0, 0, 0, 0, 0, 0 },
 			cells = { {}, {}, {}, {}, {}, {} },
+			steps = { {}, {}, {}, {}, {}, {} },
 			tools = { scythe = true },
 			container = false,
 			wired = false,
@@ -209,13 +212,14 @@ local function land(value: any, default: any): any
 		local count = scalar(0, if type(source.sites) == "table" then source.sites[index] else nil)
 		sites[index] = math.min(math.floor(count), MAX_SITES[index])
 	end
-	-- The mown cells in mowing order; a profile without them gets the first cells of the fill order, and the count
-	-- always equals the number of cells.
-	local cells = {}
+	-- The started cells: the prepared ones first (as many as `sites`, every stage done), then those still in work with the
+	-- stages done of each. A profile without cells gets the first cells of the fill order.
+	local cells, steps = {}, {}
 	for index in default.sites do
 		local saved = if type(source.cells) == "table" then source.cells[index] else nil
-		local list, used = {}, {}
-		for _, cell in if type(saved) == "table" then saved else {} do
+		local savedSteps = if type(source.steps) == "table" then source.steps[index] else nil
+		local list, done, used = {}, {}, {}
+		for i, cell in if type(saved) == "table" then saved else {} do
 			if
 				type(cell) == "number"
 				and cell % 1 == 0
@@ -223,21 +227,37 @@ local function land(value: any, default: any): any
 				and cell <= MAX_SITES[index]
 				and not used[cell]
 			then
+				local stage = if type(savedSteps) == "table" then savedSteps[i] else nil
 				if #list < sites[index] then
 					used[cell] = true
 					table.insert(list, cell)
+					table.insert(done, CHAIN_LENGTH[index])
+				elseif type(stage) == "number" and stage % 1 == 0 and stage >= 1 and stage < CHAIN_LENGTH[index] then
+					used[cell] = true
+					table.insert(list, cell)
+					table.insert(done, stage)
 				end
 			end
 		end
 		local free = 1
-		while #list < sites[index] do
+		local prepared = 0
+		for _, stage in done do
+			if stage == CHAIN_LENGTH[index] then
+				prepared += 1
+			end
+		end
+		-- Short of cells: pad the prepared ones with the lowest free cells, in front of those in work.
+		while prepared < sites[index] do
 			if not used[free] then
 				used[free] = true
-				table.insert(list, free)
+				table.insert(list, prepared + 1, free)
+				table.insert(done, prepared + 1, CHAIN_LENGTH[index])
+				prepared += 1
 			end
 			free += 1
 		end
 		cells[index] = list
+		steps[index] = done
 	end
 	local tools = { scythe = true }
 	if type(source.tools) == "table" then
@@ -250,6 +270,7 @@ local function land(value: any, default: any): any
 	return {
 		sites = sites,
 		cells = cells,
+		steps = steps,
 		tools = tools,
 		container = source.container == true,
 		wired = source.wired == true,

@@ -159,16 +159,28 @@ local function landWork(state: any, env: any): (any, number)
 			more = state.land.sites[index] * PER <= state.plants[index] and state.land.sites[index] < wanted
 		end
 		if revealed and more then
-			local tool = Config.land.fieldTools[index]
-			state = apply(state, { type = "BuyTool", tool = tool }, env)
-			if not state.land.tools[tool] then
-				return state, 0
+			-- Cell by cell, stage by stage: each stage needs its tool, bought as soon as the coins cover it. A stage
+			-- the bot cannot pay yet ends the work; the cell stays in work and the next visit continues it.
+			local chain = Config.land.chains[index]
+			local seconds = 0
+			local stalled = false
+			while not stalled and state.land.sites[index] < wanted do
+				local done = state.land.steps[index][state.land.sites[index] + 1] or 0
+				for stage = done + 1, #chain do
+					local tool = chain[stage].tool
+					if not state.land.tools[tool] then
+						state = apply(state, { type = "BuyTool", tool = tool }, env)
+					end
+					local after, ok = GameCore.apply(state, { type = "Prepare", target = index }, env)
+					if not ok then
+						stalled = true
+						break
+					end
+					state = after
+					seconds += chain[stage].hold
+				end
 			end
-			local sites = wanted - state.land.sites[index]
-			for _ = 1, sites do
-				state = apply(state, { type = "Prepare", target = index }, env)
-			end
-			return state, WALK + sites * HOLD[tool]
+			return state, if seconds > 0 then WALK + seconds else 0
 		end
 	end
 	return state, 0

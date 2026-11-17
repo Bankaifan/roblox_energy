@@ -64,9 +64,9 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 4, the default profile of Bauplan section 5.
+	-- The template: version 5, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 4, "the template is version 4")
+	t.equal(template.v, 5, "the template is version 5")
 	t.equal(template.land.tools.scythe, true, "the scythe is owned from the start")
 	t.equal(template.land.market, false, "the market is not yet opened")
 	t.equal(next(template.passes), nil, "no pass owned by default")
@@ -105,7 +105,8 @@ return function(t, load)
 	run.tutorial = 3
 	run.land = {
 		sites = { 4, 7, 0, 1, 0, 0 },
-		cells = { { 5, 1, 24, 2 }, { 1, 2, 3, 4, 5, 6, 7 }, {}, { 6 }, {}, {} },
+		cells = { { 5, 1, 24, 2 }, { 1, 2, 3, 4, 5, 6, 7 }, { 3 }, { 6 }, {}, {} },
+		steps = { { 1, 1, 1, 1 }, { 2, 2, 2, 2, 2, 2, 2 }, { 1 }, { 2 }, {}, {} },
 		tools = { scythe = true, shovel = true },
 		container = true,
 		wired = false,
@@ -175,7 +176,7 @@ return function(t, load)
 		},
 	}
 	local migrated = Data.migrate(slotted, Steps)
-	t.equal(migrated.v, 4, "the profile is version 4 afterwards")
+	t.equal(migrated.v, 5, "the profile is version 5 afterwards")
 	t.truthy(same(migrated.rules.charge, { th = 0.8, on = true }), "of two charge slots the switched-on one wins")
 	t.truthy(same(migrated.rules.sell, { th = 1.2, on = true }), "the sell slot becomes the sell rule")
 	t.equal(migrated.rules["1"], nil, "no slot key is left")
@@ -196,7 +197,7 @@ return function(t, load)
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 5
+	newer.v = 6
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
@@ -214,9 +215,10 @@ return function(t, load)
 		[1] = Steps[1],
 		[2] = Steps[2],
 		[3] = Steps[3],
+		[4] = Steps[4],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 4, "the profile is the current version afterwards")
+	t.equal(upgraded.v, 5, "the profile is the current version afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
 	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
@@ -233,7 +235,7 @@ return function(t, load)
 		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
 	}
 	local v2 = Data.migrate(v1, Steps)
-	t.equal(v2.v, 4, "a version 1 profile loads as the current version")
+	t.equal(v2.v, 5, "a version 1 profile loads as the current version")
 	t.equal(v2.passes.founder, true, "a founder grant becomes the owned pass")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
@@ -245,7 +247,7 @@ return function(t, load)
 	-- Migration 2 to 3: a profile that has earned coins gets the old game's land; a fresh one gets the template.
 	local old2 = { v = 2, coins = 10, lifetimeEarned = 50, nodes = { U21 = true } }
 	local v3 = Data.migrate(old2, Steps)
-	t.equal(v3.v, 4, "a version 2 profile loads as the current version")
+	t.equal(v3.v, 5, "a version 2 profile loads as the current version")
 	t.truthy(same(v3.land.sites, { 4, 4, 4, 4, 4, 4 }), "the first row of every field is prepared")
 	t.equal(v3.land.tools.shovel, true, "the tools are owned")
 	t.equal(v3.land.tools.pliers, true, "the cable pliers are owned")
@@ -277,6 +279,37 @@ return function(t, load)
 		same(Data.migrate({ v = 4, land = 5 }, Steps).land, Data.template().land),
 		"a land that is no table gets the default"
 	)
+
+	-- Migration 4 to 5 (design v2, section 10): a version 4 profile gets the stages and enough prepared cells for its units.
+	local v4 = Data.template()
+	v4.v = 4
+	v4.plants = { 40, 10, 3, 0, 0, 0 }
+	v4.land.sites = { 4, 4, 4, 0, 0, 0 }
+	v4.land.cells = { { 7, 3, 12, 20 }, { 1, 2, 3, 4 }, { 5, 1, 2, 6 }, {}, {}, {} }
+	v4.land.steps = nil
+	local v5 = Data.migrate(v4, Steps)
+	t.truthy(
+		same(v5.land.sites, { 10, 4, 4, 0, 0, 0 }),
+		"ceil(owned / capacity) prepared cells, at least the old sites"
+	)
+	t.truthy(
+		same(v5.land.cells[1], { 7, 3, 12, 20, 1, 2, 4, 5, 6, 8 }),
+		"field 1 keeps its cells and pads the lowest free"
+	)
+	t.truthy(same(v5.land.cells[2], { 1, 2, 3, 4 }), "the river has its first segments")
+	t.truthy(same(v5.land.steps[1], { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }), "every prepared cell has all stages done")
+	t.truthy(same(v5.land.steps[3], { 2, 2, 2, 2 }), "a two stage field has both stages done")
+	t.equal(v5.land.tools.scythe, true, "tools stay")
+	t.equal(v4.land.sites[1], 4, "the input profile is not changed")
+
+	-- Partial cells survive a save and a load; a broken stage count is cut to the chain.
+	local working = Data.template()
+	working.land.sites = { 0, 0, 1, 0, 1, 0 }
+	working.land.cells = { {}, {}, { 4, 6 }, {}, { 2, 3, 1 }, {} }
+	working.land.steps = { {}, {}, { 2, 1 }, {}, { 3, 2, 9 }, {} }
+	local kept = Data.migrate(working, Steps).land
+	t.truthy(same(kept.cells[3], { 4, 6 }) and same(kept.steps[3], { 2, 1 }), "a cell in work keeps its stage")
+	t.truthy(same(kept.cells[5], { 2, 3 }) and same(kept.steps[5], { 3, 2 }), "a stage past the chain drops the cell")
 
 	-- Booster queue and passes: broken entries are dropped on load, a good one is kept.
 	local queued = Data.template()
