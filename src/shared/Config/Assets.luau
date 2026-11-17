@@ -93,6 +93,15 @@ Assets.river = {
 	band = 8,
 } :: { points: { { number } }, width: number, segments: number, band: number }
 
+-- Concrete foundations of the wind plants (fields F4 and F6): a round base of two steps appears on a cell once its `stage` is
+-- done (the wrench anchors a mini turbine, the tamper a wind turbine). `radius` is the lower step in studs, the upper
+-- step is two thirds of it; each step is STEP studs high.
+Assets.foundations = {
+	[4] = { stage = 2, radius = 3.4 },
+	[6] = { stage = 2, radius = 11 },
+} :: { [number]: { stage: number, radius: number } }
+Assets.FOUNDATION_STEP = 0.6
+
 -- Number of cells of a field.
 function Assets.siteCount(plantId: number): number
 	return #Assets.fields[plantId].cells
