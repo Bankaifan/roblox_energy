@@ -233,6 +233,8 @@ simply unused. World and plot size are constants in `Config/Assets.luau`.
 
 ## 8. Split into PR-sized implementation issues
 
+*Superseded by section 11 where it differs from v2 (v2 wins). Section 11 maps each step here to its replacement; section 10 names every difference.*
+
 ### Step 1: Land rules in the pure core
 Files: `src/shared/Config/Land.luau`, `src/shared/Core/GameCore.luau`, `tests/GameCore.test.luau`, `tests/Config.test.luau`
 Acceptance: BuyTool and Prepare work as in section 4, the gates apply only with `required`, prestige keeps `land`, and without `config.land` nothing changes.
@@ -311,3 +313,168 @@ Depends on: 2, 8, 9, 10, 11, 12, 13, 14
 4. The first panel comes after about 15 s instead of 5 s (market hold plus four mown tiles). Recommended: accept; otherwise drop the market hold.
 5. World: two rows of four plots of 192 studs, 8 players per server (recommended), or fewer players with a smaller world.
 6. Flowing water without an image asset now (recommended); a scrolling water texture later needs an image uploaded by Daniel.
+
+Owner decisions from the v2 revision (v2 section 13, proposed default first; v2 wins, see section 10):
+
+7. Capacity: every field holds 100 to 112 units, several per cell (recommended, measured in v2 section 7). This is a cap on owned plants
+   (the gate of v2 section 2), which 0018 section 1 excluded; the owner confirms that it is a cap. Alternative: 200 per field by doubling the
+   capacity per cell. With the default, milestones 150 and 200 are unreachable.
+8. Panels: small code-built panels, four per mown tile (recommended). Alternative: the current large model, one panel per tile, about 900 parts
+   for the same capacity.
+9. Aligned rows stay on grid expansion like the land (recommended). Alternative: every run starts loose again (95.2 minutes for stage 6).
+10. Water: terrain water with foam (recommended). If the character swimming in it is unwanted, the part fallback of v2 section 4 is used.
+11. Wind turbine about 60 studs tall, four at the back of the plot (recommended). Alternative: one landmark turbine that carries all units.
+12. Tutorial replaces the step table of PR #129: merge #129 first (recommended). Alternative: close #129 and write step 19 new.
+13. Spark shop with the six new items and their draft prices (recommended); the 185 sparks of levels 1 to 10 stay, so not everything is
+    affordable. Alternative: more sparks per level.
+14. While a popup is open the tool bar is hidden (recommended). Alternative: the popup moves up and the bar stays visible.
+15. Market hold and first panel: drop the one-second market hold, so the first panel comes within 15 s as measured in v2 section 7 (recommended,
+    see C8 and C14 in section 10). Alternative: keep the hold; the first panel then takes longer.
+16. Rollback switch: `Land.capacity = nil` switches the gate off, and no separate `required` flag is added (recommended, see C12).
+
+## 10. Contradictions between 0018 and v2
+
+v2 wins where both speak. Each difference is named here; none is resolved silently. "Handling" says what section 11 does.
+
+| # | Topic | 0018 says | v2 says | Handling |
+| --- | --- | --- | --- | --- |
+| C1 | Water | Terrain water rejected (W1: no flow direction, swimming, blobby banks); flat part W2 chosen | Terrain water with foam; part is the fallback (v2 section 4) | v2; the part fallback stays a switch in step 12 |
+| C2 | Gate and cap | Gate L2: one prepared site unlocks a plant without limit; not a cap (section 1 non-goal) | Gate `owned < cells x capacity` (v2 section 2) | v2 gate in step 4; it is a cap, owner decision 7 |
+| C3 | Cells and sites | 24 / 12 / 8 / 12 / 4 / 4 sites, one unit per site | 25 / 7 / 7 / 7 / 4 / 4 cells, several units per cell (v2 sections 2 and 3) | v2 in step 1 |
+| C4 | Alignment | Mounting Rails align panels by themselves, hold "none" | `Align { cell }` is a player action with a 1.5 s hold on a full row (v2 section 5) | v2 in step 5 and 10; the "none" hold is dropped |
+| C5 | Panel model | Fixed size, the 9-part panel model | Code-built panel 1.9 x 3.2 studs from two parts; the 9-part model stays on the market wall (v2 section 5) | v2 in step 11; owner decision 8 |
+| C6 | Water wheels | One upright wheel per stream tile; 12 sites in rows 13 and 16 | One axle per flooded segment with four wheels; seven segments (v2 section 4) | v2 in steps 6 and 12 |
+| C7 | Wind turbine | 2 x 2 sites, four of them, tamper 4 s per site | 4 x 4 tiles per cell, about 60 studs tall, 32-stud pad (v2 section 6) | v2 in step 14 |
+| C8 | Market hold | Market: hand, 1 s, once; the first hold the tutorial teaches | Tutorial step 2 only opens the popup; no hold in the v2 chains (v2 section 8); silent on the hold | Open. Default: drop the hold (owner decision 15); step 19 follows v2 |
+| C9 | When a tool appears | When its plant is revealed (the previous plant owned once) | With the first plant that needs it: hammer with plant 3, drum with plant 5 (v2 section 2) | v2 in step 3 |
+| C10 | Tools in the hand | Roblox `Tool` objects rejected (backpack bar bad on phones); custom hold prompt | Real `Tool` objects in the hotbar, prompt counts only with the tool in the hand, bar hidden while a popup is open (0018 section 3 owner decision; v2 section 9) | Both kept: the prompt uses `Core/Toolbelt` (step 3), the hotbar rule is step 24 |
+| C11 | Data version | Version 3 after PR #101; `Steps[2]` with literal grants (`sites = {4,4,4,4,4,4}`, all tools, market, container, wired) | Next free version (5 on `main`); per field `n = min(max(old sites, ceil(owned / capacity)), cells)`; PR #129 may take one too (v2 section 10) | v2 in step 3; the number is open until the merge order of #129 and #101 is known |
+| C12 | Rollback switch | `Config/Land.required = false` (0018 section 7) | `Land.capacity = nil` switches the gate off (v2 section 10) | Open. Default: the v2 switch only (owner decision 16); step 26 uses it |
+| C13 | Land state | `land.sites` is the count per field | Adds `cells`, `steps`, `aligned`; `sites` stays the number of prepared cells (v2 section 10) | v2 in steps 3 and 5 |
+| C14 | First panel | "About 15 s instead of 5 s" (0018 section 4 and owner decision 4) | "Within 15 s as today, measured in 5 s steps" (v2 section 7) | Open. Default: the v2 measurement (owner decision 15); the balance report of step 27 decides |
+| C15 | Where the market popup lives | Popup opened through `Hud.luau` (`openShop`, today) | v2 steps 13, 17 and 19 edit `Market.luau`; v2 never creates it | Open. Default: step 16 moves the popup from `Hud.luau` into a new `Market.luau` |
+| C16 | Tutorial step table | #71 owns the step machine and its table (0018 section 8) | PR #129 defines the table; this design replaces it (v2 section 8; owner decision 12) | Step 19 waits for #129 or #71, per owner decision 12 |
+| C17 | Sim changes | Separate step 13: bots prepare the land in the sim | Every logic step patches `sim/Sim.luau` and regenerates the report (v2 section 12 and section 11 risks) | v2; no separate sim step |
+| C18 | Step numbering | 0018 steps 1 to 15 | v2 steps 1 to 21, which assume 0018 steps 2, 3, 4, 6 and 8 to 15 still exist | Section 11 is the one numbering; the mapping is listed there |
+
+## 11. Implementation split (v2 wins)
+
+Each step is one PR with tests (logic steps: Lune tests; visual steps: look and motion checked by Daniel or Fable). Size: each step is meant to
+stay near 400 changed lines; the sizes are an estimate and not measured. Steps 3, 9, 11, 12 and 13 are the likely ones to cut.
+
+**Order rule.** Files that several steps edit are: `Config/Assets.luau`, `Config/Land.luau`, `Core/GameCore.luau`, `Core/Data.luau`, `Config/Locale.luau`,
+`Core/ShopView.luau`, `Services/PlotService.luau`, `Services/PlotGround.luau`, `Services/PlantModels.luau`, `Client/Controllers/Market.luau`,
+`Client/Main.client.luau`, `Shared/Net.luau`, `Services/Session.luau`, `default.project.json`, `sim/Sim.luau`, `docs/balance/report.md`.
+Two steps that share a file run in the order of their Depends lines; if neither depends on the other, the lower number goes first and the
+higher one rebases. Steps that can run at once: 1 and 2; after 1: 3, 6; after 6: 8.
+
+**Mapping.** The v2 section 12 steps and the 0018 section 8 steps are both replaced here. v2 1 to 21 become steps 1, 3, 4, 5, 6, 10, 9,
+11, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 24, 25, 27. 0018 steps: 1 to 3 are covered by steps 1, 3, 4, 9 and 10; 4 is step 2; 5 is step 7;
+6 is step 8; 7 is step 9; 8 is steps 11 to 13; 9 is step 10; 10 is step 15; 11 is step 16 with 18; 12 is step 17; 13 is folded into the sim
+edits of steps 1, 3, 4 and 5 (C17); 14 is steps 19 and 20; 15 is step 26. Steps 2, 7, 8, 16, 17, 26 come from 0018 (v2 is silent on them).
+
+Open facts that a step must measure, not assume: whether the models have separable rotor parts; `StreamingEnabled` defaults and
+`Terrain.Decoration` cost (v2 section 6); phone frame time and part count with eight full plots (step 27).
+
+1. **Site map and cell lists** (logic; v2 1). Files: `src/shared/Config/Assets.luau`, `src/shared/Core/PlotLayout.luau`, `src/shared/Config/Land.luau`,
+   `src/shared/Core/Data.luau`, `tests/Assets.test.luau`, `tests/PlotLayout.test.luau`, `sim/Sim.luau`, `docs/balance/report.md`.
+   Acceptance: fields are cell lists (25, 7, 7, 7, 4, 4), furniture stands in the yard, the clearance test passes on the new map and fails on today's.
+   Depends on: PR #149.
+2. **Hold timing check** (logic; 0018 step 4). Files: `src/shared/Core/Work.luau`, `tests/Work.test.luau`.
+   Acceptance: `finish` is true only for the target `begin` started on, after at least 0.9 x hold, with one hold at a time. Depends on: none.
+3. **Tool chains in the core** (logic; v2 2, plus the container and wiring gates of 0018 step 1). Files: `src/shared/Config/Land.luau`,
+   `src/shared/Core/GameCore.luau`, `src/shared/Core/Toolbelt.luau`, `src/shared/Core/Data.luau`, `src/shared/Migrations/Steps.luau`,
+   `tests/GameCore.test.luau`, `tests/Toolbelt.test.luau`, `tests/Data.test.luau`, `sim/Sim.luau`, `docs/balance/report.md`.
+   Acceptance: `Prepare { target, cell }` advances one stage only with that stage's tool; the river only downstream; a cell counts when its chain
+   is done; U17 needs the container; rule slots need `wired`; the migration of C11 has a fixture test. Depends on: 1.
+4. **Capacity gate and fill-row** (logic; v2 3). Files: `src/shared/Config/Land.luau`, `src/shared/Core/GameCore.luau`, `src/shared/Core/ShopView.luau`,
+   `src/shared/Config/Locale.luau`, `tests/GameCore.test.luau`, `tests/ShopView.test.luau`, `tests/Locale.test.luau`, `sim/Sim.luau`, `docs/balance/report.md`.
+   Acceptance: buying stops at prepared cells x capacity; `qty = "row"` buys up to the next multiple of four; the card says "Prepare more ground";
+   the report stays in its ranges. Depends on: 3 (v2 says 1; both edit `GameCore` and `Land`).
+5. **Aligned rows in the core** (logic; v2 4). Files: `src/shared/Config/Land.luau`, `src/shared/Core/GameCore.luau`, `src/shared/Core/Data.luau`,
+   `tests/GameCore.test.luau`, `tests/Data.test.luau`, `sim/Sim.luau`, `docs/balance/report.md`, `changelog.d/<issue>.md`.
+   Acceptance: `Align { cell }` works only on a full mown row with rails; aligned panels count twice in production and storage capacity; milestones
+   do not change; the report stays in its ranges. Depends on: 4.
+6. **River course in the core** (logic; v2 5). Files: `src/shared/Core/River.luau` (new), `tests/River.test.luau` (new), `src/shared/Config/Assets.luau`.
+   Acceptance: curve, segments, axle poses, terrain mask and bridges as in 0018 section 4 and v2 section 4, with the tests named there.
+   Depends on: 1.
+7. **Texts for land, tools and popups** (logic; 0018 step 5). Files: `src/shared/Config/Locale.luau`, `tests/Locale.test.luau`.
+   Acceptance: every prompt, tool name, tool line (at most 60 characters), tab and hint of steps 3 to 6 has an English and a German text; later steps
+   add their own keys in their own PRs. Depends on: 4, 5.
+8. **World for two rows of four plots** (server; 0018 step 6, v2 silent). Files: `src/shared/Core/Landscape.luau`, `tests/Landscape.test.luau`,
+   `src/server/Services/WorldService.luau`, `src/server/Services/PlotService.luau`, `src/shared/Config/Assets.luau`, `default.project.json`.
+   Acceptance: plots are 192 studs, in two rows beside the road on flat meadow at `PlotLayout.slot`; the streaming properties are set; eight slots
+   lie on the meadow, none on the road. Depends on: 1, 6.
+9. **Units per cell on the plot** (server; v2 7, plus 0018 step 7). Files: `src/server/Services/PlotService.luau`, `src/server/Services/PlantModels.luau`,
+   `src/server/Services/PlantModels.test.luau`, `src/shared/Core/PlotLayout.luau`, `tests/PlotLayout.test.luau`.
+   Acceptance: a plot faces the road and has no grass slab; every prepared cell shows its visible units in fill order and a plate when it holds
+   more; half-worked cells show their stage; nothing stands outside its cell. Depends on: 3, 4, 8.
+10. **Work the chain under the player** (server; v2 6, plus 0018 step 9). Files: `src/server/Services/LandService.luau` (new),
+    `src/server/Services/Action.luau`, `src/shared/Net.luau`, `tests/Net.test.luau`, `src/server/Main.server.luau`.
+    Acceptance: one prompt per field, container and wiring on an invisible anchor at the next cell (at most 9 per plot); the prompt names the next
+    stage of the cell the owner stands on and shows only with that tool in the hand; `Align row` works the same way; owner, distance (18 studs),
+    hold time, tool and cell are checked on the server; `BuyTool` is the only client message. Depends on: 2, 3, 5, 7.
+11. **Loose and aligned panels, mown earth** (visual; v2 8, plus the mown tile of 0018 step 8). Files: `src/shared/Config/Assets.luau`,
+    `src/server/Services/PlantModels.luau`, `src/server/Services/PlotService.luau`, `src/server/Services/PlotGround.luau` (new),
+    `tests/Assets.test.luau`, `changelog.d/<issue>.md`. Acceptance: a mown tile is `FillBlock` of `Ground` and shows up to four code-built panels
+    as a loose scatter; an aligned tile shows a straight row on two rails; the parts sum stays in the budget. Depends on: 5, 8, 9.
+    (v2 has no step for the mown earth; it is assigned here.)
+12. **River with water, axles and bridges** (visual; v2 9). Files: `src/server/Services/PlotGround.luau`, `src/server/Services/PlotService.luau`,
+    `src/server/Services/PlantModels.luau`, `changelog.d/<issue>.md`. Acceptance: digging shows a trench, the second hold floods it from the spring;
+    each flooded segment has one axle with up to four wheels; the bridges appear; leaving the server restores the meadow; the PR records the Studio
+    check of terrain water or switches to the part fallback (C1). Depends on: 6, 9, 11.
+13. **House, mast, farm fence and cables** (visual; v2 10). Files: `src/server/Services/PlotGround.luau`, `src/server/Services/PlotService.luau`,
+    `src/shared/Config/Assets.luau`, `changelog.d/<issue>.md`. Acceptance: the hammer builds a bare house and one PV array appears per bought unit;
+    the wrench sets a guyed mast with four rotor places; the farm cell shows fence after the hammer and ground cables after the drum.
+    Depends on: 9, 12.
+14. **Big wind turbine, tamped pad and crank stones** (visual; v2 11). Files: `src/shared/Config/Assets.luau`, `src/server/Services/PlantModels.luau`,
+    `src/server/Services/PlotGround.luau`, `src/server/Services/PlotService.luau`, `tests/Assets.test.luau`, `changelog.d/<issue>.md`.
+    Acceptance: the turbine is about 60 studs to the blade tip at every count, stands on a gravel pad with foundation and cable; the crank has a
+    stone ring instead of the yellow disc. Depends on: 9, 13.
+15. **Rotors, wheels, foam and the tool in the hand on the client** (visual; v2 12, plus 0018 step 10). Files: `src/client/Controllers/PlotFx.luau`,
+    `src/client/Main.client.luau`. Acceptance: tagged rotors and wheels within 150 studs turn with one `BulkMoveTo` per tick; the wind rotor follows
+    the weather; foam drifts down flooded segments; the tool is shown in the hand while a hold runs (character attribute set by the server).
+    Depends on: 12, 14 (the tags come from steps 12 and 14).
+16. **Market popup with the tools tab and site states** (visual; 0018 step 11, on top of #102). Files: `src/client/Controllers/Hud.luau`,
+    `src/client/Controllers/Market.luau` (new; the popup moves out of `Hud.luau`, C15), `tests/View.test.luau`. Acceptance: tabs Technik, Upgrades,
+    Speicher and Werkzeuge; a plant without a site names its tool instead of Buy; Speicher starts with the container; a tool row shows name, price
+    and its line. Depends on: 3, 7, #102.
+17. **Control board popup** (visual; 0018 step 12). Files: `src/client/Controllers/RulesPopup.luau` (new), `src/client/Main.client.luau`.
+    Acceptance: the prompt on the wired control board (text "Steuerboard") opens a modal with the rule slots of #97 and the thresholds; it closes
+    by button or by walking 16 studs away. Depends on: 7, 10, 15, #97.
+18. **Market texts and plant cards** (visual; v2 13). Files: `src/client/Controllers/Market.luau`, `src/shared/Core/ShopView.luau`,
+    `src/shared/Config/Locale.luau`, `tests/ShopView.test.luau`, `tests/Locale.test.luau`, `changelog.d/<issue>.md`.
+    Acceptance: a plant card shows "owned of capacity", the fill-row button and the aligned line; the tool tab shows the texts of v2 section 2.
+    Depends on: 4, 5, 7, 10, 16.
+19. **Tutorial steps** (logic; v2 14, 0018 section 8). Files: `src/shared/Core/Tutorial.luau`, `tests/Tutorial.test.luau`.
+    Acceptance: the eleven steps of v2 section 8 advance on their facts (the three server facts come in step 20); a finished tutorial stays
+    finished. Depends on: 3, PR #129 or #71 (C16, owner decision 12).
+20. **Tutorial arrows and hints** (visual; v2 15). Files: `src/client/Controllers/Tutorial.luau`, `src/client/Main.client.luau`,
+    `src/server/Services/Session.luau`, `src/shared/Config/Locale.luau`, `changelog.d/<issue>.md`. Acceptance: an arrow or pulse for every step; the
+    server sends popup opened, equipped tool and land state; the hotbar hint for the scythe; one hint per new tool. Depends on: 10, 16, 18, 19.
+21. **Spark items in the core** (logic; v2 16). Files: `src/shared/Config/Upgrades.luau`, `src/shared/Config/Effects.luau`,
+    `src/shared/Core/GameCore.luau`, `src/shared/Core/ShopView.luau`, `src/shared/Config/Locale.luau`, `tests/GameCore.test.luau`,
+    `tests/ShopView.test.luau`, `tests/Locale.test.luau`, `tests/Config.test.luau`. Acceptance: S1 to S4 work as in v2 section 9 (S5 and S6 are owned
+    flags with a colour choice); the view gives the grid multiplier; `ShopView` has the "sparks" tab with a card per permanent item; the balance
+    report does not change. Depends on: 5 (S4), 18.
+22. **Spark tab, multiplier chip and expansion popup** (visual; v2 17). Files: `src/client/Controllers/Market.luau`, `src/client/Controllers/Hud.luau`,
+    `src/shared/Config/Locale.luau`, `tests/Locale.test.luau`, `tests/View.test.luau`, `changelog.d/<issue>.md`. Acceptance: the "Sparks" tab has
+    buyable cards; the HUD shows "Grid level n: output x..." and the sparks; the expansion asks for confirmation with the get, lose and keep lines.
+    Depends on: 16, 21.
+23. **Spark effects on the plot** (server; v2 18). Files: `src/server/Services/LandService.luau`, `src/server/Services/PlotService.luau`,
+    `src/server/Services/Session.luau`, `src/shared/Net.luau`, `tests/Net.test.luau`. Acceptance: Quick Hands halves the hold the server expects and
+    the prompt shows it; Sign Paint recolours sign, rope and blade tips of the own plot; the Golden Crank replaces the crank look. Depends on: 10, 14, 21.
+24. **Popups clear of the tool bar** (visual; v2 19). Files: `src/client/Controllers/Market.luau`, `src/client/Main.client.luau`, `changelog.d/<issue>.md`.
+    Acceptance: while the market or the control board popup is open the tool bar is hidden and no popup control lies under it; closing shows it
+    again with the same tool in the hand. Depends on: 17, 22 (shared files).
+25. **Tests out of the published place** (logic; v2 20). Files: `default.project.json`, `test.project.json` (new), `src/dev/TestRunner.server.luau`
+    (moved from `src/server`), `tests/test_studio_project.py`, `scripts/ci/luau-check.sh`, `README.md`. Acceptance: the place built from
+    `default.project.json` has no `ReplicatedStorage.Tests` and no TestRunner; `test.project.json` has both and the Studio test run passes; CI builds
+    both. `scripts/ci` is a CI protection file: it goes through the security reviewer (AGENTS.md Limits 5). Depends on: 8.
+26. **Turn the land gate on** (logic; 0018 step 15, switch per C12). Files: `src/shared/Config/Land.luau`, `docs/balance/report.md`, `changelog.d/<issue>.md`.
+    Acceptance: the gate of step 4 and the land rules apply by default (`Land.capacity` set); the rollback of section 7 is one line. Depends on:
+    3, 4, 5, 8 to 20.
+27. **Bauplan and Studio checklist** (logic; v2 21, 0018 section 5 updates). Files: `Bauplan.md`, `docs/land-development-design.md`,
+    `docs/balance/report.md`. Acceptance: the Bauplan names the chains, capacities, the aligned rows, the spark items and the data version; the PR
+    records a two-player Studio run (each player prepares and buys on their own plot; rejoin restores the ground; an early release changes nothing)
+    and the phone emulator numbers (parts, frame time) with eight full plots. Depends on: 22, 23, 24, 25, 26.
