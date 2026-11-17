@@ -7,6 +7,7 @@ local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
+local Spin = require(Core:WaitForChild("Spin") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
@@ -127,6 +128,11 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		end
 		local angle = if site.angle ~= nil then site.angle * record.facing else nil
 		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y, angle)
+		if index == 2 then
+			-- The wheel turns with the water: flow direction of the river at its site, mirrored with the plot.
+			local fx, fz = Spin.flowAt(Assets.river.points, site.x, site.z)
+			PlantModels.tagWheel(copy, fx, fz * record.facing)
+		end
 		copy.Parent = record.model
 		table.insert(shown, copy)
 	end

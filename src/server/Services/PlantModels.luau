@@ -3,11 +3,13 @@
 -- no code, sound or effect comes in with a third-party model.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local CollectionService = game:GetService("CollectionService")
 
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local Flat = require(Core:WaitForChild("Flat") :: ModuleScript) :: any
+local Spin = require(Core:WaitForChild("Spin") :: ModuleScript) :: any
 
 local PlantModels = {}
 
@@ -260,6 +262,50 @@ function PlantModels.mountPanels(market: Model, facing: number?)
 		panel:PivotTo(panel:GetPivot() + Vector3.new(x, y, z) - centre)
 		panel.Parent = market
 	end
+end
+
+-- Marks the turning part of a water wheel model: its child model "Wheel" (the stands and the hub cylinder stay outside and
+-- never turn). The axle is the thin direction of the biggest disc, the centre the middle of the biggest parts. The client
+-- (World.client) turns the tagged model about that axle; attribute SpinSense (+1/-1) makes the bottom move with the water
+-- flowing along (flowX, flowZ) in the world. Nothing happens for a model without a "Wheel" child.
+function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number)
+	local wheel = copy:FindFirstChild("Wheel")
+	if wheel == nil or not wheel:IsA("Model") then
+		return
+	end
+	local biggest: BasePart? = nil
+	local radius = 0
+	for _, item in wheel:GetDescendants() do
+		if item:IsA("BasePart") then
+			local span = math.max(item.Size.X, item.Size.Y, item.Size.Z)
+			if span > radius then
+				radius, biggest = span, item
+			end
+		end
+	end
+	if biggest == nil then
+		return
+	end
+	local thin = biggest.Size.X
+	local local_axis = Vector3.xAxis
+	if biggest.Size.Y < thin then
+		thin, local_axis = biggest.Size.Y, Vector3.yAxis
+	end
+	if biggest.Size.Z < thin then
+		local_axis = Vector3.zAxis
+	end
+	local axis = biggest.CFrame:VectorToWorldSpace(local_axis)
+	local sum, count = Vector3.zero, 0
+	for _, item in wheel:GetDescendants() do
+		if item:IsA("BasePart") and math.max(item.Size.X, item.Size.Y, item.Size.Z) >= radius * 0.9 then
+			sum += item.Position
+			count += 1
+		end
+	end
+	wheel:SetAttribute("SpinAxis", axis)
+	wheel:SetAttribute("SpinCentre", sum / count)
+	wheel:SetAttribute("SpinSense", Spin.sense(axis.X, axis.Z, flowX, flowZ))
+	CollectionService:AddTag(wheel, "WheelRotor")
 end
 
 -- Fits `copy` into a cell of `cell` studs centred on `centre` (x, z), standing on `groundY`. A `flat` plant is laid
