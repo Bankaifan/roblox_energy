@@ -7,7 +7,6 @@ local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
-local Spin = require(Core:WaitForChild("Spin") :: ModuleScript) :: any
 local River = require(Core:WaitForChild("River") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
@@ -43,6 +42,8 @@ type Record = {
 	groundKey: string, -- what the cleared patches show now
 	fenceKey: string, -- what the fences show now
 	fences: Folder?, -- stakes and ropes around the fields that wait for their tool
+	river: { number }, -- the dig stage of each river segment (River.stages)
+	course: any, -- the river course of this plot (River.course)
 }
 local plots: { [Player]: Record } = {}
 
@@ -109,6 +110,49 @@ local function sitePoint(record: Record, site: { x: number, z: number }): Vector
 	return record.origin + Vector3.new(site.x, 0, site.z * record.facing)
 end
 
+-- The water wheels stand in the river, two to a pair side by side on one axle across the flow (River.wheelSpots). They are
+-- rebuilt only when their number or the flooded part of the river changes.
+local WHEEL_SINK = 2.3 -- studs the lowest point of a wheel lies under the meadow: 1.3 under the water surface
+local function updateWheels(record: Record, owned: number)
+	local spots = River.wheelSpots(record.course, record.river, math.min(owned, 100))
+	local key = `{#spots}:{River.flooded(record.river)}`
+	if record.keys[2] == key then
+		return
+	end
+	record.keys[2] = key
+	local shown = record.copies[2]
+	for _, copy in shown do
+		copy:Destroy()
+	end
+	table.clear(shown)
+	local entry = Assets.entry(2)
+	local scale = if entry ~= nil then entry.scale else 1
+	local cap = if entry ~= nil then entry.cap else 4
+	for index, spot in spots do
+		if index > cap then
+			break
+		end
+		local copy = PlantModels.clone(2)
+		if copy == nil then
+			break
+		end
+		local point = sitePoint(record, spot)
+		PlantModels.placeWheel(
+			copy,
+			scale,
+			point,
+			record.origin.Y - WHEEL_SINK,
+			spot.nx,
+			spot.nz * record.facing,
+			spot.side,
+			spot.tx,
+			spot.tz * record.facing
+		)
+		copy.Parent = record.model
+		table.insert(shown, copy)
+	end
+end
+
 -- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count or the layout changes.
 local function updateUnits(record: Record, index: number, owned: number, cells: { number }, tidy: boolean)
 	local sites, wild = unitSites(record, index, owned, cells, tidy)
@@ -130,11 +174,6 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		end
 		local angle = if site.angle ~= nil then site.angle * record.facing else nil
 		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y, angle)
-		if index == 2 then
-			-- The wheel turns with the water: flow direction of the river at its site, mirrored with the plot.
-			local fx, fz = Spin.flowAt(Assets.river.points, site.x, site.z)
-			PlantModels.tagWheel(copy, fx, fz * record.facing)
-		end
 		copy.Parent = record.model
 		table.insert(shown, copy)
 	end
@@ -260,6 +299,7 @@ local function updateLand(record: Record, counts: { number }, land: any)
 		Assets.river.segments
 	)
 	PlotGround.river(record.slot, record.facing, river)
+	record.river = river
 	local groundKey = table.concat(ground, " ") .. ` {record.control ~= nil} {container}`
 	if record.groundKey ~= groundKey then
 		record.groundKey = groundKey
@@ -347,6 +387,8 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		modelPlants = modelPlants,
 		copies = copies,
 		keys = {},
+		river = River.stages(nil, Assets.river.segments),
+		course = River.course(Assets.river, slot),
 		control = nil,
 		batteries = {},
 		shell = nil,
@@ -403,7 +445,11 @@ function PlotService.update(
 				ownLand.sites[index] or 0,
 				Assets.siteCount(index)
 			)
-			updateUnits(record, index, math.min(counts[index] or 0, 100), cells, tidy)
+			if index == 2 then
+				updateWheels(record, counts[2] or 0)
+			else
+				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, tidy)
+			end
 		end
 	end
 	for index, column in record.columns do

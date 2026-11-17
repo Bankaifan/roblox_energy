@@ -275,4 +275,19 @@ return function(t, load)
 	t.truthy(equal(River.fromLand({ 1, 2 }, nil, 1, 7), { 2, 1, 0, 0, 0, 0, 0 }), "finished flooded, in work dry")
 	t.truthy(equal(River.fromLand({ 2 }, { 2 }, 1, 7), { 0, 1, 0, 0, 0, 0, 0 }), "no water without the spring flooded")
 	t.truthy(equal(River.fromLand(nil, nil, 0, 7), { 0, 0, 0, 0, 0, 0, 0 }), "nothing dug")
+
+	-- Wheel pairs: two bought wheels make a pair side by side on the axle, across the flow, in flooded water only.
+	local pairCourse = River.course(river, 1)
+	t.equal(#River.wheelSpots(pairCourse, River.fromCount(0, 7), 4), 0, "no water, no wheels")
+	local spots = River.wheelSpots(pairCourse, River.fromCount(2, 7), 5)
+	t.equal(#spots, 5, "one spot per wheel")
+	t.equal(spots[1].side, -1, "the first wheel of a pair is on the minus side")
+	t.equal(spots[2].side, 1, "the second wheel is on the plus side")
+	t.equal(spots[1].x, spots[2].x, "a pair shares its place on the river")
+	t.truthy(spots[3].pair == 2 and spots[3].x ~= spots[1].x, "the second pair stands elsewhere")
+	for _, spot in spots do
+		t.truthy(math.abs(spot.nx * spot.tx + spot.nz * spot.tz) < 1e-6, "the axle is across the flow")
+		local depth = River.gap(pairCourse, { spot.x, spot.x, spot.z, spot.z })
+		t.truthy(depth < 0, "the pair stands in the water")
+	end
 end
