@@ -129,6 +129,12 @@ function PlotLayout.mown(saved: { number }?, count: number, total: number): { nu
 	return list
 end
 
+-- The started cells of a field: the prepared ones plus those still in work (they are in `saved` beyond the `sites` prepared
+-- ones). Their grass is cut from the first stage on. Cleaned like PlotLayout.mown and never more than `total`.
+function PlotLayout.started(saved: { number }?, sites: number, total: number): { number }
+	return PlotLayout.mown(saved, math.max(#(saved or {}), sites), total)
+end
+
 -- Centres of the given cells, in the order given.
 function PlotLayout.cellSites(field: Field, cells: { number }, tile: number, plotTiles: number): { Site }
 	local points: { Site } = {}

@@ -1,0 +1,1 @@
+- Field work: a cell in work shows bare earth after its first stage (the scythe), and the next tool works on that cell wherever the player stands in the field.
