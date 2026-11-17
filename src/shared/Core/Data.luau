@@ -5,7 +5,7 @@
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 6 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps, the stages of the tool chains; 6: tutorial step (Migrations/Steps)
+local VERSION = 7 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps (tool chains); 6: tutorial step; 7: paint, the colour of S5 Sign Paint (Migrations/Steps)
 local MAX_SITES = { 25, 7, 7, 7, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design-v2.md, section 2)
 local CHAIN_LENGTH = { 1, 2, 2, 2, 3, 3 } -- stages of one cell per field (Config/Land chains)
 local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
@@ -35,6 +35,7 @@ local STATE_FIELDS = {
 	"storage",
 	"rules",
 	"land",
+	"paint",
 }
 
 local Data = {}
@@ -56,6 +57,7 @@ local function template(): Profile
 		pnodes = {},
 		storage = { charge = 0, mode = "auto" },
 		rules = {},
+		paint = 0,
 		land = {
 			sites = { 0, 0, 0, 0, 0, 0 },
 			cells = { {}, {}, {}, {}, {}, {} },
@@ -204,6 +206,14 @@ local function boosters(value: any): any
 	return result
 end
 
+-- The colour chosen with S5 Sign Paint: a whole number 1 to 6, anything else is 0 (none).
+local function paint(value: any, default: any): any
+	if type(value) == "number" and value == math.floor(value) and value >= 1 and value <= 6 then
+		return value
+	end
+	return default
+end
+
 -- The land: sites are whole numbers 0..MAX_SITES[field] per plant, known tools stay when true, the scythe is always owned,
 -- the flags are booleans.
 local function land(value: any, default: any): any
@@ -300,6 +310,7 @@ local CLEANERS: { [string]: (any, any) -> any } = {
 	end,
 	boosters = boosters,
 	land = land,
+	paint = paint,
 	storage = fields,
 	daily = fields,
 	settings = fields,

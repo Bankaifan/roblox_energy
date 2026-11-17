@@ -24,11 +24,12 @@ export type State = {
 	storage: { charge: number, mode: string },
 	rules: { [string]: Rule }, -- by rule id ("charge", "sell"); a missing rule is off at its default threshold
 	land: any?,
+	paint: number?, -- S5 Sign Paint: the chosen colour 1 to 6, 0 or nil = none
 }
 export type Config = {
 	land: any?,
 	plants: { Plant },
-	upgrades: { run: { any }, permanent: { any } },
+	upgrades: { run: { any }, permanent: { any }, spark: { any }? },
 	prestige: { Prestige },
 	phases: { Phase },
 	weathers: { Weather },
@@ -393,7 +394,7 @@ local function buyNode(state: State, env: Env, action: { [string]: any }): boole
 		state.nodes[id] = true
 		return true
 	end
-	local permanent = findById(env.config.upgrades.permanent, id)
+	local permanent = findById(env.config.upgrades.permanent, id) or findById(env.config.upgrades.spark or {}, id)
 	if permanent == nil or permanent.sparks > state.sparks - state.sparksSpent then
 		return false
 	end
@@ -442,6 +443,14 @@ local function toolRevealed(state: State, tool: any): boolean
 	return tool.plant == 1 or state.plants[tool.plant - 1] >= 1
 end
 
+-- The price of a tool the player does not own yet: half with S2 Tool Rebate (rounded up to a whole coin).
+local function toolPrice(state: State, env: Env, tool: any): number
+	if state.pnodes.S2 then
+		return math.ceil(tool.price * env.config.effects.toolRebate)
+	end
+	return tool.price
+end
+
 -- BuyTool { tool }: revealed, not owned, coins cover the price. Tools are kept on prestige.
 local function buyTool(state: State, env: Env, action: { [string]: any }): boolean
 	if env.config.land == nil or type(action.tool) ~= "string" then
@@ -452,10 +461,11 @@ local function buyTool(state: State, env: Env, action: { [string]: any }): boole
 		return false
 	end
 	local land = landOf(state, env)
-	if land.tools[tool.id] or not toolRevealed(state, tool) or tool.price > state.coins then
+	local price = toolPrice(state, env, tool)
+	if land.tools[tool.id] or not toolRevealed(state, tool) or price > state.coins then
 		return false
 	end
-	state.coins -= tool.price
+	state.coins -= price
 	land.tools[tool.id] = true
 	return true
 end
@@ -569,6 +579,29 @@ local function prepare(state: State, env: Env, action: { [string]: any }): boole
 	return true
 end
 
+-- SetPaint { color }: S5 Sign Paint must be owned; the colour is a whole number from 1 to paintColors.
+local function setPaint(state: State, env: Env, action: { [string]: any }): boolean
+	local color = action.color
+	if not state.pnodes.S5 or not isCount(color) or color < 1 or color > env.config.effects.paintColors then
+		return false
+	end
+	state.paint = color
+	return true
+end
+
+-- S1 Starter Kit: a new run starts with units of the first plants, where the ground of that plant is prepared.
+local function starterKit(state: State, env: Env)
+	for id, count in env.config.effects.starterKit do
+		local room = count
+		if landRequired(env) then
+			local sites = if state.land ~= nil then state.land.sites[id] or 0 else 0
+			local perSite = env.config.land.unitsPerSite
+			room = if sites < 1 then 0 elseif perSite ~= nil then math.min(count, sites * perSite) else count
+		end
+		state.plants[id] = room
+	end
+end
+
 -- Netz-Ausbau: needs the run revenue of the next level. Plants, run nodes and coins go back to the start;
 -- P1 gives start coins, P5 keeps the storage, the control center and the rules.
 local function prestige(state: State, env: Env): boolean
@@ -597,6 +630,9 @@ local function prestige(state: State, env: Env): boolean
 	if state.pnodes.P1 then
 		state.coins = effects.startCoins
 	end
+	if state.pnodes.S1 then
+		starterKit(state, env)
+	end
 	state.runEarned = 0
 	state.storage.charge = 0
 	return true
@@ -621,6 +657,8 @@ function GameCore.apply(state: State, action: { [string]: any }, env: Env): (Sta
 		ok = setStorageMode(result, env, action)
 	elseif action.type == "BuyTool" then
 		ok = buyTool(result, env, action)
+	elseif action.type == "SetPaint" then
+		ok = setPaint(result, env, action)
 	elseif action.type == "Prepare" then
 		ok = prepare(result, env, action)
 	elseif action.type == "BuyContainer" then
@@ -730,6 +768,48 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 	}
 end
 
+-- S3 Quick Hands: the factor on every hold time (1 without it). The server times a hold with tool.hold x this.
+local function holdFactor(state: State, env: Env): number
+	if state.pnodes.S3 then
+		return env.config.effects.holdFactor
+	end
+	return 1
+end
+
+-- The grid multiplier shown to the player: the one of the level reached (1 at level 0).
+local function gridMultiplier(env: Env, level: number): number
+	local step = env.config.prestige[level]
+	return if step ~= nil then step.multiplier else 1
+end
+
+-- The spark shop for the HUD: the sparks left, every permanent node and spark item with its price, owned flag and
+-- whether the sparks cover it, the colour chosen with S5, and the grid multiplier now and after the next expansion.
+local function sparkView(state: State, env: Env): { [string]: any }
+	local available = state.sparks - state.sparksSpent
+	local items = {}
+	for _, list in { env.config.upgrades.permanent, env.config.upgrades.spark or {} } do
+		for _, node in list do
+			local owned = state.pnodes[node.id] == true
+			table.insert(items, {
+				id = node.id,
+				sparks = node.sparks,
+				owned = owned,
+				buyable = not owned and node.sparks <= available,
+			})
+		end
+	end
+	local nextStep = env.config.prestige[state.level + 1]
+	return {
+		available = available,
+		items = items,
+		paint = state.paint or 0,
+		gridLevel = state.level,
+		gridNow = gridMultiplier(env, state.level),
+		gridNext = if nextStep ~= nil then nextStep.multiplier else nil,
+		sparksNext = if nextStep ~= nil then nextStep.sparks else nil,
+	}
+end
+
 -- What the HUD shows, so the client does no game logic: each plant's next price and whether the coins cover it,
 -- the run nodes, the storage, the crank energy per click, and the next grid expansion with the run earnings,
 -- its sparks and whether it is allowed now (nil after the last level).
@@ -778,12 +858,14 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		for _, tool in env.config.land.tools do
 			local owned = land.tools[tool.id] == true
 			local revealed = toolRevealed(state, tool)
+			local cost = if owned then tool.price else toolPrice(state, env, tool)
 			table.insert(tools, {
 				id = tool.id,
-				price = tool.price,
+				price = cost,
+				hold = tool.hold * holdFactor(state, env),
 				owned = owned,
 				revealed = revealed,
-				buyable = revealed and not owned and tool.price <= state.coins,
+				buyable = revealed and not owned and cost <= state.coins,
 				textKey = tool.textKey,
 				place = "market",
 			})
@@ -791,6 +873,8 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		view.land = copy(land)
 		view.tools = tools
 	end
+	view.holdFactor = holdFactor(state, env)
+	view.sparks = sparkView(state, env)
 	return view
 end
 

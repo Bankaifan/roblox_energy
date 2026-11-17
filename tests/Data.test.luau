@@ -64,9 +64,9 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 6, the default profile of Bauplan section 5.
+	-- The template: version 7, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 6, "the template is version 6")
+	t.equal(template.v, 7, "the template is version 7")
 	t.equal(template.tutorial, 1, "a new profile starts the tutorial at its first step")
 	t.equal(template.tutorialDone, false, "a new profile has not finished the tutorial")
 	t.equal(template.land.tools.scythe, true, "the scythe is owned from the start")
@@ -179,7 +179,7 @@ return function(t, load)
 		},
 	}
 	local migrated = Data.migrate(slotted, Steps)
-	t.equal(migrated.v, 6, "the profile is version 5 afterwards")
+	t.equal(migrated.v, 7, "the profile is version 7 afterwards")
 	t.truthy(same(migrated.rules.charge, { th = 0.8, on = true }), "of two charge slots the switched-on one wins")
 	t.truthy(same(migrated.rules.sell, { th = 1.2, on = true }), "the sell slot becomes the sell rule")
 	t.equal(migrated.rules["1"], nil, "no slot key is left")
@@ -198,9 +198,18 @@ return function(t, load)
 	t.equal(clamped.rules.other, nil, "an unknown rule id is dropped")
 	t.truthy(same(Data.migrate({ v = 3 }, Steps).rules, {}), "a profile without rules gets none")
 
+	-- Version 6 -> 7: a profile gets paint 0; a saved colour 1 to 6 stays, anything else is 0; spark items are kept.
+	local paint5 = Data.migrate({ v = 5, pnodes = { S1 = true, P2 = true } }, Steps)
+	t.equal(paint5.paint, 0, "a version 5 profile gets no colour")
+	t.truthy(paint5.pnodes.S1 == true and paint5.pnodes.P2 == true, "spark items are kept in pnodes")
+	t.equal(Data.migrate({ v = 6, paint = 4 }, Steps).paint, 4, "a saved colour stays")
+	t.equal(Data.migrate({ v = 6, paint = 9 }, Steps).paint, 0, "a colour out of range is dropped")
+	t.equal(Data.migrate({ v = 6, paint = 2.5 }, Steps).paint, 0, "a fractional colour is dropped")
+	t.equal(Data.toState(Data.migrate({ v = 6, paint = 4 }, Steps)).paint, 4, "paint is part of the run state")
+
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 7
+	newer.v = 8
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
@@ -220,9 +229,10 @@ return function(t, load)
 		[3] = Steps[3],
 		[4] = Steps[4],
 		[5] = Steps[5],
+		[6] = Steps[6],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 6, "the profile is the current version afterwards")
+	t.equal(upgraded.v, 7, "the profile is the current version afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
 	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
@@ -239,7 +249,7 @@ return function(t, load)
 		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
 	}
 	local v2 = Data.migrate(v1, Steps)
-	t.equal(v2.v, 6, "a version 1 profile loads as the current version")
+	t.equal(v2.v, 7, "a version 1 profile loads as the current version")
 	t.equal(v2.passes.founder, true, "a founder grant becomes the owned pass")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
@@ -251,7 +261,7 @@ return function(t, load)
 	-- Migration 2 to 3: a profile that has earned coins gets the old game's land; a fresh one gets the template.
 	local old2 = { v = 2, coins = 10, lifetimeEarned = 50, nodes = { U21 = true } }
 	local v3 = Data.migrate(old2, Steps)
-	t.equal(v3.v, 6, "a version 2 profile loads as the current version")
+	t.equal(v3.v, 7, "a version 2 profile loads as the current version")
 	t.truthy(same(v3.land.sites, { 4, 4, 4, 4, 4, 4 }), "the first row of every field is prepared")
 	t.equal(v3.land.tools.shovel, true, "the tools are owned")
 	t.equal(v3.land.tools.pliers, true, "the cable pliers are owned")

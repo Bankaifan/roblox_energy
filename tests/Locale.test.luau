@@ -69,6 +69,16 @@ return function(t, load)
 		hasBoth(`node.{node.id}.name`)
 		hasBoth(`node.{node.id}.info`)
 	end
+	for _, list in { Upgrades.permanent, Upgrades.spark } do
+		for _, node in list do
+			hasBoth(`perm.{node.id}.name`)
+			hasBoth(`perm.{node.id}.info`)
+			t.equal(en[`perm.{node.id}.info`], node.info, `{node.id}: English info matches the config`)
+		end
+	end
+	for _, key in { "tab.sparks", "market.hint.sparks", "market.sparkPrice" } do
+		hasBoth(key)
+	end
 	for _, key in { "mode.charge", "mode.sell", "mode.auto", "rule.charge", "rule.sell" } do
 		hasBoth(key)
 	end

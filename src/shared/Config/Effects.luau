@@ -32,4 +32,9 @@ return {
 	offlineEfficiency = 0.5, -- Wirkungsgrad offline
 	offlineEfficiencyP4 = 0.75, -- P4 Nachtschicht
 	plotPublicSeconds = 5, -- PlotPublic: at most one message per plot in this many seconds (Bauplan, section 5)
+	-- Spark items (Config/Upgrades.spark)
+	starterKit = { [1] = 4, [2] = 2 }, -- S1: units per plant id at the start of a run, where the ground is prepared
+	toolRebate = 0.5, -- S2: price factor of a tool not yet owned
+	holdFactor = 0.5, -- S3: factor on every hold time
+	paintColors = 6, -- S5: colours to choose from (1 to 6; 0 = none chosen)
 }

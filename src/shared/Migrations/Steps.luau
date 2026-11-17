@@ -139,4 +139,10 @@ Steps[5] = function(profile: any): any
 	return profile
 end
 
+-- Version 6 -> 7: the profile gets `paint` (the colour of S5 Sign Paint, 0 = none) and spark items may appear in
+-- `pnodes`. Nothing to convert: Core/Data.reconcile fills `paint` from the template.
+Steps[6] = function(profile: any): any
+	return profile
+end
+
 return Steps

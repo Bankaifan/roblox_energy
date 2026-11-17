@@ -1,0 +1,2 @@
+- The market has a new "Sparks" tab with the spark items: starter kit, tool rebate, hold factor, paint and flag.
+- Saves move to data version 7 (new paint field); older saves are migrated on load.
