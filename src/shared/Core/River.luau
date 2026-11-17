@@ -384,6 +384,48 @@ function River.fromLand(cells: { number }?, steps: { number }?, sites: number, s
 	return River.stages(saved, segments)
 end
 
+-- Where the bought wheels stand. Wheels come one at a time and two form a pair side by side on one axle across the flow:
+-- wheel 1 and 2 are the first pair, 3 and 4 the second, and so on. Pair j stands at a quarter (odd j) or three quarters (even
+-- j) of a flooded segment, two pairs per segment, taking the flooded segments in turn. Each spot gives the course point
+-- (x, z), the flow (tx, tz), the axle direction (nx, nz) and `side` (-1 first wheel of the pair, +1 second); none when no
+-- segment is flooded.
+export type WheelSpot = {
+	x: number,
+	z: number,
+	tx: number,
+	tz: number,
+	nx: number,
+	nz: number,
+	side: number,
+	pair: number,
+}
+function River.wheelSpots(course: Course, stages: { number }, count: number): { WheelSpot }
+	local spots: { WheelSpot } = {}
+	local flooded = River.flooded(stages)
+	if flooded == 0 then
+		return spots
+	end
+	for i = 1, count do
+		local pair = (i + 1) // 2
+		local k = ((pair - 1) // 2) % flooded + 1
+		local first = course.samples[(k - 1) * course.perSegment + 1]
+		local last = course.samples[k * course.perSegment + 1]
+		local fraction = if pair % 2 == 1 then 0.25 else 0.75
+		local at = River.at(course, first.arc + (last.arc - first.arc) * fraction)
+		table.insert(spots, {
+			x = at.x,
+			z = at.z,
+			tx = at.tx,
+			tz = at.tz,
+			nx = at.nx,
+			nz = at.nz,
+			side = if i % 2 == 1 then -1 else 1,
+			pair = pair,
+		})
+	end
+	return spots
+end
+
 -- Number of flooded segments.
 function River.flooded(stages: { number }): number
 	local n = 0

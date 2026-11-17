@@ -353,6 +353,39 @@ function PlantModels.container(origin: Vector3, groundY: number, facing: number?
 	return model
 end
 
+-- Stands one water wheel of a pair in the river. `at` is the middle of the pair on the water (world XZ), (axisX, axisZ) the
+-- axle across the flow and (flowX, flowZ) the flow, all in the world. The model's axle runs along world X, so the copy is
+-- turned about Y to lie along the axle; the second wheel of a pair (`side` +1) is turned a further half turn so that the
+-- stub of the axle shows on the outside of both. The wheel is shifted half its width to its side of the pair centre, its
+-- lowest point sits at `bottomY` (under the water surface, so the wheel stands in the river) and it is tagged to turn.
+function PlantModels.placeWheel(
+	copy: Model,
+	scale: number,
+	at: Vector3,
+	bottomY: number,
+	axisX: number,
+	axisZ: number,
+	side: number,
+	flowX: number,
+	flowZ: number
+)
+	local wheel = copy:FindFirstChild("Wheel")
+	if wheel == nil or not wheel:IsA("Model") then
+		return
+	end
+	copy:ScaleTo(copy:GetScale() * scale)
+	local _, straight = worldBox(wheel) -- the model's axle runs along world X: its width is the X size
+	local half = straight.X / 2
+	local yaw = math.atan2(-axisZ, axisX) + (if side > 0 then math.pi else 0)
+	copy:PivotTo(CFrame.Angles(0, yaw, 0) * copy:GetPivot())
+	local middle, size = worldBox(wheel)
+	local shift = Vector3.new(axisX, 0, axisZ) * side * half
+	copy:PivotTo(
+		copy:GetPivot() + Vector3.new(at.X - middle.X, bottomY - (middle.Y - size.Y / 2), at.Z - middle.Z) + shift
+	)
+	PlantModels.tagWheel(copy, flowX, flowZ)
+end
+
 -- Fits `copy` into a cell of `cell` studs centred on `centre` (x, z), standing on `groundY`. A `flat` plant is laid
 -- down first, glass side up. The size depends on the cell only; `angle` (degrees about the world's Y, optional) turns
 -- the copy after it is scaled, so a turned copy keeps its size. All boxes are along the world axes.

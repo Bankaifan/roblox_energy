@@ -101,7 +101,7 @@ end
 -- Visible copies per pad: at most 4 (2 x 2), so a pad never looks crowded.
 Assets.plants = {
 	[1] = { file = "plant1_panel", scale = 1, cap = 4, flat = true },
-	[2] = { file = "plant2_waterwheel", scale = 1, cap = 4 },
+	[2] = { file = "plant2_waterwheel", scale = 0.4, cap = 4 },
 	[3] = { file = "plant3_house", scale = 1, cap = 4 },
 	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 4 },
 	[5] = { file = "plant5_solarfarm", scale = 1, cap = 4 },
