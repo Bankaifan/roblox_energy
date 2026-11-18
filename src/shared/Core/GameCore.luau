@@ -145,7 +145,8 @@ local function effectiveCount(state: State, env: Env, plant: Plant): number
 	if plant.id == 1 then
 		local config = if env.config.land ~= nil then env.config.land.align else nil
 		if config ~= nil then
-			count += alignedPanels(state, env) * (config.factor - 1)
+			local factor = if state.pnodes.S4 then env.config.effects.alignFactorS4 else config.factor
+			count += alignedPanels(state, env) * (factor - 1)
 		end
 	end
 	return count
