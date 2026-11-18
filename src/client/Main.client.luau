@@ -19,6 +19,7 @@ local delta = net:WaitForChild("Delta") :: RemoteEvent
 local env = net:WaitForChild("Env") :: RemoteEvent
 local welcomeMessage = net:WaitForChild("Welcome") :: RemoteEvent
 local ready = net:WaitForChild("Ready") :: RemoteEvent
+local plotPublic = net:WaitForChild("PlotPublic") :: RemoteEvent
 snapshot.OnClientEvent:Connect(hud.snapshot)
 delta.OnClientEvent:Connect(function(change: any)
 	hud.delta(change)
@@ -26,6 +27,8 @@ delta.OnClientEvent:Connect(function(change: any)
 end)
 env.OnClientEvent:Connect(hud.env)
 welcomeMessage.OnClientEvent:Connect(welcome)
+-- PlotPublic (the other plots' cosmetics) is sent to everyone; nothing draws it yet. A listener keeps the remote queue from filling up.
+plotPublic.OnClientEvent:Connect(function() end)
 -- Only the market's "ShopPrompt" and the control board's "ControlPrompt" (made by PlotService) open the market popup; no message to the server is needed.
 ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 	if prompt.Name == "ShopPrompt" then
