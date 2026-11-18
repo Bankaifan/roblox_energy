@@ -171,6 +171,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			control = storage.controlOwned, -- the board stands once U21 is owned; wiring it is what unlocks the rules
 			fill = storage.fill,
 			paint = nextState.paint,
+			golden = nextState.pnodes.S6 == true,
 		}, nextState.land)
 		LandService.refresh(player, nextState)
 		ToolService.refresh(player, nextState.land or config.land.start)
