@@ -46,6 +46,7 @@ type Record = {
 	foundations: Folder?, -- concrete steps under the anchored wind plants
 	cableKey: string, -- what the ground cables show now
 	cables: Folder?, -- cables from the farm cells to the grid box
+	golden: boolean, -- the Golden Crank (S6) is shown
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -506,6 +507,39 @@ local function updateCables(record: Record, land: any)
 	record.cables = folder
 end
 
+-- S6 Golden Crank: the stone ring (the pad under the crank) turns gold and glows faintly; without S6 it keeps the yellow disc.
+local GOLD = Color3.fromRGB(255, 200, 40)
+local function updateCrank(record: Record, golden: boolean)
+	if record.golden == golden then
+		return
+	end
+	record.golden = golden
+	local pad = record.model:FindFirstChild("CrankPad")
+	if pad == nil or not pad:IsA("BasePart") then
+		return
+	end
+	local glow = pad:FindFirstChild("GoldenGlow")
+	if golden then
+		pad.Color = GOLD
+		pad.Material = Enum.Material.Metal
+		if glow == nil then
+			local light = Instance.new("PointLight")
+			light.Name = "GoldenGlow"
+			light.Color = GOLD
+			light.Range = 14
+			light.Brightness = 0.8
+			light.Shadows = false
+			light.Parent = pad
+		end
+	else
+		pad.Color = COLORS.Solar
+		pad.Material = Enum.Material.Plastic
+		if glow ~= nil then
+			glow:Destroy()
+		end
+	end
+end
+
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
@@ -560,6 +594,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		foundations = nil,
 		cableKey = "",
 		cables = nil,
+		golden = false,
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -592,7 +627,7 @@ end
 function PlotService.update(
 	player: Player,
 	counts: { number },
-	extras: { stage: number, control: boolean, fill: number?, paint: number? }?,
+	extras: { stage: number, control: boolean, fill: number?, paint: number?, golden: boolean? }?,
 	land: any?
 )
 	local record = plots[player]
@@ -604,6 +639,7 @@ function PlotService.update(
 	updateLand(record, counts, ownLand, if extras ~= nil then extras.paint else nil)
 	updateFoundations(record, ownLand)
 	updateCables(record, ownLand)
+	updateCrank(record, extras ~= nil and extras.golden == true)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
 			local cells = PlotLayout.mown(
