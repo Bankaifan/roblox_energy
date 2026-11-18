@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local ShopView = require(
 	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript
 ) :: any
@@ -153,6 +154,32 @@ function Hud.build(net: Instance)
 	local function send(name: string, payload: any?)
 		(net:WaitForChild(name) :: RemoteEvent):FireServer(payload)
 	end
+	-- S5 Sign Paint: one row of colour buttons, shown once the item is owned; the server paints the rope of the plot.
+	local paintRow = Instance.new("Frame")
+	paintRow.BackgroundTransparency = 1
+	paintRow.Size = UDim2.new(1, 0, 0, BUTTON_MIN_HEIGHT)
+	paintRow.LayoutOrder = nextOrder()
+	paintRow.Visible = false
+	paintRow.Parent = frame
+	local paintLayout = Instance.new("UIListLayout")
+	paintLayout.FillDirection = Enum.FillDirection.Horizontal
+	paintLayout.Padding = UDim.new(0, 4)
+	paintLayout.Parent = paintRow
+	local paintButtons: { TextButton } = {}
+	for index, rgb in Assets.paintColors do
+		local swatch = Instance.new("TextButton")
+		swatch.Text = ""
+		swatch.Size = UDim2.new(1 / #Assets.paintColors, -4, 1, 0)
+		swatch.BackgroundColor3 = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+		swatch.BorderSizePixel = 0
+		swatch.LayoutOrder = index
+		Theme.round(swatch)
+		swatch.Activated:Connect(function()
+			send("SetPaint", { color = index })
+		end)
+		swatch.Parent = paintRow
+		paintButtons[index] = swatch
+	end
 	-- The latest view from the server; buttons check it before they send.
 	local latest: any = nil
 	-- The last Snapshot, Delta and Env, kept so a language change can paint them again without waiting for the server.
@@ -195,6 +222,17 @@ function Hud.build(net: Instance)
 		rate.Text = t("hud.rate", { value = format(change.rate) })
 		storageText(change.charge)
 		price.Text = ShopView.priceText(change.view.price, t)
+		local sparkView = change.view.sparks
+		if sparkView ~= nil then
+			local owned = false
+			for _, item in sparkView.items do
+				owned = owned or (item.id == "S5" and item.owned == true)
+			end
+			paintRow.Visible = owned
+			for index, swatch in paintButtons do
+				swatch.Text = if sparkView.paint == index then "✓" else ""
+			end
+		end
 		shop(change.view)
 	end
 	local function applyEnv(change: any)

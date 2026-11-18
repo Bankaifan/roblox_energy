@@ -312,7 +312,7 @@ local FURNITURE_MARGIN = 8
 -- The ground follows the land: bare earth with a wobbly outline around the crank and the market and under every prepared
 -- site; the rest stays meadow. Buying a unit never clears grass: only the tool does (Prepare). A field whose tool is owned and whose plant is revealed gets a low
 -- fence around the sites that are still to prepare. Terrain and fence are rebuilt only when their content changes.
-local function updateLand(record: Record, counts: { number }, land: any)
+local function updateLand(record: Record, counts: { number }, land: any, paint: number?)
 	local ground, fence = {}, {}
 	for index in Assets.fields do
 		local total = Assets.siteCount(index)
@@ -368,7 +368,8 @@ local function updateLand(record: Record, counts: { number }, land: any)
 		end
 		PlotGround.clear(record.slot, record.facing, groundKey, patches)
 	end
-	local fenceKey = table.concat(fence, " ")
+	local tint = if paint ~= nil and paint >= 1 then Assets.paintColors[paint] else nil
+	local fenceKey = table.concat(fence, " ") .. `|{paint or 0}`
 	if record.fenceKey ~= fenceKey then
 		record.fenceKey = fenceKey
 		if record.fences ~= nil then
@@ -380,7 +381,14 @@ local function updateLand(record: Record, counts: { number }, land: any)
 			if fence[index] ~= "-" then
 				-- The rope runs around the whole field while it is open: the player mows where he stands inside it.
 				local stakes, ropes = Meadow.fence(field, {}, record.slot, Assets.TILE, Assets.PLOT_TILES)
-				PlotGround.fence(folder, record.origin, record.facing, stakes, ropes)
+				PlotGround.fence(
+					folder,
+					record.origin,
+					record.facing,
+					stakes,
+					ropes,
+					if tint ~= nil then Color3.fromRGB(tint[1], tint[2], tint[3]) else nil
+				)
 			end
 		end
 		folder.Parent = record.model
@@ -584,7 +592,7 @@ end
 function PlotService.update(
 	player: Player,
 	counts: { number },
-	extras: { stage: number, control: boolean, fill: number? }?,
+	extras: { stage: number, control: boolean, fill: number?, paint: number? }?,
 	land: any?
 )
 	local record = plots[player]
@@ -593,7 +601,7 @@ function PlotService.update(
 	end
 	local ownLand = land or Land.start
 	updateFurniture(record, extras or { stage = 0, control = false }, player)
-	updateLand(record, counts, ownLand)
+	updateLand(record, counts, ownLand, if extras ~= nil then extras.paint else nil)
 	updateFoundations(record, ownLand)
 	updateCables(record, ownLand)
 	for index in record.modelPlants do
