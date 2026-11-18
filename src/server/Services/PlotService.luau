@@ -635,6 +635,22 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	if market ~= nil then
 		addPrompt(player, market, "ShopPrompt", "action.shop", nil)
 	end
+	-- Invisible marks for the tutorial arrow: the middle of field 1 and the river spring (cell 1 of field 2).
+	for number, cell in { [1] = 13, [2] = 1 } do
+		local field = Assets.fields[number]
+		local site = PlotLayout.cellCentre(field, cell, Assets.TILE, Assets.PLOT_TILES)
+		local spot = Instance.new("Part")
+		spot.Name = "TutorialSpot" .. number
+		spot.Anchored = true
+		spot.CanCollide = false
+		spot.CanQuery = false
+		spot.CanTouch = false
+		spot.CastShadow = false
+		spot.Transparency = 1
+		spot.Size = Vector3.one
+		spot.Position = sitePoint(record, site) + Vector3.new(0, 1, 0)
+		spot.Parent = model
+	end
 	PlotService.update(player, {})
 	return true
 end

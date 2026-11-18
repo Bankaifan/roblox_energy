@@ -6,6 +6,8 @@ local Hud = require(script.Parent.Controllers.Hud)
 local Market = require(script.Parent.Controllers.Market)
 local PlotFx = require(script.Parent.Controllers.PlotFx)
 local TutorialArrow = require(script.Parent.Controllers.TutorialArrow)
+local TutorialGuide = require(script.Parent.Controllers.TutorialGuide)
+local TutorialHotbar = require(script.Parent.Controllers.TutorialHotbar)
 local WelcomeScreen = require(script.Parent.WelcomeScreen)
 local LeaderboardScreen = require(script.Parent.LeaderboardScreen)
 
@@ -23,15 +25,21 @@ local ready = net:WaitForChild("Ready") :: RemoteEvent
 local tutorial = net:WaitForChild("Tutorial") :: RemoteEvent
 local marketOpened = net:WaitForChild("MarketOpened") :: RemoteEvent
 snapshot.OnClientEvent:Connect(hud.snapshot)
+local guide = TutorialGuide.build({
+	hud = hud,
+	market = market,
+	pointAt = TutorialArrow.build(),
+	hotbar = TutorialHotbar.build(),
+})
 delta.OnClientEvent:Connect(function(change: any)
 	hud.delta(change)
 	market.delta(change)
+	guide.delta(change)
 end)
 env.OnClientEvent:Connect(hud.env)
-local pointAt = TutorialArrow.build()
 tutorial.OnClientEvent:Connect(function(change: any)
 	hud.tutorial(change)
-	pointAt(change.id)
+	guide.tutorial(change)
 end)
 welcomeMessage.OnClientEvent:Connect(welcome)
 -- Only the market's "ShopPrompt" and the control board's "ControlPrompt" (made by PlotService) open the market popup; no message to the server is needed.
