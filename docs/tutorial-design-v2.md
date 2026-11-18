@@ -344,7 +344,6 @@ the #185 line goes into those issues by hand.
 ### Step 1: Tutorial core with twelve steps and soft steps
 Files: `src/shared/Core/Tutorial.luau`, `tests/Tutorial.test.luau`, `src/shared/Core/Data.luau`, `src/shared/Migrations/Steps.luau`, `tests/Data.test.luau`, `src/server/Services/TutorialService.luau`
 Acceptance: the Tutorial and Data tests of section 6 pass and TutorialService passes the seconds the step has been shown
-Depends on: #185, #185
 
 ### Step 2: Pure presentation model TutorialView
 Files: `src/shared/Core/TutorialView.luau`, `tests/TutorialView.test.luau`
@@ -363,14 +362,12 @@ Acceptance: every plot model holds invisible parts TutorialSpot1 and TutorialSpo
 ### Step 5: Arrow targets, proximity fade, beam and highlight
 Files: `src/client/Controllers/TutorialArrow.luau`
 Acceptance: the arrow takes a target name (crank, market, field1, field2 or none), fades within 12 studs and draws the beam by the rules of 4.4
-Depends on: #185, 4
-Depends on: #185, #185
+Depends on: 4
 
 ### Step 6: HUD line with arguments, dimming, skip confirm and expand pulse
 Files: `src/client/Controllers/Hud.luau`
 Acceptance: hud.tutorial takes a key with arguments, dims after 10 s, the skip button needs two taps and hud.pulse pulses the expand button
-Depends on: #185, 3
-Depends on: #185, #185
+Depends on: 3
 
 ### Step 7: Market tab and card pulse
 Files: `src/client/Controllers/Market.luau`
@@ -391,6 +388,3 @@ Each step adds its own `changelog.d/<issue>.md` fragment where the change is vis
 
 none
 
-## Precondition
-
-The steps above build on PR #185 (TutorialService, TutorialArrow, Hud.tutorial and the Net messages MarketOpened, TutorialSkip and Tutorial). Steps 1, 5 and 6 carry `Depends on: #185`. The statement that `tests/Net.test.luau` stays green holds only after #185 is merged; on a `main` without it the message count is lower.
