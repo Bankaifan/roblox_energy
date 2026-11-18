@@ -290,4 +290,16 @@ return function(t, load)
 		local depth = River.gap(pairCourse, { spot.x, spot.x, spot.z, spot.z })
 		t.truthy(depth < 0, "the pair stands in the water")
 	end
+
+	-- Foam: three strips per flooded segment only, inside the water, fading at the segment ends.
+	local foamCourse = River.course(river, 1)
+	t.equal(#River.foam(foamCourse, River.fromCount(0, 7), 5), 0, "no water, no foam")
+	local strips = River.foam(foamCourse, River.fromCount(2, 7), 5)
+	t.equal(#strips, 2 * River.FOAM_STRIPS, "three strips per flooded segment")
+	for _, strip in strips do
+		t.truthy(River.gap(foamCourse, { strip.x, strip.x, strip.z, strip.z }) < 0, "foam floats on the water")
+		t.truthy(strip.fade >= 0 and strip.fade <= 1, "fade is a fraction")
+	end
+	local later = River.foam(foamCourse, River.fromCount(2, 7), 6)
+	t.truthy(later[1].x ~= strips[1].x or later[1].z ~= strips[1].z, "foam drifts with time")
 end

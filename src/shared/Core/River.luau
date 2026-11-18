@@ -516,4 +516,36 @@ function River.gap(course: Course, box: { number }): number
 	return best
 end
 
+-- Foam strips (client only): FOAM_STRIPS per flooded segment drift downstream with FLOW_SPEED and sit side by side across the water.
+-- `fade` is 1 in the middle of the segment and 0 at its ends, so a strip appears and vanishes without a jump.
+River.FOAM_STRIPS = 3
+River.FOAM_SPACING = 2
+
+export type Foam = { x: number, z: number, tx: number, tz: number, fade: number }
+
+function River.foam(course: Course, stages: { number }, now: number): { Foam }
+	local strips: { Foam } = {}
+	for k = 1, course.segments do
+		if stages[k] ~= River.FLOODED then
+			continue
+		end
+		local per = course.perSegment
+		local from, to = course.samples[(k - 1) * per + 1].arc, course.samples[k * per + 1].arc
+		local length = to - from
+		for i = 0, River.FOAM_STRIPS - 1 do
+			local phase = ((now * River.FLOW_SPEED + i * length / River.FOAM_STRIPS) % length) / length
+			local at = River.at(course, from + phase * length)
+			local side = (i - (River.FOAM_STRIPS - 1) / 2) * River.FOAM_SPACING
+			table.insert(strips, {
+				x = at.x + at.nx * side,
+				z = at.z + at.nz * side,
+				tx = at.tx,
+				tz = at.tz,
+				fade = math.min(1, phase * 5, (1 - phase) * 5),
+			})
+		end
+	end
+	return strips
+end
+
 return River
