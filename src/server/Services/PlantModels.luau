@@ -203,8 +203,10 @@ function PlantModels.battery(origin: Vector3, groundY: number, level: number, fa
 	copy:ScaleTo(copy:GetScale() * Assets.fitScale(flat.X, flat.Z, entry.size, 1))
 	local boxCFrame, scaled = copy:GetBoundingBox()
 	local bottom = boxCFrame.Position.Y - scaled.Y / 2
-	local lift = level * (scaled.Y + Assets.BATTERY_GAP)
-	local target = origin + Vector3.new(entry.x, 0, entry.z * (facing or 1))
+	local lift = (level % Assets.STACK_HEIGHT) * (scaled.Y + Assets.BATTERY_GAP)
+	-- Two stacks side by side: units 0 and 1 in the left stack, 2 and 3 in the right one.
+	local column = (level // Assets.STACK_HEIGHT) - 0.5
+	local target = origin + Vector3.new(entry.x + column * Assets.COLUMN_GAP, 0, entry.z * (facing or 1))
 	copy:PivotTo(
 		copy:GetPivot()
 			+ Vector3.new(target.X - boxCFrame.Position.X, groundY + lift - bottom, target.Z - boxCFrame.Position.Z)
@@ -269,8 +271,8 @@ end
 -- never turn). The axle is the thin direction of the biggest disc, the centre the middle of the biggest parts. The client
 -- (World.client) turns the tagged model about that axle; attribute SpinSense (+1/-1) makes the bottom move with the water
 -- flowing along (flowX, flowZ) in the world. Nothing happens for a model without a "Wheel" child.
-function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number)
-	local wheel = copy:FindFirstChild("Wheel")
+function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childName: string?)
+	local wheel = copy:FindFirstChild(childName or "Wheel")
 	if wheel == nil or not wheel:IsA("Model") then
 		return
 	end
@@ -307,6 +309,21 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number)
 	wheel:SetAttribute("SpinCentre", sum / count)
 	wheel:SetAttribute("SpinSense", Spin.sense(axis.X, axis.Z, flowX, flowZ))
 	CollectionService:AddTag(wheel, "WheelRotor")
+end
+
+-- Wind rotors: the model's rotor child ("Rotary" of the big turbine, "Model" of the mini turbine) turns like a wheel about its
+-- axle; the sense is fixed. Only wind plants (4 and 6) have one.
+local ROTOR_CHILD = { [4] = "Model", [6] = "Rotary" } :: { [number]: string }
+function PlantModels.tagRotor(copy: Model, plantId: number)
+	local child = ROTOR_CHILD[plantId]
+	if child == nil then
+		return
+	end
+	PlantModels.tagWheel(copy, 0, 0, child)
+	local rotor = copy:FindFirstChild(child)
+	if rotor ~= nil then
+		rotor:SetAttribute("SpinSense", 1)
+	end
 end
 
 -- The walk-in container around the battery spot: floor, roof, back and end walls and a front wall with a door opening.
