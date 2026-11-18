@@ -110,6 +110,15 @@ Assets.cables = {
 } :: { [number]: { stage: number } }
 Assets.CABLE_WIDTH = 0.5
 
+-- Stage builds on a cell (design v2, step 10): `fence` is a post fence round the cell (the hammer on the solar farm), `mast` a guyed
+-- mast with a cross arm (the wrench on the mini turbine). Each appears once the cell's `stage` is done.
+Assets.stageBuilds = {
+	[4] = { kind = "mast", stage = 2 },
+	[5] = { kind = "fence", stage = 2 },
+} :: { [number]: { kind: string, stage: number } }
+Assets.MAST_HEIGHT = 14
+Assets.FENCE_POST = 4 -- studs between the posts of a farm fence
+
 -- Number of cells of a field.
 function Assets.siteCount(plantId: number): number
 	return #Assets.fields[plantId].cells

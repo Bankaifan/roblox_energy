@@ -270,4 +270,12 @@ return function(t, load)
 		t.truthy(field ~= nil and field.river ~= true, `cable {id} is on a land field`)
 		t.truthy(cable.stage <= #Land.chains[id], `cable {id} stage is in the chain`)
 	end
+
+	-- Stage builds: a land field, a known kind and a stage in its chain.
+	for id, build in Assets.stageBuilds do
+		local field = Assets.fields[id]
+		t.truthy(field ~= nil and field.river ~= true, `stage build {id} is on a land field`)
+		t.truthy(build.kind == "fence" or build.kind == "mast", `stage build {id} has a known kind`)
+		t.truthy(build.stage <= #Land.chains[id], `stage build {id} stage is in the chain`)
+	end
 end

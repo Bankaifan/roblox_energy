@@ -1,0 +1,1 @@
+- The hammer fences each solar farm cell with posts and rails, and the wrench sets a guyed mast with a cross arm on each mini turbine cell.

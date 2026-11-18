@@ -46,6 +46,8 @@ type Record = {
 	foundations: Folder?, -- concrete steps under the anchored wind plants
 	cableKey: string, -- what the ground cables show now
 	cables: Folder?, -- cables from the farm cells to the grid box
+	buildKey: string, -- what the farm fences and masts show now
+	builds: Folder?, -- post fences round the solar farm cells and guyed masts on the mini turbine cells
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -490,6 +492,112 @@ local function updateCables(record: Record, land: any)
 	record.cables = folder
 end
 
+-- Post fence round the solar farm cells (hammer) and a guyed mast with a cross arm on the mini turbine cells (wrench).
+local function updateBuilds(record: Record, land: any)
+	local keys = {}
+	local items = {}
+	for index, build in Assets.stageBuilds do
+		local cells = anchored(land, index, build.stage)
+		table.insert(keys, `{index}:{table.concat(cells, ",")}`)
+		for _, site in PlotLayout.cellSites(Assets.fields[index], cells, Assets.TILE, Assets.PLOT_TILES) do
+			table.insert(
+				items,
+				{ kind = build.kind, side = Assets.fields[index].size * Assets.TILE, centre = sitePoint(record, site) }
+			)
+		end
+	end
+	local key = table.concat(keys, " ")
+	if record.buildKey == key then
+		return
+	end
+	record.buildKey = key
+	if record.builds ~= nil then
+		record.builds:Destroy()
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Builds"
+	local ground = record.origin.Y
+	local function part(name: string, size: Vector3, frame: CFrame, color: Color3, material: Enum.Material)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CastShadow = false
+		p.Material = material
+		p.Color = color
+		p.Size = size
+		p.CFrame = frame
+		p.Parent = folder
+	end
+	local wood, steel = Color3.fromRGB(120, 88, 56), Color3.fromRGB(150, 154, 160)
+	for _, item in items do
+		local c = item.centre
+		if item.kind == "fence" then
+			local half = item.side / 2 - 0.5
+			local posts = math.max(1, math.floor(item.side / Assets.FENCE_POST))
+			local step = 2 * half / posts
+			for side = 0, 3 do
+				local turn = CFrame.new(c.X, ground, c.Z) * CFrame.Angles(0, side * math.pi / 2, 0)
+				for i = 0, posts - 1 do
+					part(
+						"FencePost",
+						Vector3.new(0.4, 2.4, 0.4),
+						turn * CFrame.new(-half + i * step, 1.2, half),
+						wood,
+						Enum.Material.Wood
+					)
+				end
+				part(
+					"FenceRail",
+					Vector3.new(2 * half, 0.25, 0.2),
+					turn * CFrame.new(0, 1.9, half),
+					wood,
+					Enum.Material.Wood
+				)
+				part(
+					"FenceRail",
+					Vector3.new(2 * half, 0.25, 0.2),
+					turn * CFrame.new(0, 1.0, half),
+					wood,
+					Enum.Material.Wood
+				)
+			end
+		else
+			local height = Assets.MAST_HEIGHT
+			part(
+				"MastPole",
+				Vector3.new(0.6, height, 0.6),
+				CFrame.new(c.X, ground + height / 2, c.Z),
+				steel,
+				Enum.Material.Metal
+			)
+			part(
+				"MastArm",
+				Vector3.new(5, 0.3, 0.3),
+				CFrame.new(c.X, ground + height - 1, c.Z),
+				steel,
+				Enum.Material.Metal
+			)
+			-- Three guy wires from the top to the ground, 120 degrees apart.
+			local top = Vector3.new(c.X, ground + height - 0.5, c.Z)
+			for i = 0, 2 do
+				local angle = i * 2 * math.pi / 3
+				local foot = Vector3.new(c.X + math.cos(angle) * 3.5, ground + 0.1, c.Z + math.sin(angle) * 3.5)
+				part(
+					"MastGuy",
+					Vector3.new(0.08, 0.08, (top - foot).Magnitude),
+					CFrame.lookAt((top + foot) / 2, foot),
+					steel,
+					Enum.Material.Metal
+				)
+			end
+		end
+	end
+	folder.Parent = record.model
+	record.builds = folder
+end
+
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
@@ -544,6 +652,8 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		foundations = nil,
 		cableKey = "",
 		cables = nil,
+		buildKey = "",
+		builds = nil,
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -588,6 +698,7 @@ function PlotService.update(
 	updateLand(record, counts, ownLand)
 	updateFoundations(record, ownLand)
 	updateCables(record, ownLand)
+	updateBuilds(record, ownLand)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
 			local cells = PlotLayout.mown(
