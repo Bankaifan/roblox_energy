@@ -258,6 +258,10 @@ function LandService.follow(player: Player, plot: Plot, entry: Entry)
 		entry.hold = hold or 0
 		entry.prompt.HoldDuration = entry.hold
 		entry.prompt.ObjectText = Locale.t(TOOL_KEYS[tool], Locale.resolve(player.LocaleId))
+		local action = if type(entry.target) == "number" then Toolbelt.actionKey(entry.target, tool) else nil
+		if action ~= nil then
+			entry.prompt.ActionText = Locale.t(action, Locale.resolve(player.LocaleId))
+		end
 	end
 	entry.prompt.Enabled = cell ~= nil and Toolbelt.inHand(land, entry.target, ToolService.equipped(player), Land, cell)
 end
