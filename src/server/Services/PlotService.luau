@@ -44,6 +44,8 @@ type Record = {
 	fences: Folder?, -- stakes and ropes around the fields that wait for their tool
 	foundationKey: string, -- what the foundations show now
 	foundations: Folder?, -- concrete steps under the anchored wind plants
+	cableKey: string, -- what the ground cables show now
+	cables: Folder?, -- cables from the farm cells to the grid box
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -431,6 +433,58 @@ local function updateFoundations(record: Record, land: any)
 	record.foundations = folder
 end
 
+-- Ground cables from every cell of the solar farm and the wind turbine whose cable stage is done to the grid box: a dark strip
+-- along z to the box's row, then one along x to the box.
+local function updateCables(record: Record, land: any)
+	local box = Assets.furniture.control
+	local keys = {}
+	local sites = {}
+	for index, cable in Assets.cables do
+		local cells = anchored(land, index, cable.stage)
+		table.insert(keys, `{index}:{table.concat(cells, ",")}`)
+		for _, site in PlotLayout.cellSites(Assets.fields[index], cells, Assets.TILE, Assets.PLOT_TILES) do
+			table.insert(sites, site)
+		end
+	end
+	local key = table.concat(keys, " ")
+	if record.cableKey == key then
+		return
+	end
+	record.cableKey = key
+	if record.cables ~= nil then
+		record.cables:Destroy()
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Cables"
+	local function strip(from: Vector3, to: Vector3)
+		local length = (to - from).Magnitude
+		if length < 0.1 then
+			return
+		end
+		local part = Instance.new("Part")
+		part.Name = "Cable"
+		part.Material = Enum.Material.Plastic
+		part.Color = Color3.fromRGB(30, 30, 34)
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CastShadow = false
+		part.Size = Vector3.new(Assets.CABLE_WIDTH, 0.15, length)
+		part.CFrame = CFrame.lookAt((from + to) / 2, to)
+		part.Parent = folder
+	end
+	local y = record.origin.Y + 0.1
+	for _, site in sites do
+		local start = sitePoint(record, site)
+		local corner = sitePoint(record, { x = site.x, z = box.z })
+		local finish = sitePoint(record, { x = box.x, z = box.z })
+		strip(Vector3.new(start.X, y, start.Z), Vector3.new(corner.X, y, corner.Z))
+		strip(Vector3.new(corner.X, y, corner.Z), Vector3.new(finish.X, y, finish.Z))
+	end
+	folder.Parent = record.model
+	record.cables = folder
+end
+
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
@@ -482,6 +536,8 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		fences = nil,
 		foundationKey = "",
 		foundations = nil,
+		cableKey = "",
+		cables = nil,
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -525,6 +581,7 @@ function PlotService.update(
 	updateFurniture(record, extras or { stage = 0, control = false })
 	updateLand(record, counts, ownLand)
 	updateFoundations(record, ownLand)
+	updateCables(record, ownLand)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
 			local cells = PlotLayout.mown(

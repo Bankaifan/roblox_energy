@@ -102,6 +102,14 @@ Assets.foundations = {
 } :: { [number]: { stage: number, radius: number } }
 Assets.FOUNDATION_STEP = 0.6
 
+-- Ground cables of the solar farm and the wind turbine (fields F5 and F6): once the cable drum has done its `stage` on a cell,
+-- a thin dark cable runs from the cell to the grid box (the control board spot), first along z, then along x.
+Assets.cables = {
+	[5] = { stage = 3 },
+	[6] = { stage = 3 },
+} :: { [number]: { stage: number } }
+Assets.CABLE_WIDTH = 0.5
+
 -- Number of cells of a field.
 function Assets.siteCount(plantId: number): number
 	return #Assets.fields[plantId].cells
