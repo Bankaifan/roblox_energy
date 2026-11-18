@@ -110,6 +110,16 @@ Assets.cables = {
 } :: { [number]: { stage: number } }
 Assets.CABLE_WIDTH = 0.5
 
+-- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields takes the chosen one.
+Assets.paintColors = {
+	{ 224, 72, 64 },
+	{ 240, 150, 50 },
+	{ 242, 212, 70 },
+	{ 90, 180, 90 },
+	{ 70, 140, 220 },
+	{ 170, 100, 210 },
+} :: { { number } }
+
 -- Number of cells of a field.
 function Assets.siteCount(plantId: number): number
 	return #Assets.fields[plantId].cells

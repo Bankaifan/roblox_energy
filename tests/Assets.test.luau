@@ -270,4 +270,7 @@ return function(t, load)
 		t.truthy(field ~= nil and field.river ~= true, `cable {id} is on a land field`)
 		t.truthy(cable.stage <= #Land.chains[id], `cable {id} stage is in the chain`)
 	end
+
+	-- Paint colours: as many as the Sign Paint spark item offers.
+	t.equal(#Assets.paintColors, load("Config/Effects").paintColors, "one colour per Sign Paint choice")
 end

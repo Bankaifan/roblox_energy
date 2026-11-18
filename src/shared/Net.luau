@@ -41,6 +41,7 @@ Net.messages = {
 	},
 	-- Align is internal as well: LandService sends it after the hold on a mown panel cell (Mounting Rails in the hand).
 	Align = { direction = "internal", fields = {}, optional = { cell = "int" }, limit = { max = 2, per = 1 } },
+	SetPaint = { direction = "client", fields = { color = "int" }, limit = { max = 2, per = 1 } }, -- S5 Sign Paint: colour 1 to 6
 	Ready = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
 	Snapshot = { direction = "server", fields = {} }, -- the whole run state of the player
 	-- turbo: seconds of the owner's own Turbo Feed-in left (0 = off).
