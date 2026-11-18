@@ -274,9 +274,17 @@ local function tintBatteries(record: Record, fill: number)
 	end
 end
 
-local function updateFurniture(record: Record, extras: { stage: number, control: boolean, fill: number? })
+local function updateFurniture(
+	record: Record,
+	extras: { stage: number, control: boolean, fill: number? },
+	owner: Player
+)
 	if extras.control and record.control == nil then
 		record.control = addFurniture(record, "control", nil)
+		-- Opens the rule popup on the client (Controllers/Market, storage tab); the rules themselves need the wiring.
+		if record.control ~= nil then
+			addPrompt(owner, record.control, "ControlPrompt", "prompt.control", nil)
+		end
 	end
 	local wanted = Assets.batteryUnits(extras.stage)
 	if #record.batteries == wanted then
@@ -584,7 +592,7 @@ function PlotService.update(
 		return
 	end
 	local ownLand = land or Land.start
-	updateFurniture(record, extras or { stage = 0, control = false })
+	updateFurniture(record, extras or { stage = 0, control = false }, player)
 	updateLand(record, counts, ownLand)
 	updateFoundations(record, ownLand)
 	updateCables(record, ownLand)
