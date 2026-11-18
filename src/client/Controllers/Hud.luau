@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local ShopView = require(
 	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript
 ) :: any
@@ -149,9 +150,79 @@ function Hud.build(net: Instance)
 		return lang
 	end)
 	local goal = label(frame, nextOrder())
+	-- The tutorial: one line for the current step and a button to skip it; both hidden when there is no step.
+	local tutorialLine = label(frame, 0)
+	tutorialLine.TextColor3 = Theme.colors.accent
+	tutorialLine.Visible = false
+	local tutorialStep = ""
+	-- The line's Locale key and arguments (TutorialGuide chooses them); without a choice the step id names the text.
+	local tutorialKey: string? = nil
+	local tutorialArgs: { [string]: any }? = nil
+	local skipArmedAt = -math.huge
+	local tutorialForced = false -- the closing line shows after the tutorial is done
+	local tutorialSkip: TextButton
+	tutorialSkip = button(frame, "", 0, function()
+		-- Two taps within three seconds skip for good; the first one only asks again.
+		if os.clock() - skipArmedAt <= 3 then
+			skipArmedAt = -math.huge
+			local skipRemote = net:WaitForChild("TutorialSkip") :: RemoteEvent
+			skipRemote:FireServer()
+		else
+			skipArmedAt = os.clock()
+			tutorialSkip.Text = t("tutorial.skipConfirm")
+			task.delay(3, function()
+				if os.clock() - skipArmedAt >= 3 then
+					tutorialSkip.Text = t("tutorial.skip")
+				end
+			end)
+		end
+	end)
+	tutorialSkip.Visible = false
+	local function paintTutorialLine()
+		local args: { [string]: any } = {}
+		for key, value in tutorialArgs or {} do
+			-- Numbers are shortened (1,100 -> 1.1K); a string is a Locale key to translate (the tool in a nudge).
+			args[key] = if type(value) == "number"
+				then ShopView.short(value)
+				elseif type(value) == "string" then t(value)
+				else value
+		end
+		local key = tutorialKey or ("tutorial." .. tutorialStep)
+		local shown = (tutorialStep ~= "" or tutorialForced) and tutorialKey ~= ""
+		tutorialLine.Visible = shown
+		if shown then
+			tutorialLine.Text = t(key, args)
+		end
+	end
 
 	local function send(name: string, payload: any?)
 		(net:WaitForChild(name) :: RemoteEvent):FireServer(payload)
+	end
+	-- S5 Sign Paint: one row of colour buttons, shown once the item is owned; the server paints the rope of the plot.
+	local paintRow = Instance.new("Frame")
+	paintRow.BackgroundTransparency = 1
+	paintRow.Size = UDim2.new(1, 0, 0, BUTTON_MIN_HEIGHT)
+	paintRow.LayoutOrder = nextOrder()
+	paintRow.Visible = false
+	paintRow.Parent = frame
+	local paintLayout = Instance.new("UIListLayout")
+	paintLayout.FillDirection = Enum.FillDirection.Horizontal
+	paintLayout.Padding = UDim.new(0, 4)
+	paintLayout.Parent = paintRow
+	local paintButtons: { TextButton } = {}
+	for index, rgb in Assets.paintColors do
+		local swatch = Instance.new("TextButton")
+		swatch.Text = ""
+		swatch.Size = UDim2.new(1 / #Assets.paintColors, -4, 1, 0)
+		swatch.BackgroundColor3 = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+		swatch.BorderSizePixel = 0
+		swatch.LayoutOrder = index
+		Theme.round(swatch)
+		swatch.Activated:Connect(function()
+			send("SetPaint", { color = index })
+		end)
+		swatch.Parent = paintRow
+		paintButtons[index] = swatch
 	end
 	-- The latest view from the server; buttons check it before they send.
 	local latest: any = nil
@@ -160,9 +231,27 @@ function Hud.build(net: Instance)
 	local lastDelta: any = nil
 	local lastEnv: any = nil
 
-	local expand = button(frame, "", nextOrder(), function()
+	-- The expansion asks first: what it gives, what is lost and what is kept, then "Expand" or "Cancel".
+	local confirm = label(frame, nextOrder())
+	local confirmYes: TextButton, confirmNo: TextButton
+	local function askExpand(show: boolean)
+		confirm.Visible = show
+		confirmYes.Visible = show
+		confirmNo.Visible = show
+	end
+	confirmYes = button(frame, "", nextOrder(), function()
+		askExpand(false)
 		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
 			send("Prestige")
+		end
+	end)
+	confirmNo = button(frame, "", nextOrder(), function()
+		askExpand(false)
+	end)
+	askExpand(false)
+	local expand = button(frame, "", nextOrder(), function()
+		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
+			askExpand(true)
 		end
 	end)
 
@@ -172,6 +261,16 @@ function Hud.build(net: Instance)
 			goal.Text = t("goal.next", { required = short(view.goal.required), earned = short(view.goal.earned) })
 			expand.Text = t("goal.expand", { sparks = view.goal.sparks })
 			dim(expand, view.goal.allowed)
+			if view.sparks ~= nil and view.sparks.gridNext ~= nil then
+				confirm.Text = t("expand.confirm", {
+					now = string.format("%g", view.sparks.gridNow),
+					next = string.format("%g", view.sparks.gridNext),
+					sparks = view.goal.sparks,
+				})
+			end
+			if not view.goal.allowed then
+				askExpand(false)
+			end
 		else
 			goal.Text = t("goal.done")
 			expand.Text = t("goal.done")
@@ -195,6 +294,24 @@ function Hud.build(net: Instance)
 		rate.Text = t("hud.rate", { value = format(change.rate) })
 		storageText(change.charge)
 		price.Text = ShopView.priceText(change.view.price, t)
+		if change.view.sparks ~= nil then
+			grid.Text = t("hud.gridChip", {
+				level = change.view.sparks.gridLevel,
+				now = string.format("%g", change.view.sparks.gridNow),
+				sparks = change.view.sparks.available,
+			})
+		end
+		local sparkView = change.view.sparks
+		if sparkView ~= nil then
+			local owned = false
+			for _, item in sparkView.items do
+				owned = owned or (item.id == "S5" and item.owned == true)
+			end
+			paintRow.Visible = owned
+			for index, swatch in paintButtons do
+				swatch.Text = if sparkView.paint == index then "✓" else ""
+			end
+		end
 		shop(change.view)
 	end
 	local function applyEnv(change: any)
@@ -207,6 +324,10 @@ function Hud.build(net: Instance)
 		language.Text = t("hud.language", { name = t("language." .. lang) })
 		storageHint.Text = t("hud.storageHint")
 		expand.Text = t("action.expand")
+		confirmYes.Text = t("expand.yes")
+		confirmNo.Text = t("expand.no")
+		tutorialSkip.Text = t("tutorial.skip")
+		paintTutorialLine()
 		if lastSnapshot ~= nil then
 			applySnapshot(lastSnapshot)
 		end
@@ -232,6 +353,44 @@ function Hud.build(net: Instance)
 			lastDelta = change
 			applyDelta(change)
 			boost.delta(change)
+		end,
+		-- The server sends the step id ("" = no tutorial); the line sits at the top of the list.
+		tutorial = function(change: any)
+			tutorialStep = change.id
+			tutorialKey, tutorialArgs = nil, nil
+			tutorialSkip.Visible = tutorialStep ~= ""
+			paintTutorialLine()
+		end,
+		-- TutorialGuide: the key and arguments of the line now; key "" hides the line (the skip button stays).
+		tutorialLine = function(key: string?, args: { [string]: any }?, force: boolean?)
+			tutorialForced = force == true
+			if key == tutorialKey then
+				tutorialArgs = args
+				paintTutorialLine()
+				return
+			end
+			tutorialKey, tutorialArgs = key, args
+			paintTutorialLine()
+		end,
+		-- TutorialGuide: the expand button pulses twice, then rests.
+		pulse = function(name: string, on: boolean)
+			if name ~= "expand" then
+				return
+			end
+			local stroke = expand:FindFirstChild("TutorialStroke") :: UIStroke?
+			if not on then
+				if stroke ~= nil then
+					stroke:Destroy()
+				end
+				return
+			end
+			if stroke == nil then
+				local created = Instance.new("UIStroke")
+				created.Name = "TutorialStroke"
+				created.Color = Theme.colors.accent
+				created.Thickness = 3
+				created.Parent = expand
+			end
 		end,
 		env = function(change: any)
 			lastEnv = change

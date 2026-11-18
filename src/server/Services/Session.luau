@@ -15,6 +15,7 @@ local BoostService = require(script.Parent.BoostService)
 local PurchaseService = require(script.Parent.PurchaseService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local PlotPublicService = require(script.Parent.PlotPublicService)
+local TutorialService = require(script.Parent.TutorialService)
 
 local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
@@ -96,6 +97,7 @@ function Session.stop(player: Player)
 	BoostService.forget(player)
 	LeaderboardService.forget(player)
 	PlotPublicService.forget(player)
+	TutorialService.forget(player)
 	DataService.release(player, state)
 	PlotService.remove(player)
 end
@@ -124,6 +126,7 @@ function Session.ready(remotes: { [string]: RemoteEvent }, player: Player)
 	local phase, weather = Env.current()
 	remotes.Env:FireClient(player, Env.payload(phase, weather))
 	remotes.Snapshot:FireClient(player, state)
+	TutorialService.send(remotes, player)
 	local welcome = welcomes[player]
 	welcomes[player] = nil
 	if welcome ~= nil and welcome.away >= config.effects.offlineMinimumSeconds then
@@ -144,6 +147,9 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	end
 	states[player] = nextState
 	DataService.sync(player, nextState)
+	if action.type == "Crank" then
+		TutorialService.crank(player)
+	end
 	if action.type == "BuyTool" then
 		ToolService.refresh(player, nextState.land or config.land.start)
 	elseif action.type == "Prepare" or action.type == "Align" or action.type == "BuyContainer" then
@@ -170,10 +176,13 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			stage = storage.stage,
 			control = storage.controlOwned, -- the board stands once U21 is owned; wiring it is what unlocks the rules
 			fill = storage.fill,
+			paint = nextState.paint,
+			golden = nextState.pnodes.S6 == true,
 		}, nextState.land)
 		LandService.refresh(player, nextState)
 		ToolService.refresh(player, nextState.land or config.land.start)
 		PlotPublicService.tick(remotes, player, nextState)
+		TutorialService.observe(remotes, player, nextState)
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,

@@ -68,4 +68,24 @@ function Toolbelt.inHand(land: any, target: any, equipped: string?, config: any,
 	return land.tools[tool] == true and equipped == tool
 end
 
+-- The action text of a field step, by the tool of its stage (the prompt names the step in the hand): the scythe mows, the
+-- shovel digs, the hammer builds the house on a lot (field 3) or the fence, the wrench mounts the anchor, the drum lays
+-- cable, the tamper compacts. Nil for a tool that is no field stage.
+function Toolbelt.actionKey(field: any, tool: string): string?
+	if tool == "scythe" then
+		return "prompt.mow"
+	elseif tool == "shovel" then
+		return "prompt.dig"
+	elseif tool == "hammer" then
+		return if field == 3 then "prompt.house" else "prompt.fence"
+	elseif tool == "wrench" then
+		return "prompt.anchor"
+	elseif tool == "drum" then
+		return "prompt.cable"
+	elseif tool == "tamper" then
+		return "prompt.compact"
+	end
+	return nil
+end
+
 return Toolbelt

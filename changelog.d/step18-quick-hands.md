@@ -1,0 +1,1 @@
+- Quick Hands now also halves the hold time the server expects for tool prompts, and the prompt shows it.

@@ -36,5 +36,6 @@ return {
 	starterKit = { [1] = 4, [2] = 2 }, -- S1: units per plant id at the start of a run, where the ground is prepared
 	toolRebate = 0.5, -- S2: price factor of a tool not yet owned
 	holdFactor = 0.5, -- S3: factor on every hold time
+	alignFactorS4 = 2.5, -- S4: an aligned panel counts this many times instead of Land.align.factor
 	paintColors = 6, -- S5: colours to choose from (1 to 6; 0 = none chosen)
 }

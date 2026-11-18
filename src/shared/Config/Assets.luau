@@ -110,17 +110,30 @@ Assets.cables = {
 } :: { [number]: { stage: number } }
 Assets.CABLE_WIDTH = 0.5
 
+-- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields takes the chosen one.
+Assets.paintColors = {
+	{ 224, 72, 64 },
+	{ 240, 150, 50 },
+	{ 242, 212, 70 },
+	{ 90, 180, 90 },
+	{ 70, 140, 220 },
+	{ 170, 100, 210 },
+} :: { { number } }
+
 -- Number of cells of a field.
 function Assets.siteCount(plantId: number): number
 	return #Assets.fields[plantId].cells
 end
+
+-- Water wheels shown in the river at most (8 pairs, about 750 parts); the river carries far more than the pad cap of 4.
+Assets.WHEEL_MAX = 16
 
 -- Visible copies per pad: at most 4 (2 x 2), so a pad never looks crowded.
 Assets.plants = {
 	[1] = { file = "plant1_panel", scale = 1, cap = 4, flat = true },
 	[2] = { file = "plant2_waterwheel", scale = 0.4, cap = 4 },
 	[3] = { file = "plant3_house", scale = 1, cap = 4 },
-	[4] = { file = "plant4_miniturbine", scale = 0.4, cap = 4 },
+	[4] = { file = "plant4_miniturbine", scale = 1, cap = 4 },
 	[5] = { file = "plant5_solarfarm", scale = 1, cap = 4 },
 	[6] = { file = "plant6_windturbine", scale = 1, cap = 4 },
 } :: { [number]: Entry }
@@ -133,13 +146,17 @@ export type Furniture = { file: string, x: number, z: number, size: number, dept
 Assets.furniture = {
 	crank = { file = "crank", x = 0, z = 72, size = 4 },
 	market = { file = "market", x = -56, z = 78, size = 40, depth = 20 },
-	control = { file = "control", x = 52, z = 78, size = 5 },
+	control = { file = "control", x = 52, z = 78, size = 8 },
 	battery = { file = "battery", x = 36, z = 78, size = 3 },
 } :: { [string]: Furniture }
 
 -- The walk-in battery container (built from primitives once it is bought): a shell of `size` x `depth` studs, `height` high,
 -- centred on the battery spot, with a door of `door` x `doorHeight` studs in the front wall (the side facing the plot centre).
-Assets.container = { size = 12, depth = 8, height = 8, wall = 0.4, door = 4, doorHeight = 6.5 }
+Assets.container = { size = 14, depth = 8, height = 9, wall = 0.4, door = 4, doorHeight = 6.5 }
+
+-- Battery units stand in two stacks side by side inside the container: STACK_HEIGHT units high, the stacks COLUMN_GAP apart.
+Assets.STACK_HEIGHT = 2
+Assets.COLUMN_GAP = 4
 
 -- Studs between stacked battery units: none, the units sit directly on each other.
 Assets.BATTERY_GAP = 0

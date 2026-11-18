@@ -1,0 +1,1 @@
+- Golden Crank (5 sparks): the stone ring under your crank turns gold and glows faintly.

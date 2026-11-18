@@ -11,7 +11,7 @@ return function(t, load)
 		t.truthy(entry.scale > 0 and entry.scale <= 1, `plant {plant.id} scale is in (0, 1]`)
 		t.equal(entry.cap, 4, `plant {plant.id} shows up to four copies`)
 	end
-	t.equal(Assets.plants[4].scale, 0.4, "the mini turbine is shown at 40 percent")
+	t.equal(Assets.plants[4].scale, 1, "the mini turbine hub stands at the ridge height of the houses")
 
 	-- Fallback: no entry or no file builds the primitive.
 	t.equal(Assets.useModel(1, { plant1_panel = true }), true, "entry and file: model")
@@ -270,4 +270,7 @@ return function(t, load)
 		t.truthy(field ~= nil and field.river ~= true, `cable {id} is on a land field`)
 		t.truthy(cable.stage <= #Land.chains[id], `cable {id} stage is in the chain`)
 	end
+
+	-- Paint colours: as many as the Sign Paint spark item offers.
+	t.equal(#Assets.paintColors, load("Config/Effects").paintColors, "one colour per Sign Paint choice")
 end

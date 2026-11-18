@@ -398,8 +398,7 @@ return function(t, load)
 		t.truthy(ok, `{id} is bought with sparks`)
 		return result
 	end
-	local _, s4Ok = GameCore.apply(rich5, { type = "BuyNode", node = "S4" }, gated)
-	t.truthy(not s4Ok, "S4 is not in the game yet")
+	t.equal(buySpark(rich5, "S4").sparksSpent, 10, "S4 costs 10 sparks")
 	local rebated = buySpark(rich5, "S2")
 	t.equal(rebated.sparksSpent, 2, "S2 costs 2 sparks")
 	t.truthy(rebated.pnodes.S2 == true, "S2 is a permanent flag")
@@ -421,6 +420,9 @@ return function(t, load)
 	t.equal(GameCore.view(quick, gated).holdFactor, 0.5, "the view gives the hold factor")
 	t.equal(GameCore.view(quick, gated).tools[3].hold, 0.5, "the shovel hold is halved")
 	t.equal(GameCore.view(rich5, gated).holdFactor, 1, "no factor without S3")
+	t.equal(GameCore.holdFactor(quick, gated.config.effects), 0.5, "the shared rule gives the factor with S3")
+	t.equal(GameCore.holdFactor(rich5, gated.config.effects), 1, "the shared rule gives 1 without S3")
+	t.equal(GameCore.holdFactor(quick, { holdFactor = 0.25 }), 0.25, "the factor comes from the effects table")
 
 	-- S1 Starter Kit: a new run starts with 4 Balcony Panels and 2 Water Wheels where the ground is prepared.
 	local kit = buySpark(rich5, "S1")
@@ -457,7 +459,7 @@ return function(t, load)
 	sparkState.pnodes.P1 = true
 	local sparkView = GameCore.view(sparkState, gated).sparks
 	t.equal(sparkView.available, 7, "sparks left")
-	t.equal(#sparkView.items, 13, "eight permanent nodes and five spark items")
+	t.equal(#sparkView.items, 14, "eight permanent nodes and six spark items")
 	t.truthy(sparkView.items[1].owned and not sparkView.items[1].buyable, "P1 is owned")
 	t.truthy(sparkView.items[2].buyable and not sparkView.items[3].buyable, "P2 (5) is buyable, P3 (8) is not")
 	t.equal(sparkView.gridNow, 1.6, "grid output now")

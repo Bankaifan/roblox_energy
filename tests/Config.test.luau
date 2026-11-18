@@ -46,7 +46,7 @@ return function(t, load)
 	assertUnique(idsOf(Weather), "weather")
 	assertUnique(idsOf(Upgrades.run), "run nodes")
 	assertUnique(idsOf(Upgrades.permanent), "permanent nodes")
-	t.equal(#Upgrades.spark, 5, "spark items (S4 waits for the aligned rows)")
+	t.equal(#Upgrades.spark, 6, "spark items S1 to S6")
 	assertUnique(idsOf(Upgrades.spark), "spark items")
 
 	-- Prerequisites must exist; a node costs more than the node it requires
@@ -128,6 +128,6 @@ return function(t, load)
 	t.equal(sumOf(Weather, "share"), 100, "weather shares in percent")
 	t.equal(sumOf(Phases, "duration"), 720, "day length in seconds")
 	t.equal(sumOf(Upgrades.permanent, "sparks"), 185, "sparks of all permanent nodes")
-	t.equal(sumOf(Upgrades.spark, "sparks"), 20, "sparks of the spark items S1, S2, S3, S5, S6")
+	t.equal(sumOf(Upgrades.spark, "sparks"), 30, "sparks of the spark items S1 to S6")
 	t.equal(sumOf(Prestige, "sparks"), 185, "sparks of grid expansion levels 1 to 10")
 end

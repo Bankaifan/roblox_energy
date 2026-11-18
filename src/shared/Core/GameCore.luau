@@ -145,7 +145,8 @@ local function effectiveCount(state: State, env: Env, plant: Plant): number
 	if plant.id == 1 then
 		local config = if env.config.land ~= nil then env.config.land.align else nil
 		if config ~= nil then
-			count += alignedPanels(state, env) * (config.factor - 1)
+			local factor = if state.pnodes.S4 then env.config.effects.alignFactorS4 else config.factor
+			count += alignedPanels(state, env) * (factor - 1)
 		end
 	end
 	return count
@@ -841,9 +842,10 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 end
 
 -- S3 Quick Hands: the factor on every hold time (1 without it). The server times a hold with tool.hold x this.
-local function holdFactor(state: State, env: Env): number
+-- effects = Config/Effects; the server (LandService) uses this same function, so the prompt, the view and the check agree.
+function GameCore.holdFactor(state: State, effects: { holdFactor: number }): number
 	if state.pnodes.S3 then
-		return env.config.effects.holdFactor
+		return effects.holdFactor
 	end
 	return 1
 end
@@ -882,6 +884,31 @@ local function sparkView(state: State, env: Env): { [string]: any }
 	}
 end
 
+-- What each plant produces this second and how: count, effective count, base power, multiplier M and the type factor of
+-- the phase and weather now. The sum of `output` is the rate before storage.
+local function productionView(state: State, env: Env): { [string]: any }
+	local rows = {}
+	local total = 0
+	for _, plant in env.config.plants do
+		local factor = env.formulas.factor(plant.kind, env.phase, env.weather)
+		local multiplier = plantMultiplier(state, env, plant)
+		local effective = effectiveCount(state, env, plant)
+		local output = env.formulas.production(plant.nominalPower, effective, multiplier, factor)
+		total += output
+		table.insert(rows, {
+			id = plant.id,
+			kind = plant.kind,
+			count = state.plants[plant.id],
+			effective = effective,
+			nominal = plant.nominalPower,
+			multiplier = multiplier,
+			factor = factor,
+			output = output,
+		})
+	end
+	return { rows = rows, total = total, grid = globalMultiplier(state, env) }
+end
+
 -- What the HUD shows, so the client does no game logic: each plant's next price and whether the coins cover it,
 -- the run nodes, the storage, the crank energy per click, and the next grid expansion with the run earnings,
 -- its sparks and whether it is allowed now (nil after the last level).
@@ -914,6 +941,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		storage = storageView(state, env, price),
 		price = { factor = price, phase = env.phase.id, weather = env.weather.id, nextWeather = nextWeather },
 		crank = crankEnergy(state, env),
+		production = productionView(state, env),
 		goal = goal,
 	}
 	if env.config.land ~= nil then
@@ -934,7 +962,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 			table.insert(tools, {
 				id = tool.id,
 				price = cost,
-				hold = tool.hold * holdFactor(state, env),
+				hold = tool.hold * GameCore.holdFactor(state, env.config.effects),
 				owned = owned,
 				revealed = revealed,
 				buyable = revealed and not owned and cost <= state.coins,
@@ -945,7 +973,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		view.land = copy(land)
 		view.tools = tools
 	end
-	view.holdFactor = holdFactor(state, env)
+	view.holdFactor = GameCore.holdFactor(state, env.config.effects)
 	view.sparks = sparkView(state, env)
 	return view
 end
