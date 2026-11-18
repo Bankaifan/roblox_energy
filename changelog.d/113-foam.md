@@ -1,0 +1,1 @@
+- Foam drifts down the flooded river segments, and prompts on other players' plots no longer show.

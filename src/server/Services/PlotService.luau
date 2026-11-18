@@ -327,6 +327,11 @@ local function updateLand(record: Record, counts: { number }, land: any)
 	)
 	PlotGround.river(record.slot, record.facing, river)
 	record.river = river
+	-- The client draws the foam (PlotFx) from these.
+	record.model:SetAttribute("RiverStages", table.concat(river, ""))
+	record.model:SetAttribute("Slot", record.slot)
+	record.model:SetAttribute("Facing", record.facing)
+	record.model:SetAttribute("Origin", record.origin)
 	local groundKey = table.concat(ground, " ") .. ` {record.control ~= nil} {container}`
 	if record.groundKey ~= groundKey then
 		record.groundKey = groundKey
@@ -462,6 +467,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 			)
 		end
 	end
+	model:SetAttribute("OwnerId", player.UserId) -- the client hides the prompts of other players' plots (PlotFx)
 	model.Parent = plotsFolder()
 	local record: Record = {
 		slot = slot,
