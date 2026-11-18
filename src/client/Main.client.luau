@@ -33,6 +33,8 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 	elseif prompt.Name == "ControlPrompt" then
 		-- The control board opens the same popup on the storage tab, where the rule slots are.
 		market.open(prompt, "storage")
+	elseif prompt.Name == "ControlInfo" then
+		market.open(prompt, "production")
 	end
 end)
 ready:FireServer()
