@@ -1,0 +1,1 @@
+- The HUD shows the grid level with its output multiplier and the sparks, and the grid expansion asks first what it gives, loses and keeps.
