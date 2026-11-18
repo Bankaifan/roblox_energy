@@ -8,6 +8,7 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
 local River = require(Core:WaitForChild("River") :: ModuleScript) :: any
+local Cable = require(Core:WaitForChild("Cable") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
@@ -132,7 +133,7 @@ local function updateWheels(record: Record, owned: number)
 	table.clear(shown)
 	local entry = Assets.entry(2)
 	local scale = if entry ~= nil then entry.scale else 1
-	local cap = if entry ~= nil then entry.cap else 4
+	local cap = Assets.WHEEL_MAX
 	for index, spot in spots do
 		if index > cap then
 			break
@@ -199,6 +200,7 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		-- A plant on a foundation stands on top of its two steps.
 		local lift = if Assets.foundations[index] ~= nil then 2 * Assets.FOUNDATION_STEP - 0.15 else 0
 		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y + lift, angle)
+		PlantModels.tagRotor(copy, index)
 		copy.Parent = record.model
 		table.insert(shown, copy)
 		if site.rail == true then
@@ -456,17 +458,15 @@ local function updateFoundations(record: Record, land: any)
 end
 
 -- Ground cables from every cell of the solar farm and the wind turbine whose cable stage is done to the grid box: a dark strip
--- along z to the box's row, then one along x to the box.
+-- linked field-wise to each other and to the box (Core/Cable), buried where the river runs.
 local function updateCables(record: Record, land: any)
 	local box = Assets.furniture.control
 	local keys = {}
-	local sites = {}
+	local fieldSites: { { any } } = {}
 	for index, cable in Assets.cables do
 		local cells = anchored(land, index, cable.stage)
 		table.insert(keys, `{index}:{table.concat(cells, ",")}`)
-		for _, site in PlotLayout.cellSites(Assets.fields[index], cells, Assets.TILE, Assets.PLOT_TILES) do
-			table.insert(sites, site)
-		end
+		table.insert(fieldSites, PlotLayout.cellSites(Assets.fields[index], cells, Assets.TILE, Assets.PLOT_TILES))
 	end
 	local key = table.concat(keys, " ")
 	if record.cableKey == key then
@@ -496,12 +496,17 @@ local function updateCables(record: Record, land: any)
 		part.Parent = folder
 	end
 	local y = record.origin.Y + 0.1
-	for _, site in sites do
-		local start = sitePoint(record, site)
-		local corner = sitePoint(record, { x = site.x, z = box.z })
-		local finish = sitePoint(record, { x = box.x, z = box.z })
-		strip(Vector3.new(start.X, y, start.Z), Vector3.new(corner.X, y, corner.Z))
-		strip(Vector3.new(corner.X, y, corner.Z), Vector3.new(finish.X, y, finish.Z))
+	local function lay(from: { x: number, z: number }, to: { x: number, z: number })
+		local a, b = sitePoint(record, from), sitePoint(record, to)
+		strip(Vector3.new(a.X, y, a.Z), Vector3.new(b.X, y, b.Z))
+	end
+	-- The sites of a field are linked to each other and to the control board; no piece lies over the river water.
+	for _, sites in fieldSites do
+		for _, link in Cable.links(sites, { x = box.x, z = box.z }) do
+			for _, piece in Cable.dryPieces(link, Assets.river.points, Assets.river.width / 2 + 1, 2) do
+				lay(piece.a, piece.b)
+			end
+		end
 	end
 	folder.Parent = record.model
 	record.cables = folder
