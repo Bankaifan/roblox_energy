@@ -1,20 +1,22 @@
 --!strict
--- Tutorial arrow (design v2, step 15): a bobbing arrow above the prompt the current tutorial step points to. Crank step: the
--- crank; the market and buying steps: the market. Other steps have no arrow. Client only, no game state: the server names the
--- step (Tutorial message), the arrow finds the own plot's prompt by name.
+-- Tutorial arrow (design tutorial-v2, section 4.4): a bobbing arrow over the target the presentation names: the crank, the
+-- market, or the spots of field 1 and of the river spring (invisible parts TutorialSpot1 and TutorialSpot2 in the own plot).
+-- Client only, no game state. It fades out within FADE_NEAR studs of the target (the prompt itself takes over) and returns
+-- beyond FADE_FAR.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local TutorialArrow = {}
 
--- Step id -> the name of the prompt (made by PlotService) the arrow sits on.
+-- Target -> the name of the prompt or part the arrow sits on (all made by PlotService).
 local TARGETS: { [string]: string } = {
 	crank = "CrankPrompt",
 	market = "ShopPrompt",
-	shovel = "ShopPrompt",
-	container = "ShopPrompt",
-	storage = "ShopPrompt",
+	field1 = "TutorialSpot1",
+	field2 = "TutorialSpot2",
 }
+local FADE_NEAR = 12
+local FADE_FAR = 16
 local HEIGHT = 7 -- studs above the prompt's anchor
 local BOB = 1 -- studs of up and down
 local FIND_SECONDS = 0.5
@@ -28,21 +30,23 @@ local function anchorOf(name: string): BasePart?
 	local me = (Players.LocalPlayer :: Player).UserId
 	for _, model in plots:GetChildren() do
 		if model:GetAttribute("OwnerId") == me then
-			local prompt = model:FindFirstChild(name, true)
-			if
-				prompt ~= nil
-				and prompt:IsA("ProximityPrompt")
-				and prompt.Parent ~= nil
-				and prompt.Parent:IsA("BasePart")
+			local found = model:FindFirstChild(name, true)
+			if found ~= nil and found:IsA("BasePart") then
+				return found
+			elseif
+				found ~= nil
+				and found:IsA("ProximityPrompt")
+				and found.Parent ~= nil
+				and found.Parent:IsA("BasePart")
 			then
-				return prompt.Parent
+				return found.Parent
 			end
 		end
 	end
 	return nil
 end
 
--- Returns `show(id)`: id is a tutorial step id or "" (no tutorial).
+-- Returns `show(target)`: a target name of TARGETS or "" (no arrow).
 function TutorialArrow.build(): (string) -> ()
 	local arrow = Instance.new("BillboardGui")
 	arrow.Name = "TutorialArrow"
@@ -60,6 +64,7 @@ function TutorialArrow.build(): (string) -> ()
 	glyph.Parent = arrow
 
 	local step = ""
+	local faded = false
 	local placed = "" -- the prompt name the arrow sits on now
 	local since = FIND_SECONDS
 	RunService.Heartbeat:Connect(function(delta: number)
@@ -77,10 +82,25 @@ function TutorialArrow.build(): (string) -> ()
 			placed = if anchor ~= nil then wanted else ""
 		end
 		arrow.Enabled = arrow.Adornee ~= nil
+		-- Fade near the target; the prompt or the field itself is the pointer there.
+		local anchor = arrow.Adornee
+		local character = (Players.LocalPlayer :: Player).Character
+		local root = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
+		if anchor ~= nil and anchor:IsA("BasePart") and root ~= nil and root:IsA("BasePart") then
+			local distance = (root.Position - anchor.Position).Magnitude
+			if distance < FADE_NEAR then
+				faded = true
+			elseif distance > FADE_FAR then
+				faded = false
+			end
+		end
+		glyph.TextTransparency = if faded then 1 else 0
+		glyph.TextStrokeTransparency = if faded then 1 else 0.3
 		arrow.StudsOffset = Vector3.new(0, HEIGHT + math.sin(os.clock() * 4) * BOB, 0)
 	end)
 	return function(id: string)
 		step = id
+		faded = false
 		-- A new step may point somewhere else: look the target up again at once.
 		placed = ""
 		arrow.Adornee = nil

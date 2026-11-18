@@ -3,6 +3,7 @@
 -- four tabs and one card per offer. It opens only from the market's prompt and closes with the button, a tap beside the
 -- window, Escape, or when the player walks away. No game rules here: Core/ShopView says which cards a tab has and what
 -- each button sends; the server checks every message again. Colours and fonts come from Theme, texts from Locale.
+local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -397,6 +398,49 @@ function Market.build(net: Instance, language: () -> string)
 		end
 	end
 
+	-- Tutorial highlight: an accent outline on one tab button and on the buy button of one card; `spec` = { tab, card } or nil.
+	local highlightSpec: { tab: string?, card: string? }? = nil
+	local pulseToken = 0
+	local function outline(control: GuiObject, on: boolean, pulse: boolean)
+		local stroke = control:FindFirstChild("TutorialStroke") :: UIStroke?
+		if not on then
+			if stroke ~= nil then
+				stroke:Destroy()
+			end
+			return
+		end
+		if stroke == nil then
+			local created = Instance.new("UIStroke")
+			created.Name = "TutorialStroke"
+			created.Color = COLORS.accent
+			created.Thickness = 3
+			created.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			created.Parent = control
+			stroke = created
+			if pulse then
+				-- Two soft pulses, then a steady outline (the design says a pulse never loops).
+				task.spawn(function()
+					for _ = 1, 2 do
+						TweenService:Create(created, TweenInfo.new(0.35), { Thickness = 6 }):Play()
+						task.wait(0.4)
+						TweenService:Create(created, TweenInfo.new(0.35), { Thickness = 3 }):Play()
+						task.wait(0.4)
+					end
+				end)
+			end
+		end
+	end
+	local function applyHighlight(pulse: boolean)
+		local spec = highlightSpec
+		for id, control in tabButtons do
+			outline(control, spec ~= nil and spec.tab == id, pulse)
+		end
+		for _, card in pool do
+			local shown = spec ~= nil and spec.card ~= nil and card.data ~= nil and card.data.id == spec.card
+			outline(card.action, shown and card.frame.Visible, pulse)
+		end
+	end
+
 	-- Paints the open tab from the latest view. Cards are reused, so the list keeps its scroll position.
 	local function render()
 		title.Text = `{Theme.icons.fallback} {t("market.title")}`
@@ -433,6 +477,7 @@ function Market.build(net: Instance, language: () -> string)
 			pool[index].frame.Visible = false
 			pool[index].data = nil
 		end
+		applyHighlight(false)
 	end
 
 	setTab = function(tab: string)
@@ -560,6 +605,23 @@ function Market.build(net: Instance, language: () -> string)
 		close = close,
 		isOpen = function(): boolean
 			return gui.Enabled
+		end,
+		-- Tutorial: whether the popup is open and on which tab.
+		state = function(): { open: boolean, tab: string }
+			return { open = gui.Enabled, tab = currentTab }
+		end,
+		-- Tutorial: outline one tab and one card button (nil clears it).
+		highlight = function(spec: { tab: string?, card: string? }?)
+			local same = highlightSpec ~= nil
+				and spec ~= nil
+				and highlightSpec.tab == spec.tab
+				and highlightSpec.card == spec.card
+			if same then
+				return
+			end
+			highlightSpec = spec
+			pulseToken += 1
+			applyHighlight(true)
 		end,
 		delta = function(change: any)
 			latest = change.view
