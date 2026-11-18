@@ -498,11 +498,11 @@ function Market.build(net: Instance, language: () -> string)
 		return nil
 	end
 
-	local function open(prompt: ProximityPrompt?)
+	local function open(prompt: ProximityPrompt?, tab: string?)
 		opening += 1
 		local mine = opening
 		fit()
-		setTab(ShopView.tabs[1].id)
+		setTab(tab or ShopView.tabs[1].id)
 		gui.Enabled = true
 		PopupGate.open(gate, "market")
 		applyHotbar()

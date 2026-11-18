@@ -178,7 +178,14 @@ end
 
 -- Builds a low fence from Meadow.fence: leaning stakes with a rope from top to top. One part per stake and per rope,
 -- none of them collides, so the player walks straight in.
-function PlotGround.fence(parent: Instance, origin: Vector3, facing: number, stakes: { any }, ropes: { any })
+function PlotGround.fence(
+	parent: Instance,
+	origin: Vector3,
+	facing: number,
+	stakes: { any },
+	ropes: { any },
+	ropeColor: Color3?
+)
 	local tops: { Vector3 } = table.create(#stakes)
 	for i, stake in stakes do
 		local foot = CFrame.new(origin + Vector3.new(stake.x, 0, stake.z * facing))
@@ -193,7 +200,13 @@ function PlotGround.fence(parent: Instance, origin: Vector3, facing: number, sta
 	for _, rope in ropes do
 		local from, to = tops[rope.from], tops[rope.to]
 		local length = (to - from).Magnitude
-		local part = marker(parent, "Rope", Vector3.new(ROPE_SIDE, ROPE_SIDE, length), ROPE_COLOR, Enum.Material.Fabric)
+		local part = marker(
+			parent,
+			"Rope",
+			Vector3.new(ROPE_SIDE, ROPE_SIDE, length),
+			ropeColor or ROPE_COLOR,
+			Enum.Material.Fabric
+		)
 		part.CFrame = CFrame.lookAt((from + to) / 2, to)
 	end
 end

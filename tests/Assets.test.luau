@@ -278,4 +278,6 @@ return function(t, load)
 		t.truthy(build.kind == "fence" or build.kind == "mast", `stage build {id} has a known kind`)
 		t.truthy(build.stage <= #Land.chains[id], `stage build {id} stage is in the chain`)
 	end
+	-- Paint colours: as many as the Sign Paint spark item offers.
+	t.equal(#Assets.paintColors, load("Config/Effects").paintColors, "one colour per Sign Paint choice")
 end

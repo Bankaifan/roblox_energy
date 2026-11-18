@@ -65,4 +65,13 @@ return function(t, load)
 
 	local first = GameCore.apply(state(3, true), { type = "Align" }, env)
 	t.equal(first.land.aligned[1], 5, "without a cell the first mown cell is aligned")
+
+	-- S4 Fine Tuning: an aligned panel counts 2.5 times instead of 2.
+	local fine = state(3, true)
+	fine.pnodes.S4 = true
+	local fineAligned = GameCore.apply(fine, { type = "Align", cell = 5 }, env)
+	local plain = GameCore.apply(state(3, true), { type = "Align", cell = 5 }, env)
+	local plainIncome, fineIncome = income(plain), income(fineAligned)
+	t.truthy(fineIncome > plainIncome, "S4 raises the income of an aligned panel")
+	t.truthy(math.abs(fineIncome / plainIncome - 4.5 / 4) < 1e-6, "3 panels, one aligned: 4.5 instead of 4 effective")
 end

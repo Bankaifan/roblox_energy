@@ -1,0 +1,1 @@
+- Spark item Fine Tuning (10 sparks): an aligned panel counts 2.5 times instead of 2.

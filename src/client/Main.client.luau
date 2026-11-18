@@ -26,10 +26,13 @@ delta.OnClientEvent:Connect(function(change: any)
 end)
 env.OnClientEvent:Connect(hud.env)
 welcomeMessage.OnClientEvent:Connect(welcome)
--- Only the market's "ShopPrompt" (made by PlotService) opens the market popup; no message to the server is needed.
+-- Only the market's "ShopPrompt" and the control board's "ControlPrompt" (made by PlotService) open the market popup; no message to the server is needed.
 ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 	if prompt.Name == "ShopPrompt" then
 		market.open(prompt)
+	elseif prompt.Name == "ControlPrompt" then
+		-- The control board opens the same popup on the storage tab, where the rule slots are.
+		market.open(prompt, "storage")
 	end
 end)
 ready:FireServer()

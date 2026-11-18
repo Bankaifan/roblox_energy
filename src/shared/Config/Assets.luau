@@ -116,8 +116,17 @@ Assets.stageBuilds = {
 	[4] = { kind = "mast", stage = 2 },
 	[5] = { kind = "fence", stage = 2 },
 } :: { [number]: { kind: string, stage: number } }
-Assets.MAST_HEIGHT = 14
+Assets.MAST_HEIGHT = 15 -- the height of the finished mini turbine
 Assets.FENCE_POST = 4 -- studs between the posts of a farm fence
+-- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields takes the chosen one.
+Assets.paintColors = {
+	{ 224, 72, 64 },
+	{ 240, 150, 50 },
+	{ 242, 212, 70 },
+	{ 90, 180, 90 },
+	{ 70, 140, 220 },
+	{ 170, 100, 210 },
+} :: { { number } }
 
 -- Number of cells of a field.
 function Assets.siteCount(plantId: number): number
