@@ -263,4 +263,11 @@ return function(t, load)
 		t.truthy(foundation.stage <= #Land.chains[id], `foundation {id} stage is in the chain`)
 		t.truthy(foundation.radius * 2 <= field.size * Assets.TILE, `foundation {id} fits its cell`)
 	end
+
+	-- Cables: a land field whose chain has the cable stage.
+	for id, cable in Assets.cables do
+		local field = Assets.fields[id]
+		t.truthy(field ~= nil and field.river ~= true, `cable {id} is on a land field`)
+		t.truthy(cable.stage <= #Land.chains[id], `cable {id} stage is in the chain`)
+	end
 end
