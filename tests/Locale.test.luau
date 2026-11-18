@@ -200,4 +200,14 @@ return function(t, load)
 	t.equal(Locale.resolve("en-us"), "en", "English locale")
 	t.equal(Locale.resolve("fr-fr"), "en", "other locale falls back to English")
 	t.equal(Locale.resolve(nil), "en", "no locale falls back to English")
+
+	-- Tutorial v2: every key the presentation can return, plus the closing and skip texts, in both languages.
+	local TutorialView = load("Core/TutorialView")
+	local tutorialKeys = table.clone(TutorialView.KEYS)
+	for _, key in { "tutorial.done", "tutorial.skip", "tutorial.skipConfirm" } do
+		table.insert(tutorialKeys, key)
+	end
+	for _, key in tutorialKeys do
+		t.truthy(en[key] ~= nil and de[key] ~= nil, `tutorial text {key} in both languages`)
+	end
 end
