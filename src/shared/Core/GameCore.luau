@@ -842,9 +842,10 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 end
 
 -- S3 Quick Hands: the factor on every hold time (1 without it). The server times a hold with tool.hold x this.
-local function holdFactor(state: State, env: Env): number
+-- effects = Config/Effects; the server (LandService) uses this same function, so the prompt, the view and the check agree.
+function GameCore.holdFactor(state: State, effects: { holdFactor: number }): number
 	if state.pnodes.S3 then
-		return env.config.effects.holdFactor
+		return effects.holdFactor
 	end
 	return 1
 end
@@ -935,7 +936,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 			table.insert(tools, {
 				id = tool.id,
 				price = cost,
-				hold = tool.hold * holdFactor(state, env),
+				hold = tool.hold * GameCore.holdFactor(state, env.config.effects),
 				owned = owned,
 				revealed = revealed,
 				buyable = revealed and not owned and cost <= state.coins,
@@ -946,7 +947,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		view.land = copy(land)
 		view.tools = tools
 	end
-	view.holdFactor = holdFactor(state, env)
+	view.holdFactor = GameCore.holdFactor(state, env.config.effects)
 	view.sparks = sparkView(state, env)
 	return view
 end

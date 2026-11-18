@@ -41,6 +41,22 @@ return function(t, load)
 	t.truthy(lotTool == "scythe" and lotHold == Land.chains[3][1].hold, "a new lot takes the hold of the scythe")
 	t.equal(Toolbelt.stage(working, 6, nil, Land), 1, "a new wind pad starts at stage 1")
 	t.truthy(not Toolbelt.inHand(land, 7, "scythe", Land), "an unknown field is never worked")
+	-- The action text of a field step names the tool in the hand; every field tool has one, the drum lays cable
+	local expectedKeys = {
+		scythe = "prompt.mow",
+		shovel = "prompt.dig",
+		wrench = "prompt.anchor",
+		drum = "prompt.cable",
+		tamper = "prompt.compact",
+	}
+	for _, tool in Land.fieldTools do
+		if tool ~= "hammer" then
+			t.equal(Toolbelt.actionKey(5, tool), expectedKeys[tool], `{tool}: action text`)
+		end
+	end
+	t.equal(Toolbelt.actionKey(3, "hammer"), "prompt.house", "the hammer builds the house on a lot")
+	t.equal(Toolbelt.actionKey(5, "hammer"), "prompt.fence", "the hammer builds the fence on the farm")
+	t.truthy(Toolbelt.actionKey(5, "pliers") == nil, "a tool that is no field stage has no action text")
 	t.truthy(Toolbelt.inHand(land, "container", nil, Land), "the container needs no tool")
 	t.truthy(not Toolbelt.inHand(land, "wired", "scythe", Land), "wiring needs the pliers")
 

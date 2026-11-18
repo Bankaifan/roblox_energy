@@ -140,6 +140,7 @@ return function(t, load)
 		"prompt.house",
 		"prompt.anchor",
 		"prompt.fence",
+		"prompt.cable",
 		"prompt.compact",
 		"prompt.wire",
 		"tool.hand",
