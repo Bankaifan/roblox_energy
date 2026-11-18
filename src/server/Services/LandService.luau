@@ -13,7 +13,9 @@ local Config = Shared:WaitForChild("Config")
 local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Effects = require(Config:WaitForChild("Effects") :: ModuleScript) :: any
 local PlotLayout = require(Shared:WaitForChild("Core"):WaitForChild("PlotLayout") :: ModuleScript) :: any
+local GameCore = require(Shared:WaitForChild("Core"):WaitForChild("GameCore") :: ModuleScript) :: any
 local Work = require(Shared:WaitForChild("Core"):WaitForChild("Work") :: ModuleScript) :: any
 local Toolbelt = require(Shared:WaitForChild("Core"):WaitForChild("Toolbelt") :: ModuleScript) :: any
 local ToolService = require(script.Parent.ToolService)
@@ -35,7 +37,9 @@ type Entry = {
 	target: any, -- plant id (1 to 6), "container" or "wired"
 	prompt: ProximityPrompt,
 	anchor: Part,
-	hold: number,
+	hold: number, -- seconds the server expects, with Quick Hands (S3) applied
+	base: number, -- the hold of the fixed steps before S3
+	factor: number?, -- the S3 factor the prompt shows now
 	cell: number?, -- field cell under the owner's feet now (fields only)
 	held: number?, -- the cell the hold began on (fields only)
 	possible: boolean, -- the step may be worked now, apart from where the player stands and the tool in the hand
@@ -140,7 +144,8 @@ local function makeEntry(player: Player, plot: Plot, target: any, key: string, h
 	prompt.RequiresLineOfSight = false
 	prompt.Enabled = false -- refresh() switches it on once the step is possible
 	prompt.Parent = anchor
-	local entry: Entry = { target = target, prompt = prompt, anchor = anchor, hold = hold, possible = false }
+	local entry: Entry =
+		{ target = target, prompt = prompt, anchor = anchor, hold = hold, base = hold, possible = false }
 	table.insert(plot.entries, entry)
 	local name = tostring(target)
 	prompt.PromptButtonHoldBegan:Connect(function(who: Player)
@@ -196,6 +201,14 @@ function LandService.build(player: Player, frame: Frame)
 	makeEntry(player, plot, "wired", "prompt.wire", toolHold(WIRE_HOLD_TOOL), worldPoint(frame, control.x, control.z))
 end
 
+-- S3 Quick Hands halves every hold of the owner (Effects.holdFactor); 1 without it. The rule is GameCore.holdFactor.
+function LandService.holdFactor(state: any?): number
+	if state == nil then
+		return 1
+	end
+	return GameCore.holdFactor(state, Effects)
+end
+
 -- Once per second from Session: moves each field prompt to the next site and enables only the steps that are possible
 -- (tool owned and in the hand, plant revealed, field not full, container missing, wiring ready).
 function LandService.refresh(player: Player, state: any)
@@ -204,11 +217,18 @@ function LandService.refresh(player: Player, state: any)
 		return
 	end
 	plot.state = state
+	local factor = LandService.holdFactor(state)
 	local land = state.land or Land.start
 	local hand = ToolService.equipped(player)
 	for _, entry in plot.entries do
 		local target = entry.target
 		local enabled = false
+		-- Quick Hands (S3): the fixed steps (align, container, wiring) take the factor of the owner at once.
+		if type(target) ~= "number" and entry.factor ~= factor then
+			entry.factor = factor
+			entry.hold = entry.base * factor
+			entry.prompt.HoldDuration = entry.hold
+		end
 		if type(target) == "number" then
 			local done = land.sites[target] or 0
 			enabled = land.tools[Toolbelt.toolFor(target, Land, land) or ""] == true
@@ -249,13 +269,15 @@ function LandService.follow(player: Player, plot: Plot, entry: Entry)
 	entry.cell = cell
 	local land = if plot.state ~= nil then plot.state.land or Land.start else Land.start
 	local stage, tool, hold = Toolbelt.stage(land, entry.target, cell, Land)
+	local factor = LandService.holdFactor(plot.state)
 	if cell ~= nil and root ~= nil and root:IsA("BasePart") then
 		entry.anchor.Position = (root :: BasePart).Position
 	end
 	-- The prompt shows the tool and hold of the stage under his feet and only while that tool is in his hand.
-	if stage ~= nil and tool ~= nil and entry.stage ~= stage then
+	if stage ~= nil and tool ~= nil and (entry.stage ~= stage or entry.factor ~= factor) then
 		entry.stage = stage
-		entry.hold = hold or 0
+		entry.factor = factor
+		entry.hold = (hold or 0) * factor
 		entry.prompt.HoldDuration = entry.hold
 		entry.prompt.ObjectText = Locale.t(TOOL_KEYS[tool], Locale.resolve(player.LocaleId))
 		local action = if type(entry.target) == "number" then Toolbelt.actionKey(entry.target, tool) else nil
