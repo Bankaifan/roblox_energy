@@ -337,9 +337,7 @@ numbers and booleans for the old core (the index is clamped). A player can alway
 
 ## 8. Split into PR-sized implementation issues
 
-Steps 1, 5 and 6 edit files that PR #185 adds or changes, so they also wait for it. `Depends on: #185` is the issue form
-that `tools/deps.py` reads. `tools/design_split.py` takes step numbers only: if this file is renamed to an NNNN design,
-the #185 line goes into those issues by hand.
+Steps 1, 5 and 6 touch files that an open PR changes, so they land after it.
 
 ### Step 1: Tutorial core with twelve steps and soft steps
 Files: `src/shared/Core/Tutorial.luau`, `tests/Tutorial.test.luau`, `src/shared/Core/Data.luau`, `src/shared/Migrations/Steps.luau`, `tests/Data.test.luau`, `src/server/Services/TutorialService.luau`
