@@ -150,6 +150,15 @@ function Hud.build(net: Instance)
 		return lang
 	end)
 	local goal = label(frame, nextOrder())
+	-- The tutorial: one line for the current step and a button to skip it; both hidden when there is no step.
+	local tutorialLine = label(frame, 0)
+	tutorialLine.TextColor3 = Theme.colors.accent
+	tutorialLine.Visible = false
+	local tutorialStep = ""
+	local tutorialSkip = button(frame, "", 0, function()
+		(net:WaitForChild("TutorialSkip") :: RemoteEvent):FireServer()
+	end)
+	tutorialSkip.Visible = false
 
 	local function send(name: string, payload: any?)
 		(net:WaitForChild(name) :: RemoteEvent):FireServer(payload)
@@ -282,6 +291,10 @@ function Hud.build(net: Instance)
 		expand.Text = t("action.expand")
 		confirmYes.Text = t("expand.yes")
 		confirmNo.Text = t("expand.no")
+		tutorialSkip.Text = t("tutorial.skip")
+		if tutorialStep ~= "" then
+			tutorialLine.Text = t("tutorial." .. tutorialStep)
+		end
 		if lastSnapshot ~= nil then
 			applySnapshot(lastSnapshot)
 		end
@@ -307,6 +320,15 @@ function Hud.build(net: Instance)
 			lastDelta = change
 			applyDelta(change)
 			boost.delta(change)
+		end,
+		-- The server sends the step id ("" = no tutorial); the line sits at the top of the list.
+		tutorial = function(change: any)
+			tutorialStep = change.id
+			tutorialLine.Visible = tutorialStep ~= ""
+			tutorialSkip.Visible = tutorialStep ~= ""
+			if tutorialStep ~= "" then
+				tutorialLine.Text = t("tutorial." .. tutorialStep)
+			end
 		end,
 		env = function(change: any)
 			lastEnv = change
