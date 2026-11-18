@@ -420,6 +420,9 @@ return function(t, load)
 	t.equal(GameCore.view(quick, gated).holdFactor, 0.5, "the view gives the hold factor")
 	t.equal(GameCore.view(quick, gated).tools[3].hold, 0.5, "the shovel hold is halved")
 	t.equal(GameCore.view(rich5, gated).holdFactor, 1, "no factor without S3")
+	t.equal(GameCore.holdFactor(quick, gated.config.effects), 0.5, "the shared rule gives the factor with S3")
+	t.equal(GameCore.holdFactor(rich5, gated.config.effects), 1, "the shared rule gives 1 without S3")
+	t.equal(GameCore.holdFactor(quick, { holdFactor = 0.25 }), 0.25, "the factor comes from the effects table")
 
 	-- S1 Starter Kit: a new run starts with 4 Balcony Panels and 2 Water Wheels where the ground is prepared.
 	local kit = buySpark(rich5, "S1")
