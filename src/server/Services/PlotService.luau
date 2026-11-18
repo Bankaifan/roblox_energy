@@ -234,10 +234,16 @@ end
 
 -- A ProximityPrompt on a furniture model, texted in the owner's language. `onTriggered` runs on the server for the
 -- owner only; a prompt without it is handled on the client (the shop prompt: Controllers/Hud opens its panel).
-local function addPrompt(owner: Player, model: Model, name: string, key: string, onTriggered: ((Player) -> ())?)
+local function addPrompt(
+	owner: Player,
+	model: Model,
+	name: string,
+	key: string,
+	onTriggered: ((Player) -> ())?
+): ProximityPrompt?
 	local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
 	if anchor == nil then
-		return
+		return nil
 	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = name
@@ -254,6 +260,7 @@ local function addPrompt(owner: Player, model: Model, name: string, key: string,
 			end
 		end)
 	end
+	return prompt
 end
 
 -- Control center from U21, one battery unit per storage stage; both are rebuilt only when the number changes.
@@ -287,6 +294,12 @@ local function updateFurniture(
 		-- Opens the rule popup on the client (Controllers/Market, storage tab); the rules themselves need the wiring.
 		if record.control ~= nil then
 			addPrompt(owner, record.control, "ControlPrompt", "prompt.control", nil)
+			-- A second prompt on key F opens the power overview (what each plant makes and how it is calculated).
+			local info = addPrompt(owner, record.control, "ControlInfo", "prompt.production", nil)
+			if info ~= nil then
+				info.KeyboardKeyCode = Enum.KeyCode.F
+				info.UIOffset = Vector2.new(0, 70)
+			end
 		end
 	end
 	local wanted = Assets.batteryUnits(extras.stage)
