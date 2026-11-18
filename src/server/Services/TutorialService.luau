@@ -8,7 +8,7 @@ local Tutorial = require(
 ) :: any
 local DataService = require(script.Parent.DataService)
 
-type Entry = { progress: any, started: number, cranks: number, marketOpened: boolean }
+type Entry = { progress: any, since: number, cranks: number, marketOpened: boolean }
 local entries: { [Player]: Entry } = {}
 
 local TutorialService = {}
@@ -23,7 +23,7 @@ local function entryOf(player: Player): Entry
 				index = if data ~= nil and type(data.tutorial) == "number" then data.tutorial else 1,
 				done = data ~= nil and data.tutorialDone == true,
 			},
-			started = os.clock(),
+			since = os.clock(), -- when the current step became current
 			cranks = 0,
 			marketOpened = false,
 		}
@@ -68,9 +68,12 @@ function TutorialService.observe(remotes: { [string]: RemoteEvent }, player: Pla
 	if entry.progress.done then
 		return
 	end
-	local facts = Tutorial.facts(state, os.clock() - entry.started, entry.cranks, entry.marketOpened)
+	local facts = Tutorial.facts(state, os.clock() - entry.since, entry.cranks, entry.marketOpened)
 	local progress = Tutorial.step(entry.progress, facts)
 	if progress.index ~= entry.progress.index or progress.done ~= entry.progress.done then
+		if progress.index ~= entry.progress.index then
+			entry.since = os.clock()
+		end
 		entry.progress = progress
 		save(player, progress)
 		TutorialService.send(remotes, player)
