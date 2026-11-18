@@ -187,9 +187,27 @@ function Hud.build(net: Instance)
 	local lastDelta: any = nil
 	local lastEnv: any = nil
 
-	local expand = button(frame, "", nextOrder(), function()
+	-- The expansion asks first: what it gives, what is lost and what is kept, then "Expand" or "Cancel".
+	local confirm = label(frame, nextOrder())
+	local confirmYes: TextButton, confirmNo: TextButton
+	local function askExpand(show: boolean)
+		confirm.Visible = show
+		confirmYes.Visible = show
+		confirmNo.Visible = show
+	end
+	confirmYes = button(frame, "", nextOrder(), function()
+		askExpand(false)
 		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
 			send("Prestige")
+		end
+	end)
+	confirmNo = button(frame, "", nextOrder(), function()
+		askExpand(false)
+	end)
+	askExpand(false)
+	local expand = button(frame, "", nextOrder(), function()
+		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
+			askExpand(true)
 		end
 	end)
 
@@ -199,6 +217,16 @@ function Hud.build(net: Instance)
 			goal.Text = t("goal.next", { required = short(view.goal.required), earned = short(view.goal.earned) })
 			expand.Text = t("goal.expand", { sparks = view.goal.sparks })
 			dim(expand, view.goal.allowed)
+			if view.sparks ~= nil and view.sparks.gridNext ~= nil then
+				confirm.Text = t("expand.confirm", {
+					now = string.format("%g", view.sparks.gridNow),
+					next = string.format("%g", view.sparks.gridNext),
+					sparks = view.goal.sparks,
+				})
+			end
+			if not view.goal.allowed then
+				askExpand(false)
+			end
 		else
 			goal.Text = t("goal.done")
 			expand.Text = t("goal.done")
@@ -222,6 +250,13 @@ function Hud.build(net: Instance)
 		rate.Text = t("hud.rate", { value = format(change.rate) })
 		storageText(change.charge)
 		price.Text = ShopView.priceText(change.view.price, t)
+		if change.view.sparks ~= nil then
+			grid.Text = t("hud.gridChip", {
+				level = change.view.sparks.gridLevel,
+				now = string.format("%g", change.view.sparks.gridNow),
+				sparks = change.view.sparks.available,
+			})
+		end
 		local sparkView = change.view.sparks
 		if sparkView ~= nil then
 			local owned = false
@@ -245,6 +280,8 @@ function Hud.build(net: Instance)
 		language.Text = t("hud.language", { name = t("language." .. lang) })
 		storageHint.Text = t("hud.storageHint")
 		expand.Text = t("action.expand")
+		confirmYes.Text = t("expand.yes")
+		confirmNo.Text = t("expand.no")
 		if lastSnapshot ~= nil then
 			applySnapshot(lastSnapshot)
 		end
