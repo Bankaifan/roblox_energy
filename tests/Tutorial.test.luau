@@ -94,4 +94,18 @@ return function(t, load)
 	t.equal(Tutorial.current({ index = 3.7, done = false }), "mowing", "a fractional index is rounded down")
 	local clamped = Tutorial.step({ index = 9, done = false }, facts({ nodes = { U17 = true } }))
 	t.equal(clamped.done, true, "a clamped storage step can finish the tutorial")
+
+	-- Facts from a run state.
+	local fromState = Tutorial.facts({
+		nodes = { U17 = true },
+		land = { sites = { 2 }, tools = { shovel = true }, container = true },
+	}, 30, 4, true)
+	t.equal(fromState.mown, 2, "mown tiles are the prepared panel tiles")
+	t.truthy(
+		fromState.shovel and fromState.container and fromState.marketOpened and fromState.nodes.U17,
+		"owned things are facts"
+	)
+	t.equal(fromState.cranks, 4, "cranks come from the session")
+	local bare = Tutorial.facts({ nodes = {} }, 0, 0, false)
+	t.truthy(bare.mown == 0 and not bare.shovel and not bare.container, "a run without land has no land facts")
 end

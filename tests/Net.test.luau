@@ -7,11 +7,13 @@ return function(t, load)
 	for _ in Net.messages do
 		count += 1
 	end
-	t.equal(count, 21, "21 messages")
+	t.equal(count, 24, "24 messages")
 	t.equal(Net.messages.RankList.direction, "server", "RankList comes from the server")
 	t.truthy(Net.check("RankRequest", nil), "the leaderboard asks without fields")
 	t.equal(Net.messages.RankRequest.limit.per, 4, "RankRequest allows one request per 4 seconds")
 	t.equal(Net.messages.Welcome.direction, "server", "Welcome comes from the server")
+	t.equal(Net.messages.Tutorial.direction, "server", "Tutorial comes from the server")
+	t.truthy(Net.check("MarketOpened", nil) and Net.check("TutorialSkip", nil), "the tutorial messages need no fields")
 
 	local ok, clean = Net.check("BuyPlant", { plant = 3, qty = "max", extra = "ignored" })
 	t.truthy(ok, "a valid BuyPlant is accepted")

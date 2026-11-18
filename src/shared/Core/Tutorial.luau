@@ -46,6 +46,22 @@ function Tutorial.condition(id: Step, facts: Facts): boolean
 	return false
 end
 
+-- The facts of a run from its state, plus what only the server session knows: the seconds since the tutorial started, the
+-- crank clicks and whether the market popup was opened.
+function Tutorial.facts(state: any, seconds: number, cranks: number, marketOpened: boolean): Facts
+	local land = state.land
+	local sites = if land ~= nil and land.sites ~= nil then land.sites[1] or 0 else 0
+	return {
+		seconds = seconds,
+		cranks = cranks,
+		marketOpened = marketOpened,
+		mown = sites,
+		shovel = land ~= nil and land.tools ~= nil and land.tools.shovel == true,
+		container = land ~= nil and land.container == true,
+		nodes = state.nodes or {},
+	}
+end
+
 -- The index after `index`, or nil after the last step.
 function Tutorial.next(index: number): number?
 	if index < Tutorial.COUNT then
