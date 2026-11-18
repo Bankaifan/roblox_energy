@@ -34,6 +34,8 @@ type Record = {
 	model: Model,
 	columns: { [number]: BasePart }, -- index -> the primitive column (only for plants without a model)
 	modelPlants: { boolean }, -- index -> built from a model (else the primitive column)
+	shells: { Model }, -- bare houses of F3 (hammer done, roof PV not bought)
+	shellKey: string?,
 	copies: { { Model } }, -- index -> the model units shown now
 	keys: { string }, -- index -> "<cells>|<aligned cells>" of the units shown now
 	control: Model?, -- the control center, built once U21 is owned
@@ -203,6 +205,36 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		if site.rail == true then
 			table.insert(shown, railsFor(record, site))
 		end
+	end
+end
+
+-- House shells (field F3): a cell whose hammer stage is done but whose roof PV is not bought yet shows the bare house, the model
+-- without its panels. Rebuilt only when the set of cells changes.
+local function updateShells(record: Record, owned: number, cells: { number })
+	local bare: { number } = {}
+	for i = math.floor(owned) + 1, #cells do
+		table.insert(bare, cells[i])
+	end
+	table.sort(bare)
+	local key = table.concat(bare, ",")
+	if record.shellKey == key then
+		return
+	end
+	record.shellKey = key
+	for _, copy in record.shells do
+		copy:Destroy()
+	end
+	table.clear(record.shells)
+	local cell = Assets.fields[3].size * Assets.TILE
+	for _, site in PlotLayout.cellSites(Assets.fields[3], bare, Assets.TILE, Assets.PLOT_TILES) do
+		local copy = PlantModels.clone(3)
+		if copy == nil then
+			break
+		end
+		PlantModels.stripPanels(copy)
+		PlantModels.place(copy, 3, cell, sitePoint(record, site), record.origin.Y, nil)
+		copy.Parent = record.model
+		table.insert(record.shells, copy)
 	end
 end
 
@@ -547,6 +579,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		columns = columns,
 		modelPlants = modelPlants,
 		copies = copies,
+		shells = {},
 		keys = {},
 		river = River.stages(nil, Assets.river.segments),
 		course = River.course(Assets.river, slot),
@@ -615,6 +648,9 @@ function PlotService.update(
 				updateWheels(record, counts[2] or 0)
 			else
 				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, ownLand.aligned or {})
+				if index == 3 then
+					updateShells(record, counts[3] or 0, cells)
+				end
 			end
 		end
 	end

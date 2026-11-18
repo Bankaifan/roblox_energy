@@ -309,6 +309,15 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number)
 	CollectionService:AddTag(wheel, "WheelRotor")
 end
 
+-- A house model without its roof panels: the child models (the solar arrays) are removed.
+function PlantModels.stripPanels(copy: Model)
+	for _, child in copy:GetChildren() do
+		if child:IsA("Model") then
+			child:Destroy()
+		end
+	end
+end
+
 -- The walk-in container around the battery spot: floor, roof, back and end walls and a front wall with a door opening.
 -- `facing` mirrors z for a plot that faces the other way; the front always looks at the plot centre.
 function PlantModels.container(origin: Vector3, groundY: number, facing: number?): Model
