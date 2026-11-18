@@ -9,40 +9,94 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DayCycle = require(Shared:WaitForChild("Core"):WaitForChild("DayCycle") :: ModuleScript) :: any
 local Phases = require(Shared:WaitForChild("Config"):WaitForChild("Phases") :: ModuleScript) :: any
 local Ambience = require(Shared:WaitForChild("Ambience") :: ModuleScript) :: any
+local TurnRange = require(Shared:WaitForChild("Core"):WaitForChild("TurnRange") :: ModuleScript) :: any
 
 local MOOD_SECONDS = 0.25
 local ROTOR_SPEED = 0.8 -- radians per second
 local WHEEL_SPEED = 0.6 -- water wheels, radians per second
 
--- Wind turbine rotors (models tagged "Rotor") and the pivot each one turns around.
-local rotors: { [Model]: CFrame } = {}
-local function addRotor(instance: Instance)
-	if instance:IsA("Model") then
-		rotors[instance] = instance:GetPivot()
+-- Turning models (issue 113): only those within TurnRange.RANGE studs of the camera move, all of them in one BulkMoveTo per tick.
+-- Each entry keeps its parts with their offset to the base pivot, so a turn is one multiplication per part.
+type Turner = { parts: { BasePart }, offsets: { CFrame }, base: CFrame }
+
+local function newTurner(model: Model): Turner
+	local base = model:GetPivot()
+	local parts, offsets = {}, {}
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			table.insert(parts, part)
+			table.insert(offsets, base:ToObjectSpace(part.CFrame))
+		end
 	end
-end
-CollectionService:GetInstanceAddedSignal("Rotor"):Connect(addRotor)
-CollectionService:GetInstanceRemovedSignal("Rotor"):Connect(function(instance: Instance)
-	rotors[instance :: Model] = nil
-end)
-for _, instance in CollectionService:GetTagged("Rotor") do
-	addRotor(instance)
+	return { parts = parts, offsets = offsets, base = base }
 end
 
+local function track(tag: string): { [Model]: Turner }
+	local list: { [Model]: Turner } = {}
+	local function add(instance: Instance)
+		if instance:IsA("Model") then
+			list[instance] = newTurner(instance)
+		end
+	end
+	CollectionService:GetInstanceAddedSignal(tag):Connect(add)
+	CollectionService:GetInstanceRemovedSignal(tag):Connect(function(instance: Instance)
+		list[instance :: Model] = nil
+	end)
+	for _, instance in CollectionService:GetTagged(tag) do
+		add(instance)
+	end
+	return list
+end
+
+-- Wind turbine rotors (models tagged "Rotor") turn about their own pivot.
+local rotors = track("Rotor")
 -- Water wheels: the model tagged "WheelRotor" (only the wheel, never the stands) turns about its axle at the point the server
 -- measured (attributes SpinAxis, SpinCentre, SpinSense). The angle follows the server clock, so every client agrees.
-local wheels: { [Model]: CFrame } = {}
-local function addWheel(instance: Instance)
-	if instance:IsA("Model") then
-		wheels[instance] = instance:GetPivot()
+local wheels = track("WheelRotor")
+
+local function queueTurn(turner: Turner, pivot: CFrame, outParts: { BasePart }, outFrames: { CFrame })
+	for i, part in turner.parts do
+		table.insert(outParts, part)
+		table.insert(outFrames, pivot * turner.offsets[i])
 	end
 end
-CollectionService:GetInstanceAddedSignal("WheelRotor"):Connect(addWheel)
-CollectionService:GetInstanceRemovedSignal("WheelRotor"):Connect(function(instance: Instance)
-	wheels[instance :: Model] = nil
-end)
-for _, instance in CollectionService:GetTagged("WheelRotor") do
-	addWheel(instance)
+
+local function turnAll(now: number)
+	local camera = workspace.CurrentCamera
+	if camera == nil then
+		return
+	end
+	local eye = camera.CFrame.Position
+	local range = TurnRange.RANGE
+	local parts: { BasePart }, frames: { CFrame } = {}, {}
+	for _, turner in rotors do
+		local p = turner.base.Position
+		if TurnRange.within(p.X, p.Y, p.Z, eye.X, eye.Y, eye.Z, range) then
+			local angle = (now * ROTOR_SPEED + p.X) % (2 * math.pi)
+			queueTurn(turner, turner.base * CFrame.Angles(0, 0, angle), parts, frames)
+		end
+	end
+	for wheel, turner in wheels do
+		local axis = wheel:GetAttribute("SpinAxis")
+		local centre = wheel:GetAttribute("SpinCentre")
+		if
+			typeof(axis) == "Vector3"
+			and typeof(centre) == "Vector3"
+			and TurnRange.within(centre.X, centre.Y, centre.Z, eye.X, eye.Y, eye.Z, range)
+		then
+			local sense = (wheel:GetAttribute("SpinSense") :: number?) or 1
+			local angle = (now * WHEEL_SPEED * sense) % (2 * math.pi)
+			queueTurn(
+				turner,
+				CFrame.new(centre) * CFrame.fromAxisAngle(axis, angle) * CFrame.new(-centre) * turner.base,
+				parts,
+				frames
+			)
+		end
+	end
+	if #parts > 0 then
+		workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
+	end
 end
 
 -- Parts tagged "NightGlow" turn to neon at night; a PointLight inside follows with the strength in attribute "Glow".
@@ -91,19 +145,7 @@ RunService.Heartbeat:Connect(function(delta: number)
 	local now = workspace:GetServerTimeNow()
 	local clock = DayCycle.clockAt(now, Phases)
 	Lighting.ClockTime = clock
-	for rotor, pivot in rotors do
-		rotor:PivotTo(pivot * CFrame.Angles(0, 0, (now * ROTOR_SPEED + pivot.Position.X) % (2 * math.pi)))
-	end
-
-	for wheel, base in wheels do
-		local axis = wheel:GetAttribute("SpinAxis")
-		local centre = wheel:GetAttribute("SpinCentre")
-		if typeof(axis) == "Vector3" and typeof(centre) == "Vector3" then
-			local sense = (wheel:GetAttribute("SpinSense") :: number?) or 1
-			local angle = (now * WHEEL_SPEED * sense) % (2 * math.pi)
-			wheel:PivotTo(CFrame.new(centre) * CFrame.fromAxisAngle(axis, angle) * CFrame.new(-centre) * base)
-		end
-	end
+	turnAll(now)
 
 	sinceMood += delta
 	if sinceMood >= MOOD_SECONDS then
