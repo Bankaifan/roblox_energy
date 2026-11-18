@@ -145,4 +145,13 @@ Steps[6] = function(profile: any): any
 	return profile
 end
 
+-- Version 7 -> 8: the tutorial has twelve steps now and a saved index means something else, so a tutorial that is not done
+-- starts again at its first step; the facts of the saved run walk it forward at once. A finished tutorial stays finished.
+Steps[7] = function(profile: any): any
+	if profile.tutorialDone ~= true then
+		profile.tutorial = 1
+	end
+	return profile
+end
+
 return Steps
