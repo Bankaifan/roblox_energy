@@ -162,7 +162,7 @@ return function(t, load)
 	sparkState.sparks, sparkState.sparksSpent = 7, 3
 	sparkState.pnodes.P1 = true
 	local sparkCards = cards("sparks", sparkState)
-	t.equal(#sparkCards, 13, "eight permanent nodes and five spark items")
+	t.equal(#sparkCards, 14, "eight permanent nodes and six spark items")
 	local sparks = byId(sparkCards)
 	t.equal(sparks.P1.state, "owned", "an owned node says so")
 	t.equal(sparks.P1.title, "P1 Starting Capital", "the title has id and name")
@@ -172,7 +172,9 @@ return function(t, load)
 	t.equal(sparks.S2.button.payload.node, "S2", "with the item id")
 	t.equal(sparks.S3.state, "short", "S3 costs 6 sparks, 4 are left")
 	t.truthy(not sparks.S3.button.enabled, "its button is off")
-	t.equal(sparks.S4, nil, "S4 is not listed yet")
+	t.equal(sparks.S4.state, "short", "S4 costs 10 sparks, 4 are left")
+	t.equal(sparks.S4.title, "S4 Fine Tuning", "S4 is listed with its name")
+	t.truthy(not sparks.S4.button.enabled, "its button is off")
 	t.equal(byId(cards("sparks", sparkState, "de")).S2.title, "S2 Werkzeug-Rabatt", "German item name")
 
 	for _, tab in ShopView.tabs do
