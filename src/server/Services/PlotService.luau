@@ -8,6 +8,7 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
 local River = require(Core:WaitForChild("River") :: ModuleScript) :: any
+local Cable = require(Core:WaitForChild("Cable") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
@@ -48,6 +49,7 @@ type Record = {
 	foundations: Folder?, -- concrete steps under the anchored wind plants
 	cableKey: string, -- what the ground cables show now
 	cables: Folder?, -- cables from the farm cells to the grid box
+	golden: boolean, -- the Golden Crank (S6) is shown
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -133,7 +135,7 @@ local function updateWheels(record: Record, owned: number)
 	table.clear(shown)
 	local entry = Assets.entry(2)
 	local scale = if entry ~= nil then entry.scale else 1
-	local cap = if entry ~= nil then entry.cap else 4
+	local cap = Assets.WHEEL_MAX
 	for index, spot in spots do
 		if index > cap then
 			break
@@ -200,6 +202,7 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		-- A plant on a foundation stands on top of its two steps.
 		local lift = if Assets.foundations[index] ~= nil then 2 * Assets.FOUNDATION_STEP - 0.15 else 0
 		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y + lift, angle)
+		PlantModels.tagRotor(copy, index)
 		copy.Parent = record.model
 		table.insert(shown, copy)
 		if site.rail == true then
@@ -211,11 +214,7 @@ end
 -- House shells (field F3): a cell whose hammer stage is done but whose roof PV is not bought yet shows the bare house, the model
 -- without its panels. Rebuilt only when the set of cells changes.
 local function updateShells(record: Record, owned: number, cells: { number })
-	local bare: { number } = {}
-	for i = math.floor(owned) + 1, #cells do
-		table.insert(bare, cells[i])
-	end
-	table.sort(bare)
+	local bare = PlotLayout.bare(cells, owned)
 	local key = table.concat(bare, ",")
 	if record.shellKey == key then
 		return
@@ -487,17 +486,15 @@ local function updateFoundations(record: Record, land: any)
 end
 
 -- Ground cables from every cell of the solar farm and the wind turbine whose cable stage is done to the grid box: a dark strip
--- along z to the box's row, then one along x to the box.
+-- linked field-wise to each other and to the box (Core/Cable), buried where the river runs.
 local function updateCables(record: Record, land: any)
 	local box = Assets.furniture.control
 	local keys = {}
-	local sites = {}
+	local fieldSites: { { any } } = {}
 	for index, cable in Assets.cables do
 		local cells = anchored(land, index, cable.stage)
 		table.insert(keys, `{index}:{table.concat(cells, ",")}`)
-		for _, site in PlotLayout.cellSites(Assets.fields[index], cells, Assets.TILE, Assets.PLOT_TILES) do
-			table.insert(sites, site)
-		end
+		table.insert(fieldSites, PlotLayout.cellSites(Assets.fields[index], cells, Assets.TILE, Assets.PLOT_TILES))
 	end
 	local key = table.concat(keys, " ")
 	if record.cableKey == key then
@@ -527,15 +524,53 @@ local function updateCables(record: Record, land: any)
 		part.Parent = folder
 	end
 	local y = record.origin.Y + 0.1
-	for _, site in sites do
-		local start = sitePoint(record, site)
-		local corner = sitePoint(record, { x = site.x, z = box.z })
-		local finish = sitePoint(record, { x = box.x, z = box.z })
-		strip(Vector3.new(start.X, y, start.Z), Vector3.new(corner.X, y, corner.Z))
-		strip(Vector3.new(corner.X, y, corner.Z), Vector3.new(finish.X, y, finish.Z))
+	local function lay(from: { x: number, z: number }, to: { x: number, z: number })
+		local a, b = sitePoint(record, from), sitePoint(record, to)
+		strip(Vector3.new(a.X, y, a.Z), Vector3.new(b.X, y, b.Z))
+	end
+	-- The sites of a field are linked to each other and to the control board; no piece lies over the river water.
+	for _, sites in fieldSites do
+		for _, link in Cable.links(sites, { x = box.x, z = box.z }) do
+			for _, piece in Cable.dryPieces(link, Assets.river.points, Assets.river.width / 2 + 1, 2) do
+				lay(piece.a, piece.b)
+			end
+		end
 	end
 	folder.Parent = record.model
 	record.cables = folder
+end
+
+-- S6 Golden Crank: the stone ring (the pad under the crank) turns gold and glows faintly; without S6 it keeps the yellow disc.
+local GOLD = Color3.fromRGB(255, 200, 40)
+local function updateCrank(record: Record, golden: boolean)
+	if record.golden == golden then
+		return
+	end
+	record.golden = golden
+	local pad = record.model:FindFirstChild("CrankPad")
+	if pad == nil or not pad:IsA("BasePart") then
+		return
+	end
+	local glow = pad:FindFirstChild("GoldenGlow")
+	if golden then
+		pad.Color = GOLD
+		pad.Material = Enum.Material.Metal
+		if glow == nil then
+			local light = Instance.new("PointLight")
+			light.Name = "GoldenGlow"
+			light.Color = GOLD
+			light.Range = 14
+			light.Brightness = 0.8
+			light.Shadows = false
+			light.Parent = pad
+		end
+	else
+		pad.Color = COLORS.Solar
+		pad.Material = Enum.Material.Plastic
+		if glow ~= nil then
+			glow:Destroy()
+		end
+	end
 end
 
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
@@ -593,6 +628,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		foundations = nil,
 		cableKey = "",
 		cables = nil,
+		golden = false,
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -625,7 +661,7 @@ end
 function PlotService.update(
 	player: Player,
 	counts: { number },
-	extras: { stage: number, control: boolean, fill: number?, paint: number? }?,
+	extras: { stage: number, control: boolean, fill: number?, paint: number?, golden: boolean? }?,
 	land: any?
 )
 	local record = plots[player]
@@ -637,6 +673,7 @@ function PlotService.update(
 	updateLand(record, counts, ownLand, if extras ~= nil then extras.paint else nil)
 	updateFoundations(record, ownLand)
 	updateCables(record, ownLand)
+	updateCrank(record, extras ~= nil and extras.golden == true)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
 			local cells = PlotLayout.mown(

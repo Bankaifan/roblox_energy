@@ -177,6 +177,17 @@ function PlotLayout.wild(points: { Site }, seed: number): { WildSite }
 	return wild
 end
 
+-- The cells that stand prepared but carry no unit yet: of `cells` (the prepared cells in the order they were finished) the
+-- units take the first floor(owned); the rest, sorted ascending, is returned (a bare house after the hammer).
+function PlotLayout.bare(cells: { number }, owned: number): { number }
+	local rest: { number } = {}
+	for i = math.max(0, math.floor(owned)) + 1, #cells do
+		table.insert(rest, cells[i])
+	end
+	table.sort(rest)
+	return rest
+end
+
 -- Plot ground (terrain): the square of a slot in world studs and its side in terrain cells of `cell` studs.
 export type Ground = { minX: number, maxX: number, minZ: number, maxZ: number, cells: number }
 
