@@ -110,6 +110,14 @@ Assets.cables = {
 } :: { [number]: { stage: number } }
 Assets.CABLE_WIDTH = 0.5
 
+-- Stage builds on a cell (design v2, step 10): `fence` is a post fence round the cell (the hammer on the solar farm), `mast` a guyed
+-- mast with a cross arm (the wrench on the mini turbine). Each appears once the cell's `stage` is done.
+Assets.stageBuilds = {
+	[4] = { kind = "mast", stage = 2 },
+	[5] = { kind = "fence", stage = 2 },
+} :: { [number]: { kind: string, stage: number } }
+Assets.MAST_HEIGHT = 15 -- the height of the finished mini turbine
+Assets.FENCE_POST = 4 -- studs between the posts of a farm fence
 -- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields takes the chosen one.
 Assets.paintColors = {
 	{ 224, 72, 64 },
