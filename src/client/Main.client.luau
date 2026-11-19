@@ -24,6 +24,7 @@ local welcomeMessage = net:WaitForChild("Welcome") :: RemoteEvent
 local ready = net:WaitForChild("Ready") :: RemoteEvent
 local tutorial = net:WaitForChild("Tutorial") :: RemoteEvent
 local marketOpened = net:WaitForChild("MarketOpened") :: RemoteEvent
+local plotPublic = net:WaitForChild("PlotPublic") :: RemoteEvent
 snapshot.OnClientEvent:Connect(hud.snapshot)
 local guide = TutorialGuide.build({
 	hud = hud,
@@ -42,6 +43,7 @@ tutorial.OnClientEvent:Connect(function(change: any)
 	guide.tutorial(change)
 end)
 welcomeMessage.OnClientEvent:Connect(welcome)
+plotPublic.OnClientEvent:Connect(function() end)
 -- Only the market's "ShopPrompt" and the control board's "ControlPrompt" (made by PlotService) open the market popup; no message to the server is needed.
 ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 	if prompt.Name == "ShopPrompt" then
