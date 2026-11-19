@@ -107,7 +107,7 @@ def test_no_model_and_only_the_author_secret():
 
 
 def test_gate_expression_and_default_mode():
-    assert "(vars.TEMPLATE_SYNC_MODE || 'all') == 'all'" in TEXT
+    assert "(vars.TEMPLATE_SYNC_MODE || 'version') == 'all'" in TEXT
     assert "!= 'all'" not in TEXT
 
 
@@ -124,3 +124,8 @@ def test_force_and_mode_reach_main_through_env():
 
 def test_issue_flow_keeps_the_developer_label():
     assert "--label agent:dev" in JOBS["publish"]
+
+
+def test_tools_are_installed_from_the_base_checkout_so_project_requirements_are_found():
+    step = TEXT.split("- name: Install pinned tools")[1].split("- name:")[0]
+    assert "working-directory: base" in step and "run: bash tools/ci/install_tools.sh" in step
