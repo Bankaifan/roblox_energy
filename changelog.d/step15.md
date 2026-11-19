@@ -1,0 +1,2 @@
+- A tutorial line guides the first steps from the crank to the storage; it is saved and can be skipped.
+- An arrow above the crank and the market points the way in the first tutorial steps.

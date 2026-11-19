@@ -236,10 +236,16 @@ end
 
 -- A ProximityPrompt on a furniture model, texted in the owner's language. `onTriggered` runs on the server for the
 -- owner only; a prompt without it is handled on the client (the shop prompt: Controllers/Hud opens its panel).
-local function addPrompt(owner: Player, model: Model, name: string, key: string, onTriggered: ((Player) -> ())?)
+local function addPrompt(
+	owner: Player,
+	model: Model,
+	name: string,
+	key: string,
+	onTriggered: ((Player) -> ())?
+): ProximityPrompt?
 	local anchor = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
 	if anchor == nil then
-		return
+		return nil
 	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = name
@@ -256,6 +262,7 @@ local function addPrompt(owner: Player, model: Model, name: string, key: string,
 			end
 		end)
 	end
+	return prompt
 end
 
 -- Control center from U21, one battery unit per storage stage; both are rebuilt only when the number changes.
@@ -289,6 +296,12 @@ local function updateFurniture(
 		-- Opens the rule popup on the client (Controllers/Market, storage tab); the rules themselves need the wiring.
 		if record.control ~= nil then
 			addPrompt(owner, record.control, "ControlPrompt", "prompt.control", nil)
+			-- A second prompt on key F opens the power overview (what each plant makes and how it is calculated).
+			local info = addPrompt(owner, record.control, "ControlInfo", "prompt.production", nil)
+			if info ~= nil then
+				info.KeyboardKeyCode = Enum.KeyCode.F
+				info.UIOffset = Vector2.new(0, 70)
+			end
 		end
 	end
 	local wanted = Assets.batteryUnits(extras.stage)
@@ -747,6 +760,22 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	local market = addFurniture(record, "market", nil)
 	if market ~= nil then
 		addPrompt(player, market, "ShopPrompt", "action.shop", nil)
+	end
+	-- Invisible marks for the tutorial arrow: the middle of field 1 and the river spring (cell 1 of field 2).
+	for number, cell in { [1] = 13, [2] = 1 } do
+		local field = Assets.fields[number]
+		local site = PlotLayout.cellCentre(field, cell, Assets.TILE, Assets.PLOT_TILES)
+		local spot = Instance.new("Part")
+		spot.Name = "TutorialSpot" .. number
+		spot.Anchored = true
+		spot.CanCollide = false
+		spot.CanQuery = false
+		spot.CanTouch = false
+		spot.CastShadow = false
+		spot.Transparency = 1
+		spot.Size = Vector3.one
+		spot.Position = sitePoint(record, site) + Vector3.new(0, 1, 0)
+		spot.Parent = model
 	end
 	PlotService.update(player, {})
 	return true

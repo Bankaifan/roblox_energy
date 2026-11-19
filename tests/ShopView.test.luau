@@ -177,6 +177,33 @@ return function(t, load)
 	t.truthy(not sparks.S4.button.enabled, "its button is off")
 	t.equal(byId(cards("sparks", sparkState, "de")).S2.title, "S2 Werkzeug-Rabatt", "German item name")
 
+	-- Production tab: a total card and one card per owned plant with the formula.
+	local made = fresh()
+	made.plants[1] = 3
+	local output = cards("production", made)
+	t.equal(#output, 2, "a total card and one plant card")
+	t.truthy(output[2].info:find("3 x 1 x M", 1, true) ~= nil, "the plant card shows its count and base power")
+	t.truthy(output[2].status ~= nil, "and its output")
+	-- The numbers: the total is the sum of the rows, the grid part follows the level, aligned panels count more than owned.
+	made.level = 2
+	made.plants[3] = 2
+	made.nodes.U03 = true
+	local production = GameCore.view(made, env).production
+	local sum = 0
+	for _, row in production.rows do
+		sum += row.output
+	end
+	t.truthy(math.abs(sum - production.total) < 1e-9, "the total is the sum of the plant outputs")
+	t.equal(production.grid, Formulas.globalMultiplier(2, 1), "the grid multiplier follows the level")
+	local house = production.rows[3]
+	t.equal(
+		house.output,
+		house.nominal * house.effective * house.multiplier * house.factor,
+		"output = base x count x M x factor"
+	)
+	t.truthy(house.multiplier > 1 and house.count == 2, "a node and the level lift the multiplier above 1")
+	t.equal(production.rows[1].effective, 3, "panels without aligned cells count as owned")
+
 	for _, tab in ShopView.tabs do
 		t.truthy(Locale.tables.de[tab.key] ~= nil and Locale.tables.de[tab.hint] ~= nil, `texts for tab {tab.id}`)
 	end

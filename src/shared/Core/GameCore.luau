@@ -884,6 +884,31 @@ local function sparkView(state: State, env: Env): { [string]: any }
 	}
 end
 
+-- What each plant produces this second and how: count, effective count, base power, multiplier M and the type factor of
+-- the phase and weather now. The sum of `output` is the rate before storage.
+local function productionView(state: State, env: Env): { [string]: any }
+	local rows = {}
+	local total = 0
+	for _, plant in env.config.plants do
+		local factor = env.formulas.factor(plant.kind, env.phase, env.weather)
+		local multiplier = plantMultiplier(state, env, plant)
+		local effective = effectiveCount(state, env, plant)
+		local output = env.formulas.production(plant.nominalPower, effective, multiplier, factor)
+		total += output
+		table.insert(rows, {
+			id = plant.id,
+			kind = plant.kind,
+			count = state.plants[plant.id],
+			effective = effective,
+			nominal = plant.nominalPower,
+			multiplier = multiplier,
+			factor = factor,
+			output = output,
+		})
+	end
+	return { rows = rows, total = total, grid = globalMultiplier(state, env) }
+end
+
 -- What the HUD shows, so the client does no game logic: each plant's next price and whether the coins cover it,
 -- the run nodes, the storage, the crank energy per click, and the next grid expansion with the run earnings,
 -- its sparks and whether it is allowed now (nil after the last level).
@@ -916,6 +941,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		storage = storageView(state, env, price),
 		price = { factor = price, phase = env.phase.id, weather = env.weather.id, nextWeather = nextWeather },
 		crank = crankEnergy(state, env),
+		production = productionView(state, env),
 		goal = goal,
 	}
 	if env.config.land ~= nil then
