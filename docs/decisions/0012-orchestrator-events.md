@@ -5,15 +5,15 @@ Status: accepted (issue #125, design 0007, built in parts: quota baseline, gate,
 Context: the orchestrator used to wake only on a label `approved`/`auto-ok`, a merge to `main`, the 06:43 UTC schedule or a manual start. A new issue, a comment from Daniel on a `needs-human` item, a finished PR or a review waited until the next run of one of those. Every extra wake-up can cost a model run, so the subscription quota is the limit.
 
 Decision:
-- Triggers (`.github/workflows/orchestrator.yml`): `issues` opened, edited, closed, labeled; `issue_comment` created; `pull_request_target` opened, closed; `pull_request_review` submitted. The existing `workflow_run` of `validate`, `schedule` and `workflow_dispatch` stay. `pull_request_target` checks out the default branch only; PR code is never run.
-- Switch: repo variable `ORCHESTRATOR_EVENTS`. Only `on` lets the non-label events through; unset or any other value skips them (no model run). The label path (`approved`/`auto-ok` by Daniel) does not depend on it. `setup` reports the variable.
+- Triggers (`.github/workflows/orchestrator.yml`): `issues` opened, edited, closed; `issue_comment` created; `pull_request_target` opened, closed; `pull_request_review` submitted. The existing `workflow_run` of `validate`, `schedule` and `workflow_dispatch` stay. `pull_request_target` checks out the default branch only; PR code is never run.
+- Switch: repo variable `ORCHESTRATOR_EVENTS`. Only `on` lets these events through; unset or any other value skips them (no model run). There is no label path any more (decision 0017). `setup` reports the variable.
 - Gate (`tools/orchestrator_gate.py`, runs before any model step): accepts an event only if the sender is Daniel (OWNER), the author app or the approver app; re-reads the object live (for `opened`, the author login must equal the sender); drops an author-app event that falls inside an orchestrator run window (run start to run end + 60 s, so the orchestrator does not wake itself); skips the run if a newer orchestrator run is pending (a burst gives one run, on its last event); refuses after three runs in a row started by the author app, each at most 300 s after the previous, and comments once in the status issue.
 - Debounce: each event run first sleeps 60 s so a burst has landed. Label events keep the 180 s rule of the gate.
 - Prefilter (`tools/prefilter.py`): with an event, the table below decides `work`; the model runs only on `work=true`. Schedule, dispatch and validate-on-main keep the count rule. The step prints the `reason`.
 
 | Event (action) | Reason when `work=true` |
 | --- | --- |
-| `issues` opened/edited/labeled | `startable-issue`: trusted issue, free PR slot, no `agent:dev` or `needs-human`; `owner-reply`: `needs-human` and sender is Daniel |
+| `issues` opened/edited | `startable-issue`: trusted issue, free PR slot, no `agent:dev` or `needs-human`; `owner-reply`: `needs-human` and sender is Daniel |
 | `issues` closed | `cleanup-closed-issue`: `agent:dev` label or a linked open PR |
 | `issue_comment` created | `owner-answer`: Daniel on a `needs-human` item whose newest comment is not an answer-receiver marker; `owner-comment-trusted`: Daniel on a trusted issue |
 | `pull_request` opened | `pr-over-cap`: agent PR and no free PR slot; `design-pr`: a design PR; `unlinked-pr`: not an agent PR and closes no issue |
