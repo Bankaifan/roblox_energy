@@ -6,7 +6,7 @@ cd "$(git rev-parse --show-toplevel)"
 ROKIT_VERSION=1.2.0
 
 missing=0
-for tool in rojo lune selene stylua; do
+for tool in rojo lune selene stylua luau-lsp; do
   command -v "$tool" >/dev/null 2>&1 || missing=1
 done
 
