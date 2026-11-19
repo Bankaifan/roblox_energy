@@ -34,3 +34,18 @@ git diff --exit-code -- docs/balance
 rojo build default.project.json -o "$(mktemp -d)/PowerGrid.rbxl"
 # The test project (adds the tests and the Studio TestRunner) must build too, so it does not rot.
 rojo build test.project.json -o "$(mktemp -d)/PowerGridTests.rbxl"
+# Typed instances in src/client: an unknown property (`Key 'X' not found in external type`) fails the check.
+# luau-lsp reads the Roblox types from the pinned globalTypes.d.lua; the sourcemap lets it follow the requires.
+analysis="$(mktemp -d)"
+curl -fsSL -o "$analysis/globalTypes.d.lua" "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/1.70.1/scripts/globalTypes.d.lua"
+echo "2857efa8245485f8c25c19c018ee1ef9b46afab4efd2ea70fc3257cd3faf7080  $analysis/globalTypes.d.lua" | sha256sum -c --quiet
+rojo sourcemap default.project.json -o "$analysis/sourcemap.json"
+status=0
+out="$(luau-lsp analyze --platform roblox --definitions=@roblox="$analysis/globalTypes.d.lua" --sourcemap "$analysis/sourcemap.json" src/client 2>&1)" || status=$?
+[ "$status" -le 1 ] || { echo "$out" >&2; echo "luau-check: luau-lsp failed (exit $status)" >&2; exit 1; }
+case "$out" in
+  *"not found in external type"*)
+    echo "$out" | grep "not found in external type" >&2
+    echo "luau-check: unknown property on a typed instance in src/client" >&2
+    exit 1 ;;
+esac
