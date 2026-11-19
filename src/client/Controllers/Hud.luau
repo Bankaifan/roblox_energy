@@ -150,6 +150,50 @@ function Hud.build(net: Instance)
 		return lang
 	end)
 	local goal = label(frame, nextOrder())
+	-- The tutorial: one line for the current step and a button to skip it; both hidden when there is no step.
+	local tutorialLine = label(frame, 0)
+	tutorialLine.TextColor3 = Theme.colors.accent
+	tutorialLine.Visible = false
+	local tutorialStep = ""
+	-- The line's Locale key and arguments (TutorialGuide chooses them); without a choice the step id names the text.
+	local tutorialKey: string? = nil
+	local tutorialArgs: { [string]: any }? = nil
+	local skipArmedAt = -math.huge
+	local tutorialForced = false -- the closing line shows after the tutorial is done
+	local tutorialSkip: TextButton
+	tutorialSkip = button(frame, "", 0, function()
+		-- Two taps within three seconds skip for good; the first one only asks again.
+		if os.clock() - skipArmedAt <= 3 then
+			skipArmedAt = -math.huge
+			local skipRemote = net:WaitForChild("TutorialSkip") :: RemoteEvent
+			skipRemote:FireServer()
+		else
+			skipArmedAt = os.clock()
+			tutorialSkip.Text = t("tutorial.skipConfirm")
+			task.delay(3, function()
+				if os.clock() - skipArmedAt >= 3 then
+					tutorialSkip.Text = t("tutorial.skip")
+				end
+			end)
+		end
+	end)
+	tutorialSkip.Visible = false
+	local function paintTutorialLine()
+		local args: { [string]: any } = {}
+		for key, value in tutorialArgs or {} do
+			-- Numbers are shortened (1,100 -> 1.1K); a string is a Locale key to translate (the tool in a nudge).
+			args[key] = if type(value) == "number"
+				then ShopView.short(value)
+				elseif type(value) == "string" then t(value)
+				else value
+		end
+		local key = tutorialKey or ("tutorial." .. tutorialStep)
+		local shown = (tutorialStep ~= "" or tutorialForced) and tutorialKey ~= ""
+		tutorialLine.Visible = shown
+		if shown then
+			tutorialLine.Text = t(key, args)
+		end
+	end
 
 	local function send(name: string, payload: any?)
 		(net:WaitForChild(name) :: RemoteEvent):FireServer(payload)
@@ -282,6 +326,8 @@ function Hud.build(net: Instance)
 		expand.Text = t("action.expand")
 		confirmYes.Text = t("expand.yes")
 		confirmNo.Text = t("expand.no")
+		tutorialSkip.Text = t("tutorial.skip")
+		paintTutorialLine()
 		if lastSnapshot ~= nil then
 			applySnapshot(lastSnapshot)
 		end
@@ -307,6 +353,44 @@ function Hud.build(net: Instance)
 			lastDelta = change
 			applyDelta(change)
 			boost.delta(change)
+		end,
+		-- The server sends the step id ("" = no tutorial); the line sits at the top of the list.
+		tutorial = function(change: any)
+			tutorialStep = change.id
+			tutorialKey, tutorialArgs = nil, nil
+			tutorialSkip.Visible = tutorialStep ~= ""
+			paintTutorialLine()
+		end,
+		-- TutorialGuide: the key and arguments of the line now; key "" hides the line (the skip button stays).
+		tutorialLine = function(key: string?, args: { [string]: any }?, force: boolean?)
+			tutorialForced = force == true
+			if key == tutorialKey then
+				tutorialArgs = args
+				paintTutorialLine()
+				return
+			end
+			tutorialKey, tutorialArgs = key, args
+			paintTutorialLine()
+		end,
+		-- TutorialGuide: the expand button pulses twice, then rests.
+		pulse = function(name: string, on: boolean)
+			if name ~= "expand" then
+				return
+			end
+			local stroke = expand:FindFirstChild("TutorialStroke") :: UIStroke?
+			if not on then
+				if stroke ~= nil then
+					stroke:Destroy()
+				end
+				return
+			end
+			if stroke == nil then
+				local created = Instance.new("UIStroke")
+				created.Name = "TutorialStroke"
+				created.Color = Theme.colors.accent
+				created.Thickness = 3
+				created.Parent = expand
+			end
 		end,
 		env = function(change: any)
 			lastEnv = change

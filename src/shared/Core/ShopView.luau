@@ -36,6 +36,7 @@ ShopView.tabs = {
 	{ id = "storage", key = "tab.storage", hint = "market.hint.storage" },
 	{ id = "tools", key = "tab.tools", hint = "market.hint.tools" },
 	{ id = "sparks", key = "tab.sparks", hint = "market.hint.sparks" },
+	{ id = "production", key = "tab.production", hint = "market.hint.production" },
 }
 ShopView.STORAGE_MODES = { "charge", "sell", "auto" }
 
@@ -338,12 +339,47 @@ local function sparkCards(input: Input): { Card }
 	return cards
 end
 
+-- Production tab: what the plants make now and how the number comes about (info only, no buttons).
+local function productionCards(input: Input): { Card }
+	local cards: { Card } = {}
+	local production = input.view.production
+	if production == nil then
+		return cards
+	end
+	table.insert(cards, {
+		id = "production.total",
+		icon = "spark",
+		title = input.t("production.total", { rate = ShopView.short(production.total) }),
+		info = input.t("production.grid", { grid = string.format("%.2f", production.grid) }),
+		state = "idle",
+	})
+	for _, row in production.rows do
+		if row.count > 0 then
+			table.insert(cards, {
+				id = `production.{row.id}`,
+				icon = `plant.{row.id}`,
+				title = input.t(`plant.{row.id}`),
+				info = input.t("production.row", {
+					count = string.format("%.4g", row.effective),
+					power = string.format("%.4g", row.nominal),
+					mult = string.format("%.4g", row.multiplier),
+					factor = string.format("%.2f", row.factor),
+				}),
+				status = input.t("production.output", { rate = ShopView.short(row.output) }),
+				state = "idle",
+			})
+		end
+	end
+	return cards
+end
+
 local BUILDERS: { [string]: (Input) -> { Card } } = {
 	plants = plantCards,
 	upgrades = upgradeCards,
 	storage = storageCards,
 	tools = toolCards,
 	sparks = sparkCards,
+	production = productionCards,
 }
 
 -- The cards of `tab` for the server's view; an unknown tab or a missing view has no cards.

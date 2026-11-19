@@ -42,6 +42,10 @@ Net.messages = {
 	-- Align is internal as well: LandService sends it after the hold on a mown panel cell (Mounting Rails in the hand).
 	Align = { direction = "internal", fields = {}, optional = { cell = "int" }, limit = { max = 2, per = 1 } },
 	SetPaint = { direction = "client", fields = { color = "int" }, limit = { max = 2, per = 1 } }, -- S5 Sign Paint: colour 1 to 6
+	-- Tutorial: the client says it opened the market popup or skips; the server answers with the current step id ("" = done).
+	MarketOpened = { direction = "client", fields = {}, limit = { max = 2, per = 1 } },
+	TutorialSkip = { direction = "client", fields = {}, limit = { max = 1, per = 2 } },
+	Tutorial = { direction = "server", fields = { id = "string", index = "int" } },
 	Ready = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
 	Snapshot = { direction = "server", fields = {} }, -- the whole run state of the player
 	-- turbo: seconds of the owner's own Turbo Feed-in left (0 = off).
