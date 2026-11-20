@@ -186,24 +186,24 @@ function PurchaseService.shopVisible(player: Player): boolean
 	return PolicyService.paidItemsAllowed(player)
 end
 
+-- PromptGamePassPurchaseFinished: the event also fires when a free trial starts, so only a pass Roblox confirms is granted.
+function PurchaseService.passFinished(player: Player, gamePassId: number, wasPurchased: boolean)
+	if not wasPurchased then
+		return
+	end
+	for _, offer in Catalogue.offers do
+		if offer.type == "pass" and offer.robloxId > 0 and offer.robloxId == gamePassId then
+			if PurchaseService.confirmPass(player, offer) then
+				PurchaseService.grantPass(player, offer.id)
+			end
+		end
+	end
+end
+
 -- Connects the callbacks. Called once from Main.server.
 function PurchaseService.start()
 	MarketplaceService.ProcessReceipt = processReceipt
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
-		function(player: Player, gamePassId: number, wasPurchased: boolean)
-			if not wasPurchased then
-				return
-			end
-			for _, offer in Catalogue.offers do
-				if offer.type == "pass" and offer.robloxId > 0 and offer.robloxId == gamePassId then
-					-- The event also fires when a free trial starts: grant only what Roblox confirms.
-					if PurchaseService.confirmPass(player, offer) then
-						PurchaseService.grantPass(player, offer.id)
-					end
-				end
-			end
-		end
-	)
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(PurchaseService.passFinished)
 end
 
 return PurchaseService
