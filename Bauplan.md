@@ -66,7 +66,7 @@ Zeiten und Werte stammen aus einem Beispiel-Lauf des optimalen Bots \[S\]. Mensc
 | 10–15 | Kleinwindrad (12.000), Speicher Stufe 2, Solarpark (130.000), der Börsenzugang zeigt das nächste Wetter. Rund 6.200 Coins/s in Minute 15 |
 | ab 12 | Der Shop-Knopf bekommt erstmals einen dezenten Hinweis. Kein Pop-up |
 | 15–25 | Speicher Stufe 3 und Wirkungsgrad 95 %. Rund 21.000 Coins/s in Minute 20. Der Bot erreicht 10 Mio. nach 23 min. Das Windrad (1,4 Mio.) kommt je nach Kaufweg kurz vor oder erst nach dem ersten Ausbau |
-| 25–45 | Erster Netz-Ausbau eines echten Spielers: Stufe 1 „Straße“, 5 Funken, erster Dauer-Knoten |
+| 25–45 | Erster Netz-Ausbau eines echten Spielers: Stufe 1 „Straße“, 8 Funken, erster Dauer-Knoten |
 | 45–60 | Der zweite Lauf geht schneller (Bot 19 min). Ziel nach einer Stunde: Stufe 2, schnelle Spieler Stufe 3 |
 
 ### Der erste Tag
@@ -77,7 +77,7 @@ Angenommen sind drei Sitzungen mit 35, 25 und 25 Minuten und Pausen von 4 und 14
 | --- | --- | --- |
 | 1 | Stufe 1 | Willkommen-Bildschirm mit Offline-Ertrag (Deckel 2 h, 50 %) |
 | 2 | Stufe 3 (gelegentlich) bis 4 (optimal). Offline-Deckel 4 h und Auto-Ausbau-Regel gekauft | Offline-Ertrag reicht oft direkt für den nächsten Ausbau |
-| 3 | Stufe 5 bei beiden Bots, 55 Funken, fünf Dauer-Knoten |  |
+| 3 | Stufe 5 bei beiden Bots, 70 Funken, fünf Dauer-Knoten |  |
 
 ## 2. Wirtschaftsmodell
 
@@ -118,7 +118,7 @@ Laden/Entl.   = höchstens Speicher_max / 60 pro Sekunde
 Wirkungsgrad  = 85 % beim Laden (mit U22: 95 %)
 
 Netz-Ausbau   = erlaubt, wenn Einnahmen im Lauf ≥ 10 Mio. × 6^Netzstufe
-Funken        = 5 + 3 × bisherige Netzstufe
+Funken        = 8 + 3 × bisherige Netzstufe
 
 Offline       = Schnittrate × min(Abwesenheit, Deckel) × Wirkungsgrad_offline
 Schnittrate   = Σ Basis_i × Anzahl_i × M_i × Erwartungswert_Typ × Markt
@@ -175,7 +175,7 @@ Lauf-Knoten kosten Coins und werden beim Netz-Ausbau zurückgesetzt.
 
 ### Upgrade-Baum: 8 Dauer-Knoten
 
-Dauer-Knoten kosten Funken und bleiben für immer. Zusammen kosten sie 185 Funken, genau so viele bringen die Stufen 1 bis 10.
+Dauer-Knoten kosten Funken und bleiben für immer. Zusammen mit den sechs Funken-Gegenständen S1 bis S6 (30 Funken) kosten sie 215 Funken, genau so viele bringen die Stufen 1 bis 10.
 
 | ID | Name | Wirkung | Funken |
 | --- | --- | --- | --- |
@@ -245,16 +245,16 @@ Jede Stufe ändert Schild und Randfarbe des Grundstücks, sichtbar für alle. St
 
 | Stufe | Name | Nötige Einnahmen im Lauf | Multiplikator danach | Funken |
 | --- | --- | --- | --- | --- |
-| 1 | Straße / Street | 10 Mio. | ×1,6 | 5 |
-| 2 | Dorf / Village | 60 Mio. | ×2,6 | 8 |
-| 3 | Kleinstadt / Town | 360 Mio. | ×4,1 | 11 |
-| 4 | Stadt / City | 2,2 Mrd. | ×6,6 | 14 |
-| 5 | Landkreis / County | 13 Mrd. | ×10,5 | 17 |
-| 6 | Region / Region | 78 Mrd. | ×16,8 | 20 |
-| 7 | Land / Country | 470 Mrd. | ×26,8 | 23 |
-| 8 | Kontinent / Continent | 2,8 Bio. | ×42,9 | 26 |
-| 9 | Planet / Planet | 17 Bio. | ×68,7 | 29 |
-| 10 | Sonnensystem / Solar System | 100 Bio. | ×110 | 32 |
+| 1 | Straße / Street | 10 Mio. | ×1,6 | 8 |
+| 2 | Dorf / Village | 60 Mio. | ×2,6 | 11 |
+| 3 | Kleinstadt / Town | 360 Mio. | ×4,1 | 14 |
+| 4 | Stadt / City | 2,2 Mrd. | ×6,6 | 17 |
+| 5 | Landkreis / County | 13 Mrd. | ×10,5 | 20 |
+| 6 | Region / Region | 78 Mrd. | ×16,8 | 23 |
+| 7 | Land / Country | 470 Mrd. | ×26,8 | 26 |
+| 8 | Kontinent / Continent | 2,8 Bio. | ×42,9 | 29 |
+| 9 | Planet / Planet | 17 Bio. | ×68,7 | 32 |
+| 10 | Sonnensystem / Solar System | 100 Bio. | ×110 | 35 |
 
 ### Wetter
 
