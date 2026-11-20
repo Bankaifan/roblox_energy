@@ -61,4 +61,11 @@ return function(t, load)
 	t.equal(#PlotLayout.started(nil, 0, 7), 0, "an empty field has no started cell")
 	t.equal(#PlotLayout.started({ 1, 2, 3, 4 }, 0, 3), 3, "never more than the field has")
 	t.equal(#PlotLayout.started(nil, 3, 7), 3, "a state that only knows a count pads the lowest cells")
+	local order = { 9, 3, 7, 5 }
+	t.equal(table.concat(PlotLayout.bare(order, 0), ","), "3,5,7,9", "no unit: every cell is bare, sorted")
+	t.equal(table.concat(PlotLayout.bare(order, 2), ","), "5,7", "the units take the first cells in order")
+	t.equal(table.concat(PlotLayout.bare(order, 1.9), ","), "3,5,7", "a fractional count rounds down")
+	t.equal(#PlotLayout.bare(order, 4), 0, "one unit per cell leaves no bare cell")
+	t.equal(#PlotLayout.bare(order, 10), 0, "more units than cells leaves none")
+	t.equal(#PlotLayout.bare({}, 0), 0, "no cells, no bare cell")
 end
