@@ -1,6 +1,6 @@
 --!strict
 -- Config tables (Bauplan section 6, level 1): unique IDs, prerequisites exist, costs rise,
--- weather shares sum to 100. Also the Bauplan totals: 720 s per day, 185 sparks.
+-- weather shares sum to 100. Also the Bauplan totals: 720 s per day, 215 sparks.
 return function(t, load)
 	local Plants = load("Config/Plants")
 	local Phases = load("Config/Phases")
@@ -129,5 +129,10 @@ return function(t, load)
 	t.equal(sumOf(Phases, "duration"), 720, "day length in seconds")
 	t.equal(sumOf(Upgrades.permanent, "sparks"), 185, "sparks of all permanent nodes")
 	t.equal(sumOf(Upgrades.spark, "sparks"), 30, "sparks of the spark items S1 to S6")
-	t.equal(sumOf(Prestige, "sparks"), 185, "sparks of grid expansion levels 1 to 10")
+	t.equal(sumOf(Prestige, "sparks"), 215, "sparks of grid expansion levels 1 to 10")
+	t.equal(
+		sumOf(Prestige, "sparks"),
+		sumOf(Upgrades.permanent, "sparks") + sumOf(Upgrades.spark, "sparks"),
+		"stages 1 to 10 pay for every permanent node and spark item"
+	)
 end
