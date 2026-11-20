@@ -119,9 +119,12 @@ return function(t)
 	PurchaseService.confirmPass = function(): boolean
 		return false
 	end
+	local cleared = table.clone(DataService.profileOf(player).Data)
+	cleared.passes = {}
+	DataService.profileOf(player).Data = cleared
 	PurchaseService.passFinished(player, 880002, true)
 	PurchaseService.passFinished(player, 880002, false)
-	t.equal(DataService.profileOf(player).Data.passes.long_meter, true, "an unconfirmed event changes nothing")
+	t.equal(DataService.profileOf(player).Data.passes.long_meter, nil, "an unconfirmed purchase event grants nothing")
 	PurchaseService.confirmPass = realConfirm
 	meter.robloxId = meterPlaceholder
 	DataService.release(player, nil)
