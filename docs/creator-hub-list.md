@@ -10,15 +10,15 @@ Type: **Pass** = Game Pass, **Product** = Developer Product.
 | # | English name | German name | Type | Robux | Description |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Founder Pack | Gründer-Paket | Pass | 59 | Grants 30 minutes of harvest income once, plus a golden crank and a founder sign on the plot. |
-| 2 | Smart Hub | Smart-Zentrale | Pass | 149 | Adds a third grid slot and unlocks automatic expansion immediately instead of after P3 and P8. |
-| 3 | Long Meter | Langzeit-Zähler | Pass | 99 | Raises the offline cap by 4 hours. |
-| 4 | Premium Tariff | Premium-Tarif | Pass | 249 | Permanently multiplies the sale price by 1.5. |
-| 5 | Grid VIP | Netzbetreiber-VIP | Pass | 299 | Adds a name tag, glowing cables, VIP colours and one free turbo per day. |
+| 2 | Smart Hub | Smart-Zentrale | Pass | 199 | Adds a third grid slot and unlocks automatic expansion immediately instead of after P3 and P8. |
+| 3 | Long Meter | Langzeit-Zähler | Pass | 129 | Raises the offline cap by 4 hours. |
+| 4 | Premium Tariff | Premium-Tarif | Pass | 349 | Permanently multiplies the sale price by 1.5. |
+| 5 | Grid VIP | Netzbetreiber-VIP | Pass | 399 | Adds a name tag, glowing cables, VIP colours and one free turbo per day. |
 | 6 | Neon Plants | Neon-Anlagen | Pass | 99 | Makes all plants glow in a colour the player chooses. |
 | 7 | Upgrade Fireworks | Ausbau-Feuerwerk | Pass | 79 | Shows fireworks and a server message on every grid upgrade. |
 | 8 | Plot Themes | Themen-Grundstück | Pass | 129 | Unlocks three designs for the plot's ground, fence and sign. |
-| 9 | Sunshine Hour | Sonnenstunde für alle | Product | 79 | Doubles generation for every player on the server for 10 minutes. |
-| 10 | Turbo Feed-in | Turbo-Einspeisung | Product | 29 | Doubles the buyer's own income for 15 minutes. |
+| 9 | Sunshine Hour | Sonnenstunde für alle | Product | 99 | Doubles generation for every player on the server for 10 minutes. |
+| 10 | Turbo Feed-in | Turbo-Einspeisung | Product | 39 | Doubles the buyer's own income for 15 minutes. |
 | 11 | Time Skip | Zeitsprung | Product | 49 | Instantly adds 1 hour of harvest income, at most 3 per day. |
 
 ## Steps, in order
