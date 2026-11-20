@@ -91,6 +91,29 @@ function Shop.incomeMultiplier(profile: any, shop: any): number
 	return math.min(factor, shop.multiplierCap)
 end
 
+-- The values the server passes into GameCore.env: income (sale price, Premium and Turbo, at most multiplierCap),
+-- boost (generation, Sunshine Hour; cut so that income x boost stays within multiplierCap), longMeter, ruleSlots
+-- (nil without the Smart Hub: the core keeps its base) and autoBuild. `sunshine` and `turbo` say which boosters run.
+function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boolean): { [string]: any }
+	local income = Shop.saleMultiplier(profile, shop)
+	if turbo then
+		income *= shop.booster
+	end
+	income = math.min(income, shop.multiplierCap)
+	local boost = 1
+	if sunshine then
+		boost = math.min(shop.booster, math.max(1, shop.multiplierCap / income))
+	end
+	local slots, auto = Shop.smartHub(profile, shop)
+	return {
+		income = income,
+		boost = boost,
+		longMeter = Shop.offlineBonusHours(profile, shop) > 0,
+		ruleSlots = if slots > 0 then slots else nil,
+		autoBuild = auto,
+	}
+end
+
 -- Smart Hub: the rule slots and the auto-build it gives at once. With smartHubImmediate off it gives nothing.
 function Shop.smartHub(profile: any, shop: any): (number, boolean)
 	if profile.passes.smart_hub ~= true or not shop.smartHubImmediate then
