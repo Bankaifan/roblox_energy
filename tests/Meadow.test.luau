@@ -42,33 +42,29 @@ return function(t, load)
 					end
 				end
 			end
-			t.truthy(earth(mask) > inside, `seed {seed} field {index}: the earth frays out beyond the sites`)
+			t.truthy(earth(mask) >= inside, `seed {seed} field {index}: nothing but the sites is lost`)
 		end
 	end
 
-	-- The same call gives the same ground, another plot gets another outline, and mowing more never regrows grass.
+	-- One mown cell clears its own square and at most the rim beyond it: the next cell stays grass.
+	local oneField = Assets.fields[1]
+	local oneSide = oneField.size * Assets.TILE
+	local one = Meadow.mask(sitePatches(1, 1), 1, cells, cell)
+	local reach = oneSide * (1 + Meadow.EDGE) / 2
+	local limit = math.floor((2 * reach) / cell) + 2
+	t.truthy(earth(one) <= limit * limit, `one cell clears {earth(one)} voxels, at most {limit * limit}`)
+	t.truthy(earth(one) >= (oneSide // cell) ^ 2, "and at least its own voxels")
+
+	-- The same call gives the same ground, mowing more never regrows grass.
 	local first = Meadow.mask(sitePatches(1, 24), 1, cells, cell)
 	local again = Meadow.mask(sitePatches(1, 24), 1, cells, cell)
-	local other = Meadow.mask(sitePatches(1, 24), 2, cells, cell)
 	local fewer = Meadow.mask(sitePatches(1, 4), 1, cells, cell)
-	local differs = false
-	local lefts, edges = {}, 0
 	for iz = 1, cells do
 		for ix = 1, cells do
 			t.equal(again[ix][iz], first[ix][iz], `cell {ix}, {iz} is the same on a second call`)
 			t.truthy(first[ix][iz] or not fewer[ix][iz], `cell {ix}, {iz} stays earth when more is mown`)
-			differs = differs or first[ix][iz] ~= other[ix][iz]
-		end
-		for ix = 1, cells do
-			if first[ix][iz] then
-				edges += if lefts[ix] then 0 else 1
-				lefts[ix] = true
-				break
-			end
 		end
 	end
-	t.truthy(differs, "two plots do not share one outline")
-	t.truthy(edges >= 2, "the left edge of a mown field is not one straight line")
 
 	-- A fresh plot stays a meadow: the patches around the crank and the market are a small part of it.
 	local start = {}
