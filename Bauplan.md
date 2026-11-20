@@ -292,15 +292,15 @@ Preise liegen in den Spannen der Preistabelle im Design-Dokument \[D\]. Für Kos
 | Angebot | Typ | Robux | Effekt | Sichtbar für andere | Platz im Spielverlauf |
 | --- | --- | --- | --- | --- | --- |
 | Gründer-Paket / Founder Pack | Pass | 59 | einmalig 30 Minuten Schnittertrag, goldene Kurbel, Gründer-Schild | Schild und Kurbel am Grundstück | Shop ab Minute 12, Hinweis nach dem Speicher-Kauf |
-| Smart-Zentrale / Smart Hub | Pass | 149 | dritter Regel-Platz und Auto-Ausbau sofort statt über P3 und P8 | Antenne auf der Regelzentrale | im Regel-Menü, sobald U21 gekauft ist |
-| Langzeit-Zähler / Long Meter | Pass | 99 | Offline-Deckel +4 Stunden | nein | eine Zeile im Willkommen-Bildschirm, wenn der Deckel erreicht war |
-| Premium-Tarif / Premium Tariff | Pass | 249 | Verkaufspreis dauerhaft ×1,5 | goldenes Zählerhäuschen | am Markt-Terminal, nach dem ersten Netz-Ausbau hervorgehoben |
-| Netzbetreiber-VIP / Grid VIP | Pass | 299 | Namensschild über der Figur, leuchtende Leitungen, VIP-Farben, täglich ein Gratis-Turbo | ja, alles | Shop, Hinweis ab Stufe 2 |
+| Smart-Zentrale / Smart Hub | Pass | 199 | dritter Regel-Platz und Auto-Ausbau sofort statt über P3 und P8 | Antenne auf der Regelzentrale | im Regel-Menü, sobald U21 gekauft ist |
+| Langzeit-Zähler / Long Meter | Pass | 129 | Offline-Deckel +4 Stunden | nein | eine Zeile im Willkommen-Bildschirm, wenn der Deckel erreicht war |
+| Premium-Tarif / Premium Tariff | Pass | 349 | Verkaufspreis dauerhaft ×1,5 | goldenes Zählerhäuschen | am Markt-Terminal, nach dem ersten Netz-Ausbau hervorgehoben |
+| Netzbetreiber-VIP / Grid VIP | Pass | 399 | Namensschild über der Figur, leuchtende Leitungen, VIP-Farben, täglich ein Gratis-Turbo | ja, alles | Shop, Hinweis ab Stufe 2 |
 | Neon-Anlagen / Neon Plants | Pass | 99 | alle Anlagen leuchten, Farbe wählbar | ja | Farbmenü am Grundstück |
 | Ausbau-Feuerwerk / Upgrade Fireworks | Pass | 79 | Feuerwerk und Server-Meldung bei jedem Netz-Ausbau | ja, alle sehen es | Vorschau beim ersten Ausbau |
 | Themen-Grundstück / Plot Themes | Pass | 129 | drei Designs für Boden, Zaun und Schild | ja | Farbmenü am Grundstück |
-| Sonnenstunde für alle / Sunshine Hour | Produkt | 79 | 10 Minuten ×2 Erzeugung für den ganzen Server | goldener Himmel, Banner mit Käufername | Knopf an der Wetteranzeige |
-| Turbo-Einspeisung / Turbo Feed-in | Produkt | 29 | 15 Minuten ×2 eigene Einnahmen | Funken-Effekt am Netzanschluss | Shop und Markt-Terminal |
+| Sonnenstunde für alle / Sunshine Hour | Produkt | 99 | 10 Minuten ×2 Erzeugung für den ganzen Server | goldener Himmel, Banner mit Käufername | Knopf an der Wetteranzeige |
+| Turbo-Einspeisung / Turbo Feed-in | Produkt | 39 | 15 Minuten ×2 eigene Einnahmen | Funken-Effekt am Netzanschluss | Shop und Markt-Terminal |
 | Zeitsprung / Time Skip | Produkt | 49 | sofort 1 Stunde Schnittertrag, höchstens 3 pro Tag | nein | Shop |
 
 Das Gründer-Paket kostet 59 statt 49, weil Roblox beworbene Pässe nur zwischen 50 und 800 Robux zulässt \[B\].
@@ -313,18 +313,18 @@ Beispiel für 2.300 tägliche Spieler. Die Käufe pro Tag sind Annahmen \[A\], z
 
 | Angebot | Robux | Käufe pro Tag | Robux brutto pro Tag |
 | --- | --- | --- | --- |
-| Premium-Tarif | 249 | 1,2 | 299 |
-| Sonnenstunde für alle | 79 | 2,5 | 198 |
+| Premium-Tarif | 349 | 1,2 | 419 |
+| Sonnenstunde für alle | 99 | 2,5 | 248 |
 | Gründer-Paket | 59 | 3 | 177 |
-| Turbo-Einspeisung | 29 | 5 | 145 |
+| Turbo-Einspeisung | 39 | 5 | 195 |
 | Kosmetik-Pässe, im Schnitt | 100 | 1 | 100 |
-| Smart-Zentrale | 149 | 0,4 | 60 |
+| Smart-Zentrale | 199 | 0,4 | 80 |
 | Zeitsprung | 49 | 0,8 | 39 |
-| **Summe** |  | **13,9** | **1.017** |
+| **Summe** |  | **13,9** | **1.258** |
 
-- Verkäufe netto: 1.017 × 70 % = 712 Robux am Tag. Das sind 0,31 je täglichem Spieler, nah am mittleren Szenario von 0,30 \[D\].
+- Verkäufe netto: 1.258 × 70 % = 881 Robux am Tag. Das sind 0,38 je täglichem Spieler, über dem mittleren Szenario von 0,30 \[D\].
 - Creator Rewards: 2.300 × 2,5 % × 5 = 288 Robux am Tag. Der Anteil von 2,5 % ist eine Annahme \[D\].
-- Zusammen rund 1.000 Robux am Tag, 30.000 im Monat, rund 103 €.
+- Zusammen rund 1.170 Robux am Tag, 35.000 im Monat, rund 120 €.
 
 VIP und Langzeit-Zähler sind in der Rechnung nicht enthalten.
 
