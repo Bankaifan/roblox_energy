@@ -69,7 +69,7 @@ return function(t, load)
 	local last = fresh()
 	last.level = 10
 	t.equal(GameCore.view(last, env(2, 1)).goal, nil, "no goal after the last expansion")
-	t.equal(goal.sparks, 5, "grid level 1 gives 5 sparks")
+	t.equal(goal.sparks, 8, "grid level 1 gives 8 sparks")
 	t.equal(goal.allowed, false, "4 Mio. earned are not enough for level 1")
 	earning.runEarned = 10000000
 	t.truthy(GameCore.view(earning, env(2, 1)).goal.allowed, "10 Mio. earned allow level 1")
