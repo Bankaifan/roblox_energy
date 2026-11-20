@@ -220,7 +220,7 @@ return function(t, load)
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 9
+	newer.v = 10
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
