@@ -91,6 +91,42 @@ return function(t)
 	DataService.release(player, nil)
 	DataService.flush(10)
 
+	-- Passes (issue #243): ownership is what Roblox confirms now. confirmPass is stubbed for this run only.
+	local meter: any
+	for _, offer in Catalogue.offers do
+		if offer.id == "long_meter" then
+			meter = offer
+		end
+	end
+	local meterPlaceholder, realConfirm = meter.robloxId, PurchaseService.confirmPass
+	meter.robloxId = 880002
+	t.truthy(DataService.load(player) ~= nil, "the profile loads for the pass checks")
+	local profile = DataService.profileOf(player)
+	profile.Data = table.clone(profile.Data)
+	profile.Data.passes = { long_meter = true, premium = true }
+	PurchaseService.confirmPass = function(): boolean
+		return false
+	end
+	PurchaseService.join(player)
+	t.equal(next(DataService.profileOf(player).Data.passes), nil, "join clears the saved pass flags")
+	PurchaseService.checkPasses(player)
+	t.equal(DataService.profileOf(player).Data.passes.long_meter, nil, "a failed or trial check grants nothing")
+	PurchaseService.confirmPass = function(): boolean
+		return true
+	end
+	PurchaseService.checkPasses(player)
+	t.equal(DataService.profileOf(player).Data.passes.long_meter, true, "a confirmed pass is granted")
+	PurchaseService.confirmPass = function(): boolean
+		return false
+	end
+	PurchaseService.passFinished(player, 880002, true)
+	PurchaseService.passFinished(player, 880002, false)
+	t.equal(DataService.profileOf(player).Data.passes.long_meter, true, "an unconfirmed event changes nothing")
+	PurchaseService.confirmPass = realConfirm
+	meter.robloxId = meterPlaceholder
+	DataService.release(player, nil)
+	DataService.flush(10)
+
 	-- Policy: a player the Roblox policy call cannot answer for (this fake player) gets no paid items: the shop is hidden.
 	t.equal(PolicyService.paidItemsAllowed(player), false, "a failed policy call hides the shop")
 	t.equal(PurchaseService.shopVisible(player), false, "the shop is hidden for that player")
