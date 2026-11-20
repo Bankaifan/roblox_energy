@@ -32,6 +32,13 @@ return function(t, load)
 		table.insert(grounds, ground)
 	end
 
+	-- Spawn point: inside the plot at the road side and clear of the crank.
+	local crank = Assets.furniture.crank
+	local spawn = PlotLayout.spawnPoint(Assets.PLOT_SIZE, crank.z, 12)
+	t.truthy(math.abs(spawn.x) + 6 <= Assets.PLOT_SIZE / 2, "the spawn platform lies inside the plot in x")
+	t.truthy(spawn.z + 6 <= Assets.PLOT_SIZE / 2, "the spawn platform lies inside the plot in z")
+	t.truthy(spawn.z - 6 > crank.z + 5, "the spawn platform keeps clear of the crank pad")
+
 	-- Free mowing: the cell under a point, the mown list and the cells' centres.
 	local tile, tiles = Assets.TILE, Assets.PLOT_TILES
 	for index, field in Assets.fields do
