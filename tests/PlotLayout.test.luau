@@ -103,4 +103,4 @@ return function(t, load)
 		"units stand on the first cells in mown order"
 	)
 	t.equal(#PlotLayout.unitCells({ 4, 6, 2 }, -1), 0, "no negative count draws nothing")
->end
+end
