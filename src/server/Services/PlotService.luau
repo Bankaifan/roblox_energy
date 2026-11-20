@@ -213,6 +213,31 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 	end
 end
 
+local function updateShells(record: Record, owned: number, cells: { number })
+	local bare = PlotLayout.bare(cells, owned)
+	local key = table.concat(bare, ",")
+	if record.shellKey == key then
+		return
+	end
+	record.shellKey = key
+	for _, copy in record.shells do
+		copy:Destroy()
+	end
+	table.clear(record.shells)
+	local field = Assets.fields[3]
+	local cell = field.size * Assets.TILE
+	for _, site in PlotLayout.cellSites(field, bare, Assets.TILE, Assets.PLOT_TILES) do
+		local copy = PlantModels.clone(3)
+		if copy == nil then
+			break
+		end
+		PlantModels.place(copy, 3, cell, sitePoint(record, site), record.origin.Y)
+		PlantModels.stripPanels(copy)
+		copy.Parent = record.model
+		table.insert(record.shells, copy)
+	end
+end
+
 -- Places one furniture model on the plot (nothing when its file is missing: the plot keeps the current look).
 local function addFurniture(record: Record, name: string, turn: number?): Model?
 	-- A plot that faces the other way turns its furniture around, so the market front still looks at the plot centre.
@@ -816,6 +841,9 @@ function PlotService.update(
 				updateWheels(record, counts[2] or 0)
 			else
 				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, ownLand.aligned or {})
+				if index == 3 then
+					updateShells(record, counts[3] or 0, cells)
+				end
 			end
 		end
 	end
