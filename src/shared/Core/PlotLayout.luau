@@ -135,6 +135,15 @@ function PlotLayout.started(saved: { number }?, sites: number, total: number): {
 	return PlotLayout.mown(saved, math.max(#(saved or {}), sites), total)
 end
 
+function PlotLayout.bare(cells: { number }, owned: number): { number }
+	local rest: { number } = {}
+	for i = math.max(0, math.floor(owned)) + 1, #cells do
+		table.insert(rest, cells[i])
+	end
+	table.sort(rest)
+	return rest
+end
+
 -- Centres of the given cells, in the order given.
 function PlotLayout.cellSites(field: Field, cells: { number }, tile: number, plotTiles: number): { Site }
 	local points: { Site } = {}
