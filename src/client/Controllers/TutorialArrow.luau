@@ -14,6 +14,7 @@ local TARGETS: { [string]: string } = {
 	market = "ShopPrompt",
 	field1 = "TutorialSpot1",
 	field2 = "TutorialSpot2",
+	wiring = "LandPromptwired",
 }
 local FADE_NEAR = 12
 local FADE_FAR = 16

@@ -5,6 +5,7 @@
 -- each button sends; the server checks every message again. Colours and fonts come from Theme, texts from Locale.
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
+local TextService = game:GetService("TextService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
@@ -185,7 +186,6 @@ function Market.build(net: Instance, language: () -> string)
 	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	tabLayout.Padding = UDim.new(0, GAP)
 	tabLayout.Parent = tabBar
-	local tabCount = #ShopView.tabs
 	local tabButtons: { [string]: TextButton } = {}
 	local currentTab: string = ShopView.tabs[1].id
 	local setTab: (string) -> ()
@@ -193,12 +193,26 @@ function Market.build(net: Instance, language: () -> string)
 		local control = pill(tabBar, 16)
 		control.Name = tab.id
 		control.LayoutOrder = index
-		control.Size = UDim2.new(1 / tabCount, -math.ceil(GAP * (tabCount - 1) / tabCount), 1, 0)
 		control.Activated:Connect(function()
 			setTab(tab.id)
 		end)
 		tabButtons[tab.id] = control
 	end
+	-- The production tab shows only when the popup was opened at the control board; the others share the row.
+	local function layoutTabs(atBoard: boolean)
+		local shown = ShopView.tabsFor(atBoard)
+		local count = #shown
+		for _, control in tabButtons do
+			control.Visible = false
+		end
+		for index, tab in shown do
+			local control = tabButtons[tab.id]
+			control.Visible = true
+			control.LayoutOrder = index
+			control.Size = UDim2.new(1 / count, -math.ceil(GAP * (count - 1) / count), 1, 0)
+		end
+	end
+	layoutTabs(false)
 
 	local hint = text(window, Theme.fonts.body, 14, COLORS.textMuted)
 	hint.Name = "Hint"
@@ -230,6 +244,8 @@ function Market.build(net: Instance, language: () -> string)
 	local latest: any = nil
 	local latestCoins = 0
 	local cardHeight = CARD_HEIGHT
+	local baseCardHeight = CARD_HEIGHT -- the height the window gives; a card grows beyond it when its text needs room
+	local cellWidth = 300 -- width of one card, set by fit
 	type CardUi = {
 		frame: Frame,
 		stroke: UIStroke,
@@ -258,12 +274,47 @@ function Market.build(net: Instance, language: () -> string)
 		card.status.Size = UDim2.new(width, UDim.new(0, 20))
 		-- A card with steppers (a rule): one line of text, then the two steppers left of the switch at the bottom.
 		if card.data ~= nil and card.data.steps ~= nil then
-			card.info.Size = UDim2.new(width, UDim.new(0, 18))
+			card.info.Size = UDim2.new(width, UDim.new(0, cardHeight - 30 - TOUCH - 2 * GAP))
 			card.status.Visible = false
 			card.down.Position = UDim2.new(0, left, 1, -GAP)
 			card.up.Position = UDim2.new(0, left + STEP_WIDTH + GAP, 1, -GAP)
 		else
 			card.status.Visible = true
+		end
+	end
+
+	-- The card height its text needs: the title row, the whole info text (wrapped in the width left of the button), then the
+	-- status line (or the steppers of a rule card). Nothing is cut off.
+	local function neededHeight(card: CardUi): number
+		local data = card.data
+		if data == nil then
+			return 0
+		end
+		local left = ICON + 2 * GAP + 2
+		local width = cellWidth - (left + GAP + (if data.button ~= nil then BUTTON_WIDTH + GAP else 0))
+		local info =
+			TextService:GetTextSize(card.info.Text, card.info.TextSize, card.info.Font, Vector2.new(width, 1000)).Y
+		if data.steps ~= nil then
+			return 30 + info + TOUCH + 2 * GAP
+		end
+		return 30 + info + 30
+	end
+
+	-- Grows the cards (all one size in the grid) to the tallest text, never below the height the window gives.
+	local function fitCards()
+		local wanted = baseCardHeight
+		for _, card in pool do
+			if card.frame.Visible then
+				wanted = math.max(wanted, neededHeight(card))
+			end
+		end
+		wanted = math.ceil(wanted)
+		if wanted ~= cardHeight then
+			cardHeight = wanted
+			grid.CellSize = UDim2.fromOffset(grid.CellSize.X.Offset, cardHeight)
+			for _, card in pool do
+				arrange(card)
+			end
 		end
 	end
 
@@ -477,6 +528,7 @@ function Market.build(net: Instance, language: () -> string)
 			pool[index].frame.Visible = false
 			pool[index].data = nil
 		end
+		fitCards()
 		applyHighlight(false)
 	end
 
@@ -498,13 +550,16 @@ function Market.build(net: Instance, language: () -> string)
 		window.Size = UDim2.fromOffset(width, height)
 		window.Position = UDim2.new(0.5, 0, 0.5, inset.Y / 2)
 		local columns = if width >= TWO_COLUMNS_FROM then 2 else 1
-		cardHeight = if columns == 1 then CARD_HEIGHT_NARROW else CARD_HEIGHT
+		baseCardHeight = if columns == 1 then CARD_HEIGHT_NARROW else CARD_HEIGHT
+		cardHeight = baseCardHeight
 		-- 2 px spare on each side for the card outlines.
 		local room = width - 2 * PADDING - SCROLLBAR - 4
-		grid.CellSize = UDim2.fromOffset(math.floor((room - GAP * (columns - 1)) / columns), cardHeight)
+		cellWidth = math.floor((room - GAP * (columns - 1)) / columns)
+		grid.CellSize = UDim2.fromOffset(cellWidth, cardHeight)
 		for _, card in pool do
 			arrange(card)
 		end
+		fitCards()
 	end
 	local listPadding = Instance.new("UIPadding")
 	listPadding.PaddingLeft = UDim.new(0, 2)
@@ -547,6 +602,7 @@ function Market.build(net: Instance, language: () -> string)
 		opening += 1
 		local mine = opening
 		fit()
+		layoutTabs(prompt ~= nil and (prompt.Name == "ControlPrompt" or prompt.Name == "ControlInfo"))
 		setTab(tab or ShopView.tabs[1].id)
 		gui.Enabled = true
 		PopupGate.open(gate, "market")

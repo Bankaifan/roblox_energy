@@ -29,6 +29,11 @@ local BUTTON_MIN_HEIGHT = 44
 -- Inner padding: left and right it keeps text off the edge and off the scrollbar; top and bottom it gives wrapped lines air.
 local ROW_SIDE_PADDING = 8
 local ROW_VERTICAL_PADDING = 2
+-- The income per second sits alone in the top right corner, large. The tutorial line is a box at the top centre.
+local RATE_TEXT = 44
+local TUTORIAL_TEXT = 26
+local TUTORIAL_WIDTH = 680
+local TUTORIAL_TOP = 72 -- below the sunshine banner (BoostView)
 
 -- Gives a row or button the shared look: fixed text size, wrapped text, inner padding, and a height that grows with the text.
 local function fitRow(control: GuiObject, minimum: number)
@@ -137,7 +142,19 @@ function Hud.build(net: Instance)
 		paint()
 	end)
 	local coins = label(frame, nextOrder())
-	local rate = label(frame, nextOrder())
+	local rate = Instance.new("TextLabel")
+	rate.AnchorPoint = Vector2.new(1, 0)
+	rate.Position = UDim2.new(1, -16, 0, 16)
+	rate.Size = UDim2.fromOffset(0, 0)
+	rate.AutomaticSize = Enum.AutomaticSize.XY
+	rate.BackgroundTransparency = 1
+	rate.Font = Theme.fonts.title
+	rate.TextSize = RATE_TEXT
+	rate.TextColor3 = Theme.colors.accent
+	rate.TextXAlignment = Enum.TextXAlignment.Right
+	rate.TextStrokeTransparency = 0.2
+	rate.TextStrokeColor3 = Theme.colors.backdrop
+	rate.Parent = gui
 	-- The electricity price: a plain row, like the others. The control board popup (#115) can take it over: its text
 	-- comes from ShopView.priceText(view.price, t), the same line the rule section of the Storage tab shows.
 	local price = label(frame, nextOrder())
@@ -151,9 +168,39 @@ function Hud.build(net: Instance)
 	end)
 	local goal = label(frame, nextOrder())
 	-- The tutorial: one line for the current step and a button to skip it; both hidden when there is no step.
-	local tutorialLine = label(frame, 0)
-	tutorialLine.TextColor3 = Theme.colors.accent
-	tutorialLine.Visible = false
+	-- The line sits in an opaque box with a yellow border, top centre; the box shrinks to the screen width on a phone.
+	local tutorialBox = Instance.new("Frame")
+	tutorialBox.Name = "TutorialBox"
+	tutorialBox.AnchorPoint = Vector2.new(0.5, 0)
+	tutorialBox.Position = UDim2.new(0.5, 0, 0, TUTORIAL_TOP)
+	tutorialBox.Size = UDim2.fromScale(0.5, 0)
+	tutorialBox.AutomaticSize = Enum.AutomaticSize.Y
+	tutorialBox.BackgroundColor3 = Theme.colors.window
+	tutorialBox.BorderSizePixel = 0
+	tutorialBox.Visible = false
+	Theme.round(tutorialBox)
+	Theme.outline(tutorialBox, Theme.colors.accent, 3)
+	local boxWidth = Instance.new("UISizeConstraint")
+	boxWidth.MinSize = Vector2.new(260, 0)
+	boxWidth.MaxSize = Vector2.new(TUTORIAL_WIDTH, math.huge)
+	boxWidth.Parent = tutorialBox
+	local boxPadding = Instance.new("UIPadding")
+	boxPadding.PaddingLeft = UDim.new(0, 16)
+	boxPadding.PaddingRight = UDim.new(0, 16)
+	boxPadding.PaddingTop = UDim.new(0, 10)
+	boxPadding.PaddingBottom = UDim.new(0, 10)
+	boxPadding.Parent = tutorialBox
+	tutorialBox.Parent = gui
+	local tutorialLine = Instance.new("TextLabel")
+	tutorialLine.Size = UDim2.fromScale(1, 0)
+	tutorialLine.AutomaticSize = Enum.AutomaticSize.Y
+	tutorialLine.BackgroundTransparency = 1
+	tutorialLine.Font = Theme.fonts.bold
+	tutorialLine.TextSize = TUTORIAL_TEXT
+	tutorialLine.TextColor3 = Theme.colors.text
+	tutorialLine.TextWrapped = true
+	tutorialLine.TextXAlignment = Enum.TextXAlignment.Center
+	tutorialLine.Parent = tutorialBox
 	local tutorialStep = ""
 	-- The line's Locale key and arguments (TutorialGuide chooses them); without a choice the step id names the text.
 	local tutorialKey: string? = nil
@@ -189,7 +236,7 @@ function Hud.build(net: Instance)
 		end
 		local key = tutorialKey or ("tutorial." .. tutorialStep)
 		local shown = (tutorialStep ~= "" or tutorialForced) and tutorialKey ~= ""
-		tutorialLine.Visible = shown
+		tutorialBox.Visible = shown
 		if shown then
 			tutorialLine.Text = t(key, args)
 		end

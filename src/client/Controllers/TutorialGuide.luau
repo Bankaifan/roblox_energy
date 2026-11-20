@@ -65,7 +65,8 @@ function TutorialGuide.build(parts: Parts): { tutorial: (any) -> (), delta: (any
 			hand = hand,
 			popup = if popup.open then popup.tab else nil,
 		}
-		local shown = TutorialView.present(stepId, input)
+		-- A purchase that needs an action first (rails: align; pliers: wire) takes over until it is done.
+		local shown = TutorialView.followUp(input) or TutorialView.present(stepId, input)
 		if shown.key == nil and not SILENT[stepId] and now - stepSince >= NUDGE_QUIET then
 			local nudge = TutorialView.nudge(input)
 			if nudge ~= nil and nudge.key ~= nil then

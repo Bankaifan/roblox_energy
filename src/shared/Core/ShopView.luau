@@ -36,8 +36,20 @@ ShopView.tabs = {
 	{ id = "storage", key = "tab.storage", hint = "market.hint.storage" },
 	{ id = "tools", key = "tab.tools", hint = "market.hint.tools" },
 	{ id = "sparks", key = "tab.sparks", hint = "market.hint.sparks" },
-	{ id = "production", key = "tab.production", hint = "market.hint.production" },
-}
+	{ id = "production", key = "tab.production", hint = "market.hint.production", board = true },
+} :: { { id: string, key: string, hint: string, board: boolean? } }
+
+-- The tabs shown when the popup was opened at the control board (`atBoard`) or at the market. The production tab belongs to
+-- the control board only.
+function ShopView.tabsFor(atBoard: boolean): { any }
+	local shown = {}
+	for _, tab in ShopView.tabs do
+		if atBoard or not tab.board then
+			table.insert(shown, tab)
+		end
+	end
+	return shown
+end
 ShopView.STORAGE_MODES = { "charge", "sell", "auto" }
 
 local SUFFIXES = { "", "K", "M", "B", "T" }

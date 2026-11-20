@@ -92,4 +92,27 @@ return function(t, load)
 		tool ~= nil and tool.key == "nudge.tool" and tool.args.tool == "tool.shovel",
 		"a buyable tool is mentioned"
 	)
+
+	-- Follow-up after a purchase: the action comes first, then the step shows again.
+	t.equal(TutorialView.followUp(input()), nil, "no land in the view: no follow-up")
+	local function owned(land: any, panels: number): any
+		local base = input().view
+		base.land = land
+		base.production = { rows = { { count = panels } } }
+		return input({ view = base })
+	end
+	t.equal(TutorialView.followUp(owned({ tools = {} }, 3)), nil, "nothing bought: no follow-up")
+	local rails = { tools = { rails = true }, aligned = {} }
+	t.equal(TutorialView.followUp(owned(rails, 0)), nil, "rails without panels: nothing to align")
+	t.equal(TutorialView.followUp(owned(rails, 3)).key, "tutorial.align.take", "rails bought: take the rails")
+	local holding = owned(rails, 3)
+	holding.hand = "rails"
+	local align = TutorialView.followUp(holding)
+	t.truthy(align ~= nil and align.key == "tutorial.align.do" and align.target == "field1", "rails in hand: align")
+	rails.aligned = { 13 }
+	t.equal(TutorialView.followUp(owned(rails, 3)), nil, "one panel aligned: back to the step")
+	local pliers = { tools = { pliers = true }, container = true, wired = false }
+	t.equal(TutorialView.followUp(owned(pliers, 0)).key, "tutorial.wire.take", "pliers bought: take the pliers")
+	pliers.wired = true
+	t.equal(TutorialView.followUp(owned(pliers, 0)), nil, "wired: back to the step")
 end

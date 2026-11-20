@@ -24,6 +24,10 @@ export type Presentation = {
 
 -- Every Locale key present() and nudge() can return, for the locale test.
 TutorialView.KEYS = {
+	"tutorial.align.take",
+	"tutorial.align.do",
+	"tutorial.wire.take",
+	"tutorial.wire.do",
 	"tutorial.crank",
 	"tutorial.save",
 	"tutorial.wait",
@@ -129,6 +133,25 @@ function TutorialView.present(id: string, input: Input): Presentation
 		end
 	end
 	return {}
+end
+
+-- A purchase that needs an action afterwards shows that action until it is done; then the step it interrupted shows again.
+-- Mounting Rails: align one panel tile. Pliers: wire the control board. Nil when nothing waits.
+function TutorialView.followUp(input: Input): Presentation?
+	local land = input.view.land
+	if land == nil then
+		return nil
+	end
+	local tools = land.tools or {}
+	local rows = if input.view.production ~= nil then input.view.production.rows else nil
+	local panels = if rows ~= nil and rows[1] ~= nil then rows[1].count or 0 else 0
+	if tools.rails == true and panels >= 1 and #(land.aligned or {}) < 1 then
+		return work(input, "rails", "tutorial.align", "field1")
+	end
+	if tools.pliers == true and land.container == true and land.wired ~= true then
+		return work(input, "pliers", "tutorial.wire", "wiring")
+	end
+	return nil
 end
 
 -- A small hint for a moment the steps do not cover, or nil. The caller asks only while the step shows no line.
