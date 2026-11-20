@@ -12,7 +12,7 @@ local GRID_GROWTH = 1.6 -- Global = 1,6^Netzstufe × Netzverstärkung
 local STORAGE_SECONDS = { 45, 90, 150, 225 } -- Speicher Stufe 1 bis 4 in Sekunden Mittagserzeugung
 local PRESTIGE_BASE = 10000000 -- Netz-Ausbau ab 10 Mio. × 6^bisherige Netzstufe
 local PRESTIGE_GROWTH = 6
-local PRESTIGE_SPARKS_BASE = 5 -- Funken = 5 + 3 × bisherige Netzstufe
+local PRESTIGE_SPARKS_BASE = 8 -- Funken = 8 + 3 × bisherige Netzstufe
 local PRESTIGE_SPARKS_STEP = 3
 
 -- Phase part of Faktor_Typ: solar follows the day, wind and base load do not.
