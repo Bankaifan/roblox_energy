@@ -136,7 +136,8 @@ local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
 	return NotProcessedYet
 end
 
--- Records one owned pass in the profile. Shop.purchase keeps the ownership once; the effects read the profile.
+-- Records one owned pass in the profile for this session. Passes are not kept across sessions (migration 8 to 9, and
+-- join clears them): ownership is what Roblox reports now. Shop.purchase keeps the ownership once.
 -- The cut yield of a pass (Founder Pack) is not paid here; the payout is open.
 function PurchaseService.grantPass(player: Player, offerId: string)
 	local profile = DataService.profileOf(player)
@@ -149,22 +150,33 @@ function PurchaseService.grantPass(player: Player, offerId: string)
 	end
 end
 
--- Asks Roblox for every pass with an ID. A failed call grants nothing.
+-- Asks Roblox whether the player owns this pass. A failed call counts as not owned, so it grants nothing.
+-- UserOwnsGamePassAsync is the engine method (MarketplaceService reference); a started free trial is no confirmation.
+function PurchaseService.confirmPass(player: Player, offer: any): boolean
+	local ok, owned = pcall(function(): boolean
+		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, offer.robloxId)
+	end)
+	return ok and owned == true
+end
+
+-- Asks Roblox for every pass with an ID; only a confirmed pass is granted.
 function PurchaseService.checkPasses(player: Player)
 	for _, offer in Catalogue.offers do
-		if offer.type == "pass" and offer.robloxId > 0 then
-			local ok, owned = pcall(function(): boolean
-				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, offer.robloxId)
-			end)
-			if ok and owned == true then
-				PurchaseService.grantPass(player, offer.id)
-			end
+		if offer.type == "pass" and offer.robloxId > 0 and PurchaseService.confirmPass(player, offer) then
+			PurchaseService.grantPass(player, offer.id)
 		end
 	end
 end
 
--- Join, after the profile loaded (Session.start): the paid-item policy is asked once, then the passes are checked.
+-- Join, after the profile loaded (Session.start): saved pass flags are cleared (a lost pass must not stay), the
+-- paid-item policy is asked once, then the passes are checked.
 function PurchaseService.join(player: Player)
+	local profile = DataService.profileOf(player)
+	if profile ~= nil then
+		local data = table.clone(profile.Data)
+		data.passes = {}
+		profile.Data = data
+	end
 	PolicyService.paidItemsAllowed(player)
 	PurchaseService.checkPasses(player)
 end
@@ -184,7 +196,10 @@ function PurchaseService.start()
 			end
 			for _, offer in Catalogue.offers do
 				if offer.type == "pass" and offer.robloxId > 0 and offer.robloxId == gamePassId then
-					PurchaseService.grantPass(player, offer.id)
+					-- The event also fires when a free trial starts: grant only what Roblox confirms.
+					if PurchaseService.confirmPass(player, offer) then
+						PurchaseService.grantPass(player, offer.id)
+					end
 				end
 			end
 		end
