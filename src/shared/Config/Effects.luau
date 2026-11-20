@@ -14,9 +14,11 @@ return {
 	keptNodes = { "U17", "U18", "U19", "U20", "U21", "U22" }, -- stay after Netz-Ausbau with P5
 	-- U21 Regelzentrale: the two rules, each once. Threshold on the price factor, in tenths, with its range and default.
 	rules = {
-		charge = { min = 0.3, max = 1, default = 0.7 }, -- Günstig laden: charge while the price is at most this
-		sell = { min = 1, max = 2, default = 1.2 }, -- Teuer verkaufen: sell while the price is at least this
+		charge = { min = 0.3, max = 1, default = 0.7, slot = 1 }, -- Günstig laden: charge while the price is at most this
+		sell = { min = 1, max = 2, default = 1.2, slot = 2 }, -- Teuer verkaufen: sell while the price is at least this
+		reserve = { min = 0, max = 0.9, default = 0.2, slot = 3 }, -- Smart Hub: selling keeps this share of the capacity
 	},
+	ruleSlots = 2, -- rule slots without the Smart Hub pass; env.ruleSlots replaces it
 	ruleStep = 0.1, -- the steppers in the HUD
 	crankBase = 1, -- energy per click
 	crankGear = 3, -- U12 Kurbel-Übersetzung
