@@ -204,6 +204,20 @@ return function(t, load)
 	t.truthy(house.multiplier > 1 and house.count == 2, "a node and the level lift the multiplier above 1")
 	t.equal(production.rows[1].effective, 3, "panels without aligned cells count as owned")
 
+	local function ids(list: { any }): string
+		local names = {}
+		for _, tab in list do
+			table.insert(names, tab.id)
+		end
+		return table.concat(names, ",")
+	end
+	t.equal(ids(ShopView.tabsFor(false)), "plants,upgrades,storage,tools,sparks", "the market has no production tab")
+	t.equal(
+		ids(ShopView.tabsFor(true)),
+		"plants,upgrades,storage,tools,sparks,production",
+		"the control board has all tabs"
+	)
+
 	for _, tab in ShopView.tabs do
 		t.truthy(Locale.tables.de[tab.key] ~= nil and Locale.tables.de[tab.hint] ~= nil, `texts for tab {tab.id}`)
 	end
