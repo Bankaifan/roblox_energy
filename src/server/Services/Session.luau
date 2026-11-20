@@ -5,6 +5,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameCore = require(Shared:WaitForChild("Core"):WaitForChild("GameCore") :: ModuleScript) :: any
+local Shop = require(Shared:WaitForChild("Core"):WaitForChild("Shop") :: ModuleScript) :: any
+local Catalogue = require(Shared:WaitForChild("Config"):WaitForChild("Shop") :: ModuleScript) :: any
 local Formulas = require(Shared:WaitForChild("Core"):WaitForChild("Formulas") :: ModuleScript) :: any
 local Env = require(script.Parent.Env)
 local PlotService = require(script.Parent.PlotService)
@@ -38,15 +40,25 @@ local loading: { [Player]: { remotes: { [string]: RemoteEvent }? } } = {}
 local welcomes: { [Player]: { away: number, coins: number } } = {}
 local Session = {}
 
--- `boost` is the player's Sunshine / Turbo factor this second (BoostService.multiplierFor); nil means none.
-local function envFor(phase: any, weather: any, boost: number?): any
+-- The bought effects of the player (Core/Shop.envValues): sale multiplier, Sunshine boost, Long Meter, Smart Hub.
+-- Without a player (no profile) there are none.
+local function envFor(phase: any, weather: any, player: Player?): any
+	local profile = if player ~= nil then DataService.profileOf(player) else nil
+	local sunshine = BoostService.sunshineStatus().active
+	local turbo = player ~= nil and BoostService.turboRemaining(player) > 0
+	local bought = if profile ~= nil
+		then Shop.envValues(profile.Data, Catalogue, sunshine, turbo)
+		else { longMeter = false }
 	return {
 		phase = phase,
 		weather = weather,
-		longMeter = false,
+		longMeter = bought.longMeter,
 		config = config,
 		formulas = Formulas,
-		boost = boost,
+		boost = bought.boost,
+		income = bought.income,
+		ruleSlots = bought.ruleSlots,
+		autoBuild = bought.autoBuild,
 		nextWeather = Env.nextWeather(),
 	}
 end
@@ -78,7 +90,7 @@ function Session.start(player: Player)
 		return
 	end
 	local phase, weather = Env.current()
-	local credited = GameCore.offline(state, away, envFor(phase, weather))
+	local credited = GameCore.offline(state, away, envFor(phase, weather, player))
 	welcomes[player] = { away = away, coins = credited.coins - state.coins }
 	states[player] = credited
 	DataService.sync(player, credited)
@@ -141,7 +153,7 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 		return
 	end
 	local phase, weather = Env.update(remotes)
-	local nextState, ok = GameCore.apply(state, action, envFor(phase, weather, BoostService.multiplierFor(player)))
+	local nextState, ok = GameCore.apply(state, action, envFor(phase, weather, player))
 	if not ok then
 		return
 	end
@@ -165,7 +177,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 	local phase, weather = Env.update(remotes)
 	for player, state in states do
 		-- Each player has their own factor: the Sunshine Hour is for everyone, the Turbo Feed-in is the owner's.
-		local env = envFor(phase, weather, BoostService.multiplierFor(player))
+		local env = envFor(phase, weather, player)
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
 		DataService.sync(player, nextState)
