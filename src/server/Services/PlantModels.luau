@@ -311,6 +311,14 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childNa
 	CollectionService:AddTag(wheel, "WheelRotor")
 end
 
+function PlantModels.stripPanels(copy: Model)
+	for _, child in copy:GetChildren() do
+		if child:IsA("Model") then
+			child:Destroy()
+		end
+	end
+end
+
 -- Wind rotors: the model's rotor child ("Rotary" of the big turbine, "Model" of the mini turbine) turns like a wheel about its
 -- axle; the sense is fixed. Only wind plants (4 and 6) have one.
 local ROTOR_CHILD = { [4] = "Model", [6] = "Rotary" } :: { [number]: string }
