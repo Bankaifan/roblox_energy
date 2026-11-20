@@ -263,7 +263,7 @@ return function(t, load)
 	}
 	local v2 = Data.migrate(v1, Steps)
 	t.equal(v2.v, 9, "a version 1 profile loads as the current version")
-	t.equal(v2.passes.founder, true, "a founder grant becomes the owned pass")
+	t.equal(v2.passes.founder, nil, "a founder grant is no saved pass (migration 8 to 9 drops it)")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
 	t.equal(#v2.boosters, 0, "the booster queue starts empty")
