@@ -35,6 +35,8 @@ type Record = {
 	model: Model,
 	columns: { [number]: BasePart }, -- index -> the primitive column (only for plants without a model)
 	modelPlants: { boolean }, -- index -> built from a model (else the primitive column)
+	shells: { Model },
+	shellKey: string,
 	copies: { { Model } }, -- index -> the model units shown now
 	keys: { string }, -- index -> "<cells>|<aligned cells>" of the units shown now
 	control: Model?, -- the control center, built once U21 is owned
@@ -723,6 +725,8 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		columns = columns,
 		modelPlants = modelPlants,
 		copies = copies,
+		shells = {},
+		shellKey = "",
 		keys = {},
 		river = River.stages(nil, Assets.river.segments),
 		course = River.course(Assets.river, slot),
