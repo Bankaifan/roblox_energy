@@ -100,7 +100,7 @@ jobs:
       # requires instead of its OIDC exchange; nothing here can write to GitHub. The run may be started by an outsider's
       # issue or comment, so the action's write-permission check on the actor is off: the step has nothing to protect.
       - id: claude
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
         if: steps.gate.outputs.ok == 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
