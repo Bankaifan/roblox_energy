@@ -4,22 +4,20 @@
 -- a hash of the plot seed. Pure functions, no Roblox APIs; x and z are studs relative to the plot centre.
 local Meadow = {}
 
--- A cleared patch: a blob around (x, z) with the mean radius r.
+-- A cleared patch: a square around (x, z) with the half side r; only its rim frays outwards, so it never ends inside it.
 export type Patch = { x: number, z: number, r: number }
 export type Field = { size: number, cells: { { number } } }
 export type Stake = { x: number, z: number, height: number, lean: number, turn: number }
 export type Rope = { from: number, to: number }
 
--- Share of the radius an outline may move in or out: two lobes around the patch plus a soft wave over the whole plot
+-- Share of r the rim may move: two lobes around the patch plus a soft wave over the whole plot
 -- (one bump about every WAVE_PITCH studs), so neighbouring patches bulge together instead of repeating one shape.
 Meadow.LOBES = { 0.12, 0.08 }
 Meadow.WAVE = 0.2
 Meadow.WAVE_PITCH = 10
--- The radius of the patch of a site, as a share of its side: large enough that the whole site is always earth.
-Meadow.SITE_RADIUS = 0.9
--- Sites wider than SITE_WIDE studs (the 32-stud wind pads) need a larger share: the wobble pulls the outline in by up to 40 percent.
-Meadow.SITE_WIDE = 16
-Meadow.SITE_RADIUS_WIDE = 1.05
+-- Share of r the rim of a patch may reach beyond the square (never inside it): a mown cell is bare to its last stud,
+-- and a neighbour that is not mown yet stays grass.
+Meadow.EDGE = 0.25
 -- Fence: a stake at most every STAKE_PITCH studs, moved by up to STAKE_SHIFT studs, STAKE_HEIGHT +- STAKE_VARIES tall
 -- and leaning by up to STAKE_LEAN degrees.
 Meadow.STAKE_PITCH = 16
@@ -49,8 +47,7 @@ end
 
 -- The patch under a site of `side` studs at (x, z).
 function Meadow.sitePatch(x: number, z: number, side: number): Patch
-	local share = if side > Meadow.SITE_WIDE then Meadow.SITE_RADIUS_WIDE else Meadow.SITE_RADIUS
-	return { x = x, z = z, r = side * share }
+	return { x = x, z = z, r = side / 2 }
 end
 
 -- The terrain cells of a plot of `cells` x `cells` cells of `cell` studs that are bare earth: mask[ix][iz] = true,
@@ -61,7 +58,8 @@ function Meadow.mask(patches: { Patch }, seed: number, cells: number, cell: numb
 		mask[ix] = table.create(cells, false)
 	end
 	local half = cells * cell / 2
-	local reach = 1 + Meadow.LOBES[1] + Meadow.LOBES[2] + Meadow.WAVE
+	local span = Meadow.LOBES[1] + Meadow.LOBES[2] + Meadow.WAVE
+	local reach = 1 + Meadow.EDGE
 	for _, patch in patches do
 		-- The lobes belong to the place of the patch, not to its position in the list.
 		local px, pz = math.floor(patch.x + 0.5), math.floor(patch.z + 0.5)
@@ -78,12 +76,12 @@ function Meadow.mask(patches: { Patch }, seed: number, cells: number, cell: numb
 				if not mask[ix][iz] then
 					local dz = (iz - 0.5) * cell - half - patch.z
 					local angle = math.atan2(dz, dx)
-					local factor = 1
-						+ Meadow.LOBES[1] * math.sin(2 * angle + phase2)
+					local wobble = Meadow.LOBES[1] * math.sin(2 * angle + phase2)
 						+ Meadow.LOBES[2] * math.sin(3 * angle + phase3)
 						+ Meadow.WAVE * wave(seed, patch.x + dx, patch.z + dz)
-					local limit = patch.r * factor
-					mask[ix][iz] = dx * dx + dz * dz < limit * limit
+					-- 0 (the square itself) .. 1 (EDGE beyond it): the rim never moves inwards.
+					local limit = patch.r * (1 + Meadow.EDGE * (wobble + span) / (2 * span))
+					mask[ix][iz] = math.max(math.abs(dx), math.abs(dz)) <= limit
 				end
 			end
 		end
