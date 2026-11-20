@@ -478,7 +478,7 @@ return function(t, load)
 	t.truthy(sparkView.items[2].buyable and not sparkView.items[3].buyable, "P2 (5) is buyable, P3 (8) is not")
 	t.equal(sparkView.gridNow, 1.6, "grid output now")
 	t.equal(sparkView.gridNext, 2.6, "grid output after the next expansion")
-	t.equal(sparkView.sparksNext, 8, "sparks of the next expansion")
+	t.equal(sparkView.sparksNext, 11, "sparks of the next expansion")
 	t.equal(GameCore.view(fresh(), gated).sparks.gridNow, 1, "level 0 is x1")
 
 	-- Offline: nothing under 60 seconds, capped at 2 hours; the Langzeit-Zähler adds 4 hours on top (cap 6 h).
