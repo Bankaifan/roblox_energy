@@ -97,6 +97,10 @@ return function(t, load)
 		panelCells,
 		"a field never draws more than it has"
 	)
-	t.equal(table.concat(PlotLayout.unitCells({ 4, 6, 2 }, 2), ","), "4,6", "units stand on the first cells in mown order")
+	t.equal(
+		table.concat(PlotLayout.unitCells({ 4, 6, 2 }, 2), ","),
+		"4,6",
+		"units stand on the first cells in mown order"
+	)
 	t.equal(#PlotLayout.unitCells({ 4, 6, 2 }, -1), 0, "no negative count draws nothing")
 >end
