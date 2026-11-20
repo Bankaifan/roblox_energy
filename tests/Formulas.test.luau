@@ -49,11 +49,18 @@ return function(t, load)
 	for _, level in Prestige do
 		near(Formulas.prestigeThreshold(level.level) / level.requiredRevenue, 1, 0.02, `threshold level {level.level}`)
 	end
-	t.equal(Formulas.prestigeSparks(0), 5, "first expansion gives 5 sparks")
-	t.equal(Formulas.prestigeSparks(9), 32, "tenth expansion gives 32 sparks")
+	t.equal(Formulas.prestigeSparks(0), 8, "first expansion gives 8 sparks")
+	t.equal(Formulas.prestigeSparks(9), 35, "tenth expansion gives 35 sparks")
 	local sparks = 0
 	for current = 0, 9 do
 		sparks += Formulas.prestigeSparks(current)
 	end
-	t.equal(sparks, 185, "expansions 1 to 10 give the Bauplan total of 185 sparks")
+	t.equal(sparks, 215, "expansions 1 to 10 give the Bauplan total of 215 sparks")
+	for _, level in Prestige do
+		t.equal(
+			Formulas.prestigeSparks(level.level - 1),
+			level.sparks,
+			`formula and config agree at level {level.level}`
+		)
+	end
 end
