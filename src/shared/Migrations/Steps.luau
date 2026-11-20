@@ -154,4 +154,11 @@ Steps[7] = function(profile: any): any
 	return profile
 end
 
+-- Version 8 -> 9 (issue #243): saved pass flags are dropped. Ownership comes from Roblox in each session, so a trial or a
+-- refunded pass no longer stays owned for good.
+Steps[8] = function(profile: any): any
+	profile.passes = {}
+	return profile
+end
+
 return Steps
