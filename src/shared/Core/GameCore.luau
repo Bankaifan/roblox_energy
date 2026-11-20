@@ -43,6 +43,9 @@ export type Env = {
 	config: Config,
 	formulas: any,
 	boost: number?,
+	income: number?, -- the bought sale multiplier (Premium Tariff, Turbo Feed-in, Core/Shop); nil or 1 = none
+	ruleSlots: number?, -- rule slots open (Config/Effects.ruleSlots without the Smart Hub, 3 with it)
+	autoBuild: boolean?, -- the Smart Hub auto-build is owned
 	nextWeather: Weather?, -- the weather of the next period; the view shows it only with U15
 }
 
@@ -279,6 +282,11 @@ local function storageAction(state: State, env: Env): string
 	return "idle"
 end
 
+-- Rule slots open for this run: env.ruleSlots, else the base of Config/Effects.
+local function ruleSlots(env: Env): number
+	return env.ruleSlots or env.config.effects.ruleSlots
+end
+
 local function credit(state: State, amount: number)
 	state.coins += amount
 	state.runEarned += amount
@@ -305,6 +313,10 @@ local function storageStep(
 		charge = math.min(capacity, charge + input * efficiency)
 	elseif action == "sell" then
 		output = math.min(rate, charge)
+		local reserve = state.rules.reserve
+		if reserve ~= nil and reserve.on and state.storage.mode == "auto" and ruleSlots(env) >= 3 then
+			output = math.max(0, math.min(output, charge - reserve.th * capacity))
+		end
 		charge -= output
 	end
 	return input, output, charge, capacity, action
@@ -320,7 +332,7 @@ function GameCore.tick(state: State, env: Env, dt: number): State
 	local generated = production(state, env, phase, weather) * dt * (env.boost or 1)
 	local price = env.formulas.price(phase, weather, market(state, env, phase))
 	local input, output, charge = storageStep(state, env, generated, dt)
-	local revenue = (generated - input + output) * price
+	local revenue = (generated - input + output) * price * (env.income or 1)
 	if not isFinite(revenue) or not isFinite(result.lifetimeEarned + revenue) then
 		return result
 	end
@@ -404,6 +416,19 @@ local function buyPlant(state: State, env: Env, action: { [string]: any }): bool
 	return true
 end
 
+-- Smart Hub auto-build: buys one unit of the dearest plant the coins cover (the same checks as BuyPlant).
+local function autoBuild(state: State, env: Env): boolean
+	if env.autoBuild ~= true then
+		return false
+	end
+	for index = #env.config.plants, 1, -1 do
+		if buyPlant(state, env, { plant = index, qty = 1 }) then
+			return true
+		end
+	end
+	return false
+end
+
 -- Run nodes cost coins and need their prerequisite; permanent nodes cost sparks and reset nothing.
 local function buyNode(state: State, env: Env, action: { [string]: any }): boolean
 	local id = action.node
@@ -443,7 +468,7 @@ local function setRule(state: State, env: Env, action: { [string]: any }): boole
 	if type(id) ~= "string" or effects.rules[id] == nil or not rulesUnlocked(state, env) then
 		return false
 	end
-	if not isFinite(th) or type(on) ~= "boolean" then
+	if not isFinite(th) or type(on) ~= "boolean" or effects.rules[id].slot > ruleSlots(env) then
 		return false
 	end
 	-- The client sends the value it chose; the server rounds it to a tenth and clamps it into the range of the rule.
@@ -720,6 +745,8 @@ function GameCore.apply(state: State, action: { [string]: any }, env: Env): (Sta
 		ok = crank(result, env)
 	elseif action.type == "BuyPlant" then
 		ok = buyPlant(result, env, action)
+	elseif action.type == "AutoBuild" then
+		ok = autoBuild(result, env)
 	elseif action.type == "BuyNode" then
 		ok = buyNode(result, env, action)
 	elseif action.type == "SetRule" then
@@ -772,7 +799,7 @@ function GameCore.offline(state: State, seconds: number, env: Env): State
 		rate += env.formulas.production(plant.nominalPower, effectiveCount(state, env, plant), multiplier, expected)
 	end
 	local away = math.min(seconds, hours * 3600)
-	credit(result, rate * market(state, env, nil) * away * efficiency)
+	credit(result, rate * market(state, env, nil) * away * efficiency * (env.income or 1))
 	return result
 end
 
@@ -823,6 +850,9 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 	local rules = {}
 	if unlocked then
 		for id, range in env.config.effects.rules do
+			if range.slot > ruleSlots(env) then
+				continue
+			end
 			local rule = ruleOf(state, env, id)
 			rules[id] = { th = rule.th, on = rule.on, min = range.min, max = range.max }
 		end
