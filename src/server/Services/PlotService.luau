@@ -710,6 +710,34 @@ local function updateCrank(record: Record, golden: boolean)
 end
 
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
+-- The spawn platform of the plot: the player respawns on it and, when his character stands elsewhere already (it spawned
+-- while the profile loaded), is moved to it. The place's own spawn at the origin is switched off.
+local SPAWN_PAD = 12
+function PlotService.addSpawn(player: Player, record: Record)
+	local old = workspace:FindFirstChild("SpawnLocation")
+	if old ~= nil and old:IsA("SpawnLocation") then
+		old:Destroy()
+	end
+	local crank = Assets.furniture.crank
+	local at = PlotLayout.spawnPoint(Assets.PLOT_SIZE, crank.z, SPAWN_PAD)
+	local point = record.origin + Vector3.new(at.x, 0.5, at.z * record.facing)
+	local pad = Instance.new("SpawnLocation")
+	pad.Name = "Spawn"
+	pad.Anchored = true
+	pad.Neutral = true
+	pad.Size = Vector3.new(SPAWN_PAD, 1, SPAWN_PAD)
+	pad.Position = point
+	pad.Color = COLORS.Solar
+	pad.Material = Enum.Material.SmoothPlastic
+	pad.TopSurface = Enum.SurfaceType.Smooth
+	pad.Parent = record.model
+	player.RespawnLocation = pad
+	local character = player.Character
+	if character ~= nil then
+		character:PivotTo(CFrame.new(point + Vector3.new(0, 4, 0)))
+	end
+end
+
 function PlotService.create(player: Player, plants: { any }): boolean
 	if plots[player] ~= nil then
 		return true
@@ -771,6 +799,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
+	PlotService.addSpawn(player, record)
 	-- The crank and the market are built once per plot. A yellow disc under the crank marks it from afar.
 	local crank = addFurniture(record, "crank", nil)
 	if crank ~= nil then

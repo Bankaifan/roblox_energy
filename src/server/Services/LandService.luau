@@ -231,9 +231,8 @@ function LandService.refresh(player: Player, state: any)
 		end
 		if type(target) == "number" then
 			local done = land.sites[target] or 0
-			enabled = land.tools[Toolbelt.toolFor(target, Land, land) or ""] == true
-				and (target == 1 or (state.plants[target - 1] or 0) >= 1)
-				and done < Land.fields[target]
+			-- The tool is decided per cell (follow), so a cell that waits for a tool never blocks the mowing of the next one.
+			enabled = (target == 1 or (state.plants[target - 1] or 0) >= 1) and done < Land.fields[target]
 		elseif target == "align" then
 			enabled = land.tools.rails == true and (state.plants[1] or 0) >= 1
 		elseif target == "container" then

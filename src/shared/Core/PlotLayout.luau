@@ -67,6 +67,13 @@ function PlotLayout.slot(n: number, spacing: number, rowZ: number): Slot
 	return { x = column * spacing, z = if north then rowZ else -rowZ, facing = if north then -1 else 1 }
 end
 
+-- Where a player spawns on his plot (plot-relative, unmirrored): at the road side, in line with the crank and behind it.
+-- `plotSize` is the side of the plot, `crankZ` the plot-relative z of the crank; the platform is `pad` studs wide.
+function PlotLayout.spawnPoint(plotSize: number, crankZ: number, pad: number): Site
+	local edge = plotSize / 2
+	return { x = 0, z = math.min(edge - pad / 2 - 1, crankZ + pad + 4) }
+end
+
 -- Centre of tile (column, row) of a plot of `plotTiles` tiles of `tile` studs.
 local function tileCentre(column: number, row: number, tile: number, plotTiles: number): Site
 	local half = plotTiles * tile / 2

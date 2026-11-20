@@ -289,6 +289,20 @@ return function(t, load)
 		local mownOnly = (work(noHammer, { target = 3, cell = 5 }))
 		local _, noHammerOk = work(mownOnly, { target = 3, cell = 5 })
 		t.truthy(not noHammerOk, "the second stage needs its tool: without the hammer no house")
+		-- Any order: mow several lots without the hammer, then build the houses in another order.
+		local lots = noHammer
+		for _, cell in { 5, 6, 7 } do
+			local mown, mownOk = work(lots, { target = 3, cell = cell })
+			t.truthy(mownOk, `lot {cell} can be mown while an earlier lot still waits for the hammer`)
+			lots = mown
+		end
+		lots.land.tools.hammer = true
+		for _, cell in { 7, 5, 6 } do
+			local built, builtOk = work(lots, { target = 3, cell = cell })
+			t.truthy(builtOk, `house on lot {cell} in any order`)
+			lots = built
+		end
+		t.equal(lots.land.sites[3], 3, "all three lots are prepared")
 		local farm = (work(chained, { target = 5, cell = 2 }))
 		local fenced = work(farm, { target = 5, cell = 2 })
 		t.truthy(fenced.land.steps[5][1] == 2 and fenced.land.sites[5] == 0, "the hammer fences the farm cell")
