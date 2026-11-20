@@ -96,7 +96,7 @@ local function deepCopy(value: any): any
 end
 
 -- The saved rules, by rule id ("charge", "sell"). GameCore clamps the threshold into the range of its rule when it is set.
-local RULE_IDS = { charge = true, sell = true }
+local RULE_IDS = { charge = true, sell = true, reserve = true }
 
 local function rules(value: any): any
 	local result = {}
