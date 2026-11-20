@@ -29,10 +29,10 @@ return {
 			de = "Gründer-Paket",
 			seconds = 1800,
 		},
-		{ id = "smart_hub", type = "pass", robux = 149, robloxId = 0, en = "Smart Hub", de = "Smart-Zentrale" },
-		{ id = "long_meter", type = "pass", robux = 99, robloxId = 0, en = "Long Meter", de = "Langzeit-Zähler" },
-		{ id = "premium", type = "pass", robux = 249, robloxId = 0, en = "Premium Tariff", de = "Premium-Tarif" },
-		{ id = "grid_vip", type = "pass", robux = 299, robloxId = 0, en = "Grid VIP", de = "Netzbetreiber-VIP" },
+		{ id = "smart_hub", type = "pass", robux = 199, robloxId = 0, en = "Smart Hub", de = "Smart-Zentrale" },
+		{ id = "long_meter", type = "pass", robux = 129, robloxId = 0, en = "Long Meter", de = "Langzeit-Zähler" },
+		{ id = "premium", type = "pass", robux = 349, robloxId = 0, en = "Premium Tariff", de = "Premium-Tarif" },
+		{ id = "grid_vip", type = "pass", robux = 399, robloxId = 0, en = "Grid VIP", de = "Netzbetreiber-VIP" },
 		{ id = "neon", type = "pass", robux = 99, robloxId = 0, en = "Neon Plants", de = "Neon-Anlagen" },
 		{
 			id = "fireworks",
@@ -46,7 +46,7 @@ return {
 		{
 			id = "sunshine",
 			type = "product",
-			robux = 79,
+			robux = 99,
 			robloxId = 0,
 			en = "Sunshine Hour",
 			de = "Sonnenstunde für alle",
@@ -56,7 +56,7 @@ return {
 		{
 			id = "turbo",
 			type = "product",
-			robux = 29,
+			robux = 39,
 			robloxId = 0,
 			en = "Turbo Feed-in",
 			de = "Turbo-Einspeisung",
