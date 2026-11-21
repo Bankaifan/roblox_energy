@@ -29,4 +29,9 @@ function Spin.sense(ax: number, az: number, fx: number, fz: number): number
 	return if along < 0 then -1 else 1
 end
 
+-- The point a wheel or rotor turns about: its hub when it has one, else the mean of its big parts. Points are { x, y, z }.
+function Spin.centre(hub: { number }?, mean: { number }): { number }
+	return hub or mean
+end
+
 return Spin
