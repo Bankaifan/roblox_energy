@@ -1,11 +1,12 @@
 --!strict
--- Shop (Bauplan.md, section 4): the 11 offers, the effects of passes and boosters (caps, queue, no stacking), the
+-- Shop (Bauplan.md, section 4): the 14 offers, the effects of passes and boosters (caps, queue, no stacking), the
 -- daily limit of Time Skips with its reset, the one-time Founder Pack, and no negative or NaN values after a load.
 return function(t, load)
 	local Shop = load("Core/Shop")
 	local Data = load("Core/Data")
 	local Steps = load("Migrations/Steps")
 	local Catalogue = load("Config/Shop")
+	local Upgrades = load("Config/Upgrades")
 
 	local DAY = 20000
 
@@ -23,8 +24,8 @@ return function(t, load)
 		return Shop.purchase(profile, id, day or DAY, config or Catalogue)
 	end
 
-	-- The catalogue: twelve offers, unique IDs, the Robux prices and names the Bauplan gives.
-	t.equal(#Catalogue.offers, 12, "twelve offers")
+	-- The catalogue: fifteen offers, unique IDs, the Robux prices and names the Bauplan gives.
+	t.equal(#Catalogue.offers, 15, "fifteen offers")
 	local seen: { [string]: boolean } = {}
 	local passes, products = 0, 0
 	for _, offer in Catalogue.offers do
@@ -43,7 +44,7 @@ return function(t, load)
 		end
 	end
 	t.equal(passes, 9, "nine passes")
-	t.equal(products, 3, "three products")
+	t.equal(products, 6, "six products: two boosters, the Time Skip and three spark packs")
 
 	-- The product defaults (Bauplan section 10): daily limits on, Smart Hub extras at once.
 	t.equal(Catalogue.dailyLimits, true, "daily limits are on")
@@ -257,4 +258,57 @@ return function(t, load)
 	t.equal(fullYield, 0, "and pays nothing")
 	local _, limitStatus = Shop.receipt(skip, "r-6", "timeskip", DAY, ids)
 	t.equal(limitStatus, "refused", "a fourth Time Skip on the same day is refused")
+
+	-- Spark packs (issue 251): 5, 15 and 40 sparks for 79, 199 and 449 Robux, granted only while the sparks still missing
+	-- for all permanent nodes and spark items (215 in total) are at least the pack size.
+	local packs = { sparks5 = { 5, 79 }, sparks15 = { 15, 199 }, sparks40 = { 40, 449 } }
+	for id, expected in packs do
+		local offer: any = nil
+		for _, candidate in Catalogue.offers do
+			if candidate.id == id then
+				offer = candidate
+			end
+		end
+		t.truthy(offer ~= nil and offer.type == "product", `{id}: a product`)
+		t.equal(offer.sparks, expected[1], `{id}: its spark count`)
+		t.equal(offer.robux, expected[2], `{id}: its Robux price`)
+	end
+	local sparkIds = withIds({ sparks5 = 6001, sparks15 = 6002, sparks40 = 6003 })
+	t.equal(Shop.sparksMissing(base, Upgrades), 215, "all permanent nodes and spark items cost 215 sparks")
+	local earned = Data.template()
+	earned.sparks = 10
+	t.equal(Shop.sparksMissing(earned, Upgrades), 205, "earned sparks are no longer missing")
+	local packed, packedStatus, packedYield = Shop.receipt(earned, "p-1", "sparks15", DAY, sparkIds, Upgrades)
+	t.equal(packedStatus, "granted", "a spark pack receipt is granted")
+	t.equal(packedYield, 0, "a pack pays no yield")
+	t.equal(packed.sparks, 25, "the pack adds its sparks")
+	t.equal(packed.sparksBought, 15, "and counts them as bought")
+	t.equal(earned.sparks, 10, "the input profile is not changed")
+	t.equal(Shop.sparksMissing(packed, Upgrades), 190, "bought sparks are no longer missing either")
+	t.equal(Shop.packSparks(Catalogue, "sparks40"), 40, "packSparks gives the size of a pack")
+	t.equal(Shop.packSparks(Catalogue, "timeskip"), 0, "and 0 for another offer")
+	-- A duplicate receipt credits nothing.
+	local again, againStatus = Shop.receipt(packed, "p-1", "sparks15", DAY, sparkIds, Upgrades)
+	t.equal(againStatus, "duplicate", "the same pack receipt again is a duplicate")
+	t.equal(again.sparks, 25, "and adds no sparks")
+	t.equal(again.sparksBought, 15, "or bought count")
+	-- The rule: never more than the player still needs.
+	local nearly = Data.template()
+	nearly.sparks = 200 -- 15 missing
+	local _, exactStatus = Shop.receipt(nearly, "p-2", "sparks15", DAY, sparkIds, Upgrades)
+	t.equal(exactStatus, "granted", "a pack of exactly the missing sparks is granted")
+	local _, largeStatus = Shop.receipt(nearly, "p-3", "sparks40", DAY, sparkIds, Upgrades)
+	t.equal(largeStatus, "refused", "a pack larger than the missing sparks is refused")
+	local over, overStatus = Shop.receipt(nearly, "p-4", "sparks15", DAY, sparkIds, Upgrades)
+	t.equal(overStatus, "granted", "the missing sparks are met")
+	local _, doneStatus = Shop.receipt(over, "p-5", "sparks5", DAY, sparkIds, Upgrades)
+	t.equal(doneStatus, "refused", "nothing is missing any more: even the small pack is refused")
+	local _, _, noneReason = Shop.purchase(over, "sparks5", DAY, Catalogue, Upgrades)
+	t.equal(noneReason, "sparks not needed", "the reason says the sparks are not needed")
+	local _, _, blindReason = Shop.purchase(base, "sparks5", DAY, Catalogue)
+	t.equal(blindReason, "no upgrades", "without the upgrade list a pack is refused")
+	-- The Extras facts: the grid level and the missing sparks.
+	local facts = Shop.extrasView(nearly, DAY, Catalogue, true, 0, Upgrades)
+	t.equal(facts.sparksMissing, 15, "the Extras facts hold the missing sparks")
+	t.equal(facts.level, 0, "and the grid level")
 end
