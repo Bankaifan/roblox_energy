@@ -464,8 +464,8 @@ return function(t, load)
 	local permCapped = GameCore.apply(kit, { type = "Prestige" }, permEnv)
 	t.truthy(permCapped.plants[1] == 5 and permCapped.plants[2] == 1, "the ground limits them like the kit")
 	kit.land.sites[1], kit.land.sites[2] = 6, 3
-	local plain = GameCore.apply(kit, { type = "Prestige" }, gated)
-	t.truthy(plain.plants[1] == 4 and plain.plants[2] == 2, "without permanent plants the kit is as before")
+	local plainKit = GameCore.apply(kit, { type = "Prestige" }, gated)
+	t.truthy(plainKit.plants[1] == 4 and plainKit.plants[2] == 2, "without permanent plants the kit is as before")
 	local noKit = table.clone(kit)
 	noKit.pnodes = {}
 	local permOnly = GameCore.apply(noKit, { type = "Prestige" }, permEnv)
