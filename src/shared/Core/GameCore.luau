@@ -46,6 +46,7 @@ export type Env = {
 	income: number?, -- the bought sale multiplier (Premium Tariff, Turbo Feed-in, Core/Shop); nil or 1 = none
 	ruleSlots: number?, -- rule slots open (Config/Effects.ruleSlots without the Smart Hub, 3 with it)
 	autoBuild: boolean?, -- the Smart Hub auto-build is owned
+	storageFactor: number?, -- the Mega Battery: the storage capacity times this (Core/Shop.storageFactor); nil = 1
 	nextWeather: Weather?, -- the weather of the next period; the view shows it only with U15
 }
 
@@ -302,7 +303,8 @@ local function storageStep(
 	generated: number,
 	dt: number
 ): (number, number, number, number, string)
-	local capacity = env.formulas.storageCapacity(storageStage(state, env), middayOutput(state, env))
+	local capacity =
+		env.formulas.storageCapacity(storageStage(state, env), middayOutput(state, env), env.storageFactor)
 	local efficiency = storageEfficiency(state, env)
 	local charge = math.min(state.storage.charge, capacity)
 	local rate = capacity / env.config.effects.storageRateSeconds * dt
@@ -892,7 +894,7 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 		end
 	end
 	local stage = storageStage(state, env)
-	local capacity = env.formulas.storageCapacity(stage, middayOutput(state, env))
+	local capacity = env.formulas.storageCapacity(stage, middayOutput(state, env), env.storageFactor)
 	return {
 		stage = stage,
 		mode = state.storage.mode,
