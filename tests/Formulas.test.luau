@@ -44,6 +44,12 @@ return function(t, load)
 	near(Formulas.storageCapacity(1, 100), 4500, 1e-9, "stage 1 holds 45 s of midday output")
 	near(Formulas.storageCapacity(4, 100), 22500, 1e-9, "stage 4 holds 225 s of midday output")
 	near(Formulas.storageCapacity(0, 100), 0, 1e-9, "no storage at stage 0")
+	-- Mega Battery: the capacity times 1.5 (67.5, 135, 225, 337.5 seconds of sun); a missing factor is 1.
+	for stage, seconds in { 67.5, 135, 225, 337.5 } do
+		near(Formulas.storageCapacity(stage, 100, 1.5), seconds * 100, 1e-9, `Mega Battery at stage {stage}`)
+	end
+	near(Formulas.storageCapacity(2, 100, nil), 9000, 1e-9, "no factor: the plain capacity")
+	near(Formulas.storageCapacity(0, 100, 1.5), 0, 1e-9, "no storage stays no storage")
 
 	-- Prestige: each threshold is 10 Mio. × 6^(level − 1). Bauplan rounds the table, so allow 2 %.
 	for _, level in Prestige do
