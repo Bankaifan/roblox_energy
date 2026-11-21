@@ -51,6 +51,7 @@ return function(t, load)
 			income = bought.income,
 			ruleSlots = bought.ruleSlots,
 			autoBuild = bought.autoBuild,
+			storageFactor = bought.storageFactor,
 		}
 	end
 
@@ -87,9 +88,9 @@ return function(t, load)
 	local function storageCapacity(profile: any): number
 		local state = run()
 		state.nodes.U18 = true
-		state.storage.charge = 1000
+		state.storage.charge = 1e-3
 		local fill = GameCore.view(state, envOf(profile)).storage.fill
-		return 1000 / fill
+		return 1e-3 / fill
 	end
 
 	local base = Data.template()

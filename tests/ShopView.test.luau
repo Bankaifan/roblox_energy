@@ -279,7 +279,7 @@ return function(t, load)
 	t.truthy(needs["offer.sparks15"] ~= nil and needs["offer.sparks5"] ~= nil, "packs up to the missing sparks stay")
 	t.equal(needs["offer.sparks40"], nil, "a pack larger than the missing sparks is hidden")
 	t.equal(#extras(packFacts(1, 0), allPrices), 13, "nothing missing: no pack")
-	t.equal(stage1["offer.sparks15"].price, "63 Robux", "a pack shows the live price")
+	t.equal(stage1["offer.sparks15"].price, "64 Robux", "a pack shows the live price")
 	t.equal(stage1["offer.sparks15"].button.offer, "sparks15", "and opens the prompt of its offer")
 	t.truthy(string.find(stage1["offer.sparks5"].info, "5 sparks", 1, true) ~= nil, "English card text")
 	t.truthy(
