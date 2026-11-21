@@ -13,6 +13,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
+local Catalogue = require(Config:WaitForChild("Shop") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local Plants = require(Config:WaitForChild("Plants") :: ModuleScript) :: any
 local Upgrades = require(Config:WaitForChild("Upgrades") :: ModuleScript) :: any
@@ -20,6 +21,7 @@ local Effects = require(Config:WaitForChild("Effects") :: ModuleScript) :: any
 local ShopView = require(Shared:WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript) :: any
 local PopupGate = require(Shared:WaitForChild("Core"):WaitForChild("PopupGate") :: ModuleScript) :: any
 local Theme = require(script.Parent.Parent.Theme)
+local OfferPrices = require(script.Parent.OfferPrices)
 
 local Market = {}
 
@@ -48,6 +50,10 @@ local STEP_WIDTH = 64
 -- The popup closes when the player is this many studs beyond the prompt's reach.
 local LEAVE_SLACK = 6
 local LEAVE_CHECK_SECONDS = 0.3
+-- Tab captions are never smaller than this; when they do not fit the row, the Extras tab and then every tab shows its icon.
+local TAB_TEXT = 12
+local TAB_PADDING = 14
+local TAB_GAP_NARROW = 4
 
 local function text(parent: Instance, font: Enum.Font, size: number, color: Color3): TextLabel
 	local control = Instance.new("TextLabel")
@@ -189,6 +195,15 @@ function Market.build(net: Instance, language: () -> string)
 	local tabButtons: { [string]: TextButton } = {}
 	local currentTab: string = ShopView.tabs[1].id
 	local setTab: (string) -> ()
+	-- The facts of the Extras tab (Delta.extras) and the coins a Time Skip gives now (Delta.skip).
+	local latestExtras: any = nil
+	local latestSkip = 0
+	local atBoardNow = false
+	local priceRequested = false
+	-- The Extras tab shows when the server allows it and at least one offer has a live price.
+	local function extrasVisible(): boolean
+		return latestExtras ~= nil and latestExtras.shown == true and #OfferPrices.visible(language()) > 0
+	end
 	for index, tab in ShopView.tabs do
 		local control = pill(tabBar, 16)
 		control.Name = tab.id
@@ -198,21 +213,68 @@ function Market.build(net: Instance, language: () -> string)
 		end)
 		tabButtons[tab.id] = control
 	end
-	-- The production tab shows only when the popup was opened at the control board; the others share the row.
-	local function layoutTabs(atBoard: boolean)
-		local shown = ShopView.tabsFor(atBoard)
+	-- The production tab shows only when the popup was opened at the control board, the Extras tab only when it has offers.
+	-- The tabs share the row by the width of their captions. Where the captions do not fit even at TAB_TEXT, the Extras tab
+	-- shows only its icon, and where they still do not fit, every tab does.
+	local function layoutTabs()
+		local shown = ShopView.tabsFor(atBoardNow, extrasVisible())
 		local count = #shown
+		local available = window.Size.X.Offset - 2 * PADDING
 		for _, control in tabButtons do
 			control.Visible = false
+		end
+		local function measure(tab: any): number
+			local size = TextService:GetTextSize(t(tab.key), TAB_TEXT, Theme.fonts.bold, Vector2.new(1000, 100))
+			return math.ceil(size.X) + TAB_PADDING
+		end
+		local gap = GAP
+		local needs: { number } = {}
+		local total = 0
+		for index, tab in shown do
+			needs[index] = measure(tab)
+			total += needs[index]
+		end
+		local iconOnly: { [string]: boolean } = {}
+		if total + gap * (count - 1) > available then
+			gap = TAB_GAP_NARROW
+		end
+		if total + gap * (count - 1) > available then
+			for index, tab in shown do
+				if tab.extras then
+					iconOnly[tab.id] = true
+					total += TOUCH - needs[index]
+					needs[index] = TOUCH
+				end
+			end
+		end
+		if total + gap * (count - 1) > available then
+			total = 0
+			for index, tab in shown do
+				iconOnly[tab.id] = true
+				needs[index] = 1
+				total += 1
+			end
+		end
+		tabLayout.Padding = UDim.new(0, gap)
+		-- The icon-only Extras tab keeps the touch size; the rest of the row is shared by caption width.
+		local spare = available - gap * (count - 1)
+		local flexible = 0
+		for index, tab in shown do
+			if iconOnly[tab.id] and needs[index] == TOUCH then
+				spare -= TOUCH
+			else
+				flexible += needs[index]
+			end
 		end
 		for index, tab in shown do
 			local control = tabButtons[tab.id]
 			control.Visible = true
 			control.LayoutOrder = index
-			control.Size = UDim2.new(1 / count, -math.ceil(GAP * (count - 1) / count), 1, 0)
+			local fixed = iconOnly[tab.id] and needs[index] == TOUCH
+			control.Size = UDim2.new(0, if fixed then TOUCH else math.floor(spare * needs[index] / flexible), 1, 0)
+			control.Text = if iconOnly[tab.id] then Theme.icon(tab.icon) else t(tab.key)
 		end
 	end
-	layoutTabs(false)
 
 	local hint = text(window, Theme.fonts.body, 14, COLORS.textMuted)
 	hint.Name = "Hint"
@@ -324,6 +386,8 @@ function Market.build(net: Instance, language: () -> string)
 		end
 		if button.tab ~= nil then
 			setTab(button.tab)
+		elseif button.offer ~= nil then
+			OfferPrices.prompt(player, button.offer)
 		elseif button.remote ~= nil then
 			(net:WaitForChild(button.remote) :: RemoteEvent):FireServer(button.payload)
 		end
@@ -412,8 +476,11 @@ function Market.build(net: Instance, language: () -> string)
 		elseif data.state == "active" then
 			strokeColor = COLORS.energy
 			statusColor = COLORS.energy
-		elseif data.state == "hint" then
+		elseif data.state == "hint" or data.state == "extra" then
 			statusColor = COLORS.energy
+		end
+		if data.extra then
+			strokeColor = COLORS.energy -- Robux offers: the cyan outline, also for an owned pass
 		end
 		card.stroke.Color = strokeColor
 		card.status.TextColor3 = statusColor
@@ -439,7 +506,7 @@ function Market.build(net: Instance, language: () -> string)
 			if not button.enabled then
 				card.action.BackgroundColor3 = COLORS.disabled
 				card.action.TextColor3 = COLORS.textMuted
-			elseif data.state == "hint" or data.state == "idle" or data.state == "active" then
+			elseif data.state == "hint" or data.state == "idle" or data.state == "active" or data.state == "extra" then
 				card.action.BackgroundColor3 = COLORS.energy
 				card.action.TextColor3 = COLORS.textDark
 			else
@@ -506,6 +573,7 @@ function Market.build(net: Instance, language: () -> string)
 				hint.Text = t(tab.hint)
 			end
 		end
+		layoutTabs()
 		local cards = ShopView.cards(currentTab, {
 			view = latest,
 			coins = latestCoins,
@@ -514,6 +582,10 @@ function Market.build(net: Instance, language: () -> string)
 			land = Land,
 			ruleStep = Effects.ruleStep,
 			t = t,
+			offers = OfferPrices.visible(language()),
+			extras = latestExtras,
+			skipCoins = latestSkip,
+			shop = Catalogue,
 		})
 		for index, data in cards do
 			local card = pool[index]
@@ -533,7 +605,7 @@ function Market.build(net: Instance, language: () -> string)
 	end
 
 	setTab = function(tab: string)
-		currentTab = tab
+		currentTab = if tab == "extras" and not extrasVisible() then ShopView.tabs[1].id else tab
 		list.CanvasPosition = Vector2.zero
 		render()
 	end
@@ -560,6 +632,7 @@ function Market.build(net: Instance, language: () -> string)
 			arrange(card)
 		end
 		fitCards()
+		layoutTabs()
 	end
 	local listPadding = Instance.new("UIPadding")
 	listPadding.PaddingLeft = UDim.new(0, 2)
@@ -602,7 +675,7 @@ function Market.build(net: Instance, language: () -> string)
 		opening += 1
 		local mine = opening
 		fit()
-		layoutTabs(prompt ~= nil and (prompt.Name == "ControlPrompt" or prompt.Name == "ControlInfo"))
+		atBoardNow = prompt ~= nil and (prompt.Name == "ControlPrompt" or prompt.Name == "ControlInfo")
 		setTab(tab or ShopView.tabs[1].id)
 		gui.Enabled = true
 		PopupGate.open(gate, "market")
@@ -682,6 +755,18 @@ function Market.build(net: Instance, language: () -> string)
 		delta = function(change: any)
 			latest = change.view
 			latestCoins = change.coins
+			latestExtras = change.extras
+			latestSkip = change.skip or 0
+			-- The prices come from Roblox once, when the tab is first allowed; the tab shows when the first one arrives.
+			if latestExtras ~= nil and latestExtras.shown == true and not priceRequested then
+				priceRequested = true
+				task.spawn(function()
+					OfferPrices.fetch()
+					if gui.Enabled then
+						render()
+					end
+				end)
+			end
 			if gui.Enabled then
 				render()
 			end
