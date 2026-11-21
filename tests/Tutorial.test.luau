@@ -1,5 +1,5 @@
 --!strict
--- Tutorial v2 (design tutorial-v2.md): twelve steps, facts, soft steps, floor, skip.
+-- Tutorial v2 (design tutorial-v2.md): fourteen steps, facts, soft steps, floor, skip.
 return function(t, load)
 	local Tutorial = load("Core/Tutorial")
 
@@ -17,6 +17,9 @@ return function(t, load)
 			wheels = 0,
 			container = false,
 			nodes = {},
+			hammer = false,
+			built = 0,
+			houses = 0,
 			level = 0,
 		}
 		for key, value in changes do
@@ -36,13 +39,15 @@ return function(t, load)
 		"wheel",
 		"container",
 		"storage",
+		"hammer",
+		"build",
 		"grow",
 		"expand",
 	}
-	t.equal(Tutorial.COUNT, 12, "twelve steps")
+	t.equal(Tutorial.COUNT, 14, "fourteen steps")
 	for index, id in ids do
 		t.equal(Tutorial.id(index), id, `step {index} is {id}`)
-		t.equal(Tutorial.next(index), if index < 12 then index + 1 else nil, `next of {id}`)
+		t.equal(Tutorial.next(index), if index < 14 then index + 1 else nil, `next of {id}`)
 	end
 	t.equal(Tutorial.current(Tutorial.start()), "crank", "a new tutorial starts at the crank")
 
@@ -62,6 +67,9 @@ return function(t, load)
 		c("storage", facts({ nodes = { U17 = true } })) and not c("storage", facts({ nodes = { U18 = true } })),
 		"U17"
 	)
+	t.truthy(c("hammer", facts({ hammer = true })) and not c("hammer", facts({})), "the hammer")
+	t.truthy(c("build", facts({ built = 1 })) and not c("build", facts({ hammer = true })), "one house cell prepared")
+	t.truthy(c("hammer", facts({ houses = 1 })) and c("build", facts({ houses = 1 })), "a built house skips both steps")
 	t.truthy(not c("grow", facts({ level = 1, shown = 999 })), "grow never passes by a fact")
 	t.truthy(c("expand", facts({ level = 1 })), "the expansion")
 
@@ -77,6 +85,8 @@ return function(t, load)
 		wheels = 1,
 		container = true,
 		nodes = { U17 = true },
+		hammer = true,
+		built = 1,
 		level = 1,
 		shown = 20,
 	})
@@ -96,17 +106,37 @@ return function(t, load)
 		end
 		return merged
 	end
+
+	-- The house steps come after the storage and before grow; a player with a house skips them.
+	local atHammer = Tutorial.step(
+		{ index = 10, done = false },
+		facts(with({ shovel = true, dug = 1, wheels = 1, container = true, nodes = { U17 = true } }))
+	)
+	t.equal(Tutorial.current(atHammer), "hammer", "after the storage comes the hammer")
+	t.equal(Tutorial.current(Tutorial.step(atHammer, facts(with({ hammer = true })))), "build", "then the house plot")
+	local housed = Tutorial.step(atHammer, facts(with({ houses = 1 })))
+	t.equal(Tutorial.current(housed), "grow", "a built house skips both steps")
+
 	t.equal(Tutorial.current(Tutorial.step({ index = 5, done = false }, facts(with({ shown = 89 })))), "gear", "89 s")
 	t.equal(Tutorial.current(Tutorial.step({ index = 5, done = false }, facts(with({ shown = 90 })))), "shovel", "90 s")
 	local soft = Tutorial.step(
 		{ index = 5, done = false },
-		facts(with({ shown = 500, shovel = true, dug = 1, wheels = 1, container = true, nodes = { U17 = true } }))
+		facts(with({
+			shown = 500,
+			shovel = true,
+			dug = 1,
+			wheels = 1,
+			container = true,
+			nodes = { U17 = true },
+			hammer = true,
+			built = 1,
+		}))
 	)
 	t.equal(Tutorial.current(soft), "grow", "only one soft step expires per call")
 
 	-- Floor: the index never goes back; expand finishes; skip and clamping.
 	t.equal(Tutorial.step({ index = 8, done = false }, facts({})).index, 8, "a fact turning false does not move back")
-	t.truthy(Tutorial.step({ index = 12, done = false }, facts({ level = 1 })).done, "the expansion ends it")
+	t.truthy(Tutorial.step({ index = 14, done = false }, facts({ level = 1 })).done, "the expansion ends it")
 	local skipped = Tutorial.skip(Tutorial.start())
 	t.truthy(skipped.done and Tutorial.current(skipped) == nil, "skip is final")
 	t.truthy(Tutorial.step(skipped, all).done, "a skipped tutorial stays done")
@@ -117,13 +147,17 @@ return function(t, load)
 	local fromState = Tutorial.facts({
 		lifetimeEarned = 10,
 		level = 1,
-		plants = { 2, 1 },
+		plants = { 2, 1, 4 },
 		nodes = { U12 = true, U17 = true },
-		land = { sites = { 3, 2 }, tools = { shovel = true }, container = true },
+		land = { sites = { 3, 2, 1 }, tools = { shovel = true, hammer = true }, container = true },
 	}, 30, 4, true)
 	t.truthy(fromState.mown == 3 and fromState.dug == 2 and fromState.panels == 2 and fromState.wheels == 1, "counts")
 	t.truthy(fromState.gear and fromState.shovel and fromState.container and fromState.level == 1, "owned things")
+	t.truthy(fromState.hammer and fromState.built == 1 and fromState.houses == 4, "house facts")
 	t.truthy(fromState.cranks == 4 and fromState.shown == 30 and fromState.earned == 10, "session facts")
 	local bare = Tutorial.facts({ nodes = {} }, 0, 0, false)
-	t.truthy(bare.mown == 0 and not bare.shovel and bare.panels == 0, "a run without land has no land facts")
+	t.truthy(
+		bare.mown == 0 and not bare.shovel and bare.panels == 0 and not bare.hammer and bare.houses == 0,
+		"a run without land has no land facts"
+	)
 end
