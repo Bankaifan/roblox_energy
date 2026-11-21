@@ -249,9 +249,10 @@ return function(t, load)
 		[6] = Steps[6],
 		[7] = Steps[7],
 		[8] = Steps[8],
+		[9] = Steps[9],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 9, "the profile is the current version afterwards")
+	t.equal(upgraded.v, 10, "the profile is the current version afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
 	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
@@ -268,7 +269,7 @@ return function(t, load)
 		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
 	}
 	local v2 = Data.migrate(v1, Steps)
-	t.equal(v2.v, 9, "a version 1 profile loads as the current version")
+	t.equal(v2.v, 10, "a version 1 profile loads as the current version")
 	t.equal(v2.passes.founder, nil, "a founder grant is no saved pass (migration 8 to 9 drops it)")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
@@ -280,7 +281,7 @@ return function(t, load)
 	-- Migration 2 to 3: a profile that has earned coins gets the old game's land; a fresh one gets the template.
 	local old2 = { v = 2, coins = 10, lifetimeEarned = 50, nodes = { U21 = true } }
 	local v3 = Data.migrate(old2, Steps)
-	t.equal(v3.v, 9, "a version 2 profile loads as the current version")
+	t.equal(v3.v, 10, "a version 2 profile loads as the current version")
 	t.truthy(same(v3.land.sites, { 4, 4, 4, 4, 4, 4 }), "the first row of every field is prepared")
 	t.equal(v3.land.tools.shovel, true, "the tools are owned")
 	t.equal(v3.land.tools.pliers, true, "the cable pliers are owned")
