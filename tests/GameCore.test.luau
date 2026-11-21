@@ -453,6 +453,53 @@ return function(t, load)
 	local kitOpen = GameCore.apply(kit, { type = "Prestige" }, open)
 	t.truthy(kitOpen.plants[1] == 4 and kitOpen.plants[2] == 2, "without required land the units come anyway")
 
+	-- Permanent plants (Robux): every run starts with them on top of the Starter Kit, on the same ground. The price of the
+	-- next unit counts them as owned.
+	local permEnv: any = table.clone(gated)
+	permEnv.permanent = { 2, 1, 0, 0, 0, 0 }
+	kit.land.sites[2] = 3
+	local permRun = GameCore.apply(kit, { type = "Prestige" }, permEnv)
+	t.truthy(permRun.plants[1] == 6 and permRun.plants[2] == 3, "permanent plants come on top of the Starter Kit")
+	kit.land.sites[1], kit.land.sites[2] = 5, 1
+	local permCapped = GameCore.apply(kit, { type = "Prestige" }, permEnv)
+	t.truthy(permCapped.plants[1] == 5 and permCapped.plants[2] == 1, "the ground limits them like the kit")
+	kit.land.sites[1], kit.land.sites[2] = 6, 3
+	local plain = GameCore.apply(kit, { type = "Prestige" }, gated)
+	t.truthy(plain.plants[1] == 4 and plain.plants[2] == 2, "without permanent plants the kit is as before")
+	local noKit = table.clone(kit)
+	noKit.pnodes = {}
+	local permOnly = GameCore.apply(noKit, { type = "Prestige" }, permEnv)
+	t.truthy(permOnly.plants[1] == 2 and permOnly.plants[2] == 1, "without S1 only the permanent plants")
+	local openPerm: any = table.clone(open)
+	openPerm.permanent = { 3 }
+	t.equal(
+		GameCore.apply(noKit, { type = "Prestige" }, openPerm).plants[1],
+		3,
+		"without required land they come anyway"
+	)
+	local noGround = table.clone(kit)
+	noGround.land = { sites = { 0, 0, 0, 0, 0, 0 }, cells = { {}, {}, {}, {}, {}, {} }, tools = { scythe = true } }
+	t.equal(
+		GameCore.apply(noGround, { type = "Prestige" }, permEnv).plants[1],
+		0,
+		"no prepared ground, no permanent units"
+	)
+	local pricey = GameCore.view(permRun, permEnv).plants[1]
+	t.equal(pricey.cost, Formulas.cost(Config.plants[1].baseCost, 6), "the next unit is priced as the seventh")
+	local junk: any = table.clone(gated)
+	junk.permanent = { -1, 1.5, "x", 0 / 0 }
+	t.truthy(GameCore.apply(kit, { type = "Prestige" }, junk).plants[1] == 4, "bad counts are ignored")
+
+	-- A permanent plant bought during a run: units at once as far as the ground carries them; never changes the input.
+	kit.plants = { 0, 0, 0, 0, 0, 0 }
+	local granted = GameCore.grantPlants(kit, gated, 1, 10)
+	t.equal(granted.plants[1], 6, "ten units are cut to the six sites")
+	t.equal(kit.plants[1], 0, "the input run is not changed")
+	t.equal(GameCore.grantPlants(granted, gated, 1, -4).plants[1], 2, "a negative count takes units back")
+	t.equal(GameCore.grantPlants(granted, gated, 1, -40).plants[1], 0, "never below 0")
+	t.equal(GameCore.grantPlants(kit, gated, 7, 1).plants[1], 0, "an unknown plant changes nothing")
+	t.equal(GameCore.grantPlants(kit, open, 1, 10).plants[1], 10, "without required land all of them")
+
 	-- S5 Sign Paint: SetPaint needs S5 and a colour from 1 to 6; the choice survives prestige. S6 is a flag.
 	local _, noPaintOk = GameCore.apply(rich5, { type = "SetPaint", color = 2 }, gated)
 	t.truthy(not noPaintOk, "SetPaint needs S5")
