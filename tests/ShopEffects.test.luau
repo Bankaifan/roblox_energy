@@ -174,6 +174,18 @@ return function(t, load)
 		end
 	end
 
+	-- Permanent plants: the count of the type in the profile, which the run start turns into units (GameCore tests).
+	for _, offer in Catalogue.offers do
+		if offer.plant ~= nil then
+			measures[offer.id] = function()
+				local builder = Data.template()
+				builder.built[offer.plant] = true
+				local after = Shop.purchase(builder, offer.id, DAY, Catalogue)
+				return builder.permanent[offer.plant], after.permanent[offer.plant]
+			end
+		end
+	end
+
 	for _, offer in Catalogue.offers do
 		if COSMETIC[offer.id] then
 			t.truthy(measures[offer.id] == nil, `{offer.id}: listed as cosmetic and as an effect`)
