@@ -56,6 +56,7 @@ type Record = {
 	builds: Folder?, -- post fences round the solar farm cells and guyed masts on the mini turbine cells
 	themeKey: string, -- the Plot Themes design shown now ("" = none)
 	look: string, -- the crank look shown now (Cosmetics.crankLook)
+	shellScale: number, -- the scale the container was built at (Cosmetics.containerScale)
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -376,7 +377,7 @@ local FURNITURE_MARGIN = 8
 -- The ground follows the land: bare earth with a wobbly outline around the crank and the market and under every prepared
 -- site; the rest stays meadow. Buying a unit never clears grass: only the tool does (Prepare). A field whose tool is owned and whose plant is revealed gets a low
 -- fence around the sites that are still to prepare. Terrain and fence are rebuilt only when their content changes.
-local function updateLand(record: Record, counts: { number }, land: any, paint: number?)
+local function updateLand(record: Record, counts: { number }, land: any, paint: number?, shellScale: number)
 	local ground, fence = {}, {}
 	for index in Assets.fields do
 		local total = Assets.siteCount(index)
@@ -388,8 +389,13 @@ local function updateLand(record: Record, counts: { number }, land: any, paint: 
 		table.insert(fence, if open then "open" else "-")
 	end
 	local container = land.container == true or #record.batteries > 0
+	if record.shell ~= nil and record.shellScale ~= shellScale then
+		record.shell:Destroy() -- the Mega Battery was bought: build the larger container
+		record.shell = nil
+	end
 	if container and record.shell == nil then
-		record.shell = PlantModels.container(record.origin, record.origin.Y, record.facing)
+		record.shellScale = shellScale
+		record.shell = PlantModels.container(record.origin, record.origin.Y, record.facing, shellScale)
 		record.shell.Parent = record.model
 	end
 	-- The river (field F2): each started cell is a segment, dug and then flooded; the trench replaces its bare patch.
@@ -853,6 +859,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		builds = nil,
 		themeKey = "",
 		look = "plain",
+		shellScale = 1,
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -909,6 +916,7 @@ function PlotService.update(
 		paint: number?,
 		golden: boolean?,
 		founder: boolean?,
+		mega: boolean?, -- Mega Battery owned: a larger container (Cosmetics.containerScale)
 	}?,
 	land: any?
 )
@@ -918,7 +926,8 @@ function PlotService.update(
 	end
 	local ownLand = land or Land.start
 	updateFurniture(record, extras or { stage = 0, control = false }, player)
-	updateLand(record, counts, ownLand, if extras ~= nil then extras.paint else nil)
+	local shellScale = Cosmetics.containerScale(extras ~= nil and extras.mega == true)
+	updateLand(record, counts, ownLand, if extras ~= nil then extras.paint else nil, shellScale)
 	updateFoundations(record, ownLand)
 	updateCables(record, ownLand)
 	updateBuilds(record, ownLand, counts)
