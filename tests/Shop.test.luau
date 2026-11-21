@@ -23,8 +23,8 @@ return function(t, load)
 		return Shop.purchase(profile, id, day or DAY, config or Catalogue)
 	end
 
-	-- The catalogue: eleven offers, unique IDs, the Robux prices and names the Bauplan gives.
-	t.equal(#Catalogue.offers, 11, "eleven offers")
+	-- The catalogue: twelve offers, unique IDs, the Robux prices and names the Bauplan gives.
+	t.equal(#Catalogue.offers, 12, "twelve offers")
 	local seen: { [string]: boolean } = {}
 	local passes, products = 0, 0
 	for _, offer in Catalogue.offers do
@@ -42,7 +42,7 @@ return function(t, load)
 			products += 1
 		end
 	end
-	t.equal(passes, 8, "eight passes")
+	t.equal(passes, 9, "nine passes")
 	t.equal(products, 3, "three products")
 
 	-- The product defaults (Bauplan section 10): daily limits on, Smart Hub extras at once.
