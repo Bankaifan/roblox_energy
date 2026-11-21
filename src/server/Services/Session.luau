@@ -335,6 +335,10 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 		DataService.sync(player, nextState)
 		LeaderboardService.observe(player, nextState.level, nextState.runEarned)
 		local view = GameCore.view(nextState, env)
+		if profile ~= nil then
+			view.crankOutput = GameCore.crankOutput(nextState, env, Shop.crankSpeed(profile.Data, Catalogue))
+			PlotService.setCrankOutput(player, view.crankOutput)
+		end
 		local storage = view.storage
 		PlotService.update(player, nextState.plants, {
 			stage = storage.stage,
