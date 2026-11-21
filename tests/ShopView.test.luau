@@ -322,9 +322,9 @@ return function(t, load)
 
 	-- Mega Battery: offered in the Storage tab from the second battery (U18) on, in both languages.
 	local function storageWith(nodes: { string }, lang: string?): { [string]: any }
-		local state = fresh()
+		local own = fresh()
 		for _, id in nodes do
-			state.nodes[id] = true
+			own.nodes[id] = true
 		end
 		local shop: any = table.clone(Catalogue)
 		shop.offers = {}
@@ -334,7 +334,7 @@ return function(t, load)
 			table.insert(shop.offers, copy)
 		end
 		local list = ShopView.cards("storage", {
-			view = GameCore.view(state, env),
+			view = GameCore.view(own, env),
 			coins = 0,
 			plants = config.plants,
 			upgrades = config.upgrades,
