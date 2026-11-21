@@ -1,6 +1,6 @@
 --!strict
 -- Tutorial arrow (design tutorial-v2, section 4.4): a bobbing arrow over the target the presentation names: the crank, the
--- market, or the spots of field 1 and of the river spring (invisible parts TutorialSpot1 and TutorialSpot2 in the own plot).
+-- market, or the spots of field 1, of the river spring and of field 3 (invisible parts TutorialSpot1 and TutorialSpot2 in the own plot).
 -- Client only, no game state. It fades out within FADE_NEAR studs of the target (the prompt itself takes over) and returns
 -- beyond FADE_FAR.
 local Players = game:GetService("Players")
@@ -14,6 +14,7 @@ local TARGETS: { [string]: string } = {
 	market = "ShopPrompt",
 	field1 = "TutorialSpot1",
 	field2 = "TutorialSpot2",
+	field3 = "TutorialSpot3",
 	wiring = "LandPromptwired",
 }
 local FADE_NEAR = 12
