@@ -236,7 +236,7 @@ return function(t, load)
 	end
 	local open = { shown = true, owned = {}, stock = 0, skipsLeft = 3 }
 	local listed = byId(extras(open, allPrices))
-	t.equal(#extras(open, allPrices), 12, "one card per offer with a price, the spark packs aside")
+	t.equal(#extras(open, allPrices), 13, "one card per offer with a price, the spark packs aside")
 	t.equal(#extras(open, {}), 0, "offers without a fetched price are hidden")
 	t.equal(#extras({ shown = false, owned = {}, stock = 0 }, allPrices), 0, "a hidden tab has no cards")
 	t.equal(listed["offer.founder"].price, "51 Robux", "the live price and the word Robux")
@@ -271,14 +271,14 @@ return function(t, load)
 	local function packFacts(level: number, missing: number): any
 		return { shown = true, owned = {}, stock = 0, skipsLeft = 3, level = level, sparksMissing = missing }
 	end
-	t.equal(#extras(packFacts(0, 215), allPrices), 12, "no spark pack before grid stage 1")
+	t.equal(#extras(packFacts(0, 215), allPrices), 13, "no spark pack before grid stage 1")
 	local stage1 = byId(extras(packFacts(1, 215), allPrices))
 	t.truthy(stage1["offer.sparks5"] ~= nil and stage1["offer.sparks40"] ~= nil, "all three packs from grid stage 1")
-	t.equal(#extras(packFacts(1, 215), allPrices), 15, "the Extras tab lists the packs")
+	t.equal(#extras(packFacts(1, 215), allPrices), 16, "the Extras tab lists the packs")
 	local needs = byId(extras(packFacts(1, 15), allPrices))
 	t.truthy(needs["offer.sparks15"] ~= nil and needs["offer.sparks5"] ~= nil, "packs up to the missing sparks stay")
 	t.equal(needs["offer.sparks40"], nil, "a pack larger than the missing sparks is hidden")
-	t.equal(#extras(packFacts(1, 0), allPrices), 12, "nothing missing: no pack")
+	t.equal(#extras(packFacts(1, 0), allPrices), 13, "nothing missing: no pack")
 	t.equal(stage1["offer.sparks15"].price, "63 Robux", "a pack shows the live price")
 	t.equal(stage1["offer.sparks15"].button.offer, "sparks15", "and opens the prompt of its offer")
 	t.truthy(string.find(stage1["offer.sparks5"].info, "5 sparks", 1, true) ~= nil, "English card text")
@@ -319,6 +319,40 @@ return function(t, load)
 	for _, offer in Catalogue.offers do
 		t.truthy(Locale.tables.de[`offer.{offer.id}.info`] ~= nil, `German text for {offer.id}`)
 	end
+
+	-- Mega Battery: offered in the Storage tab from the second battery (U18) on, in both languages.
+	local function storageWith(nodes: { string }, lang: string?): { [string]: any }
+		local state = fresh()
+		for _, id in nodes do
+			state.nodes[id] = true
+		end
+		local shop: any = table.clone(Catalogue)
+		shop.offers = {}
+		for index, offer in Catalogue.offers do
+			local copy: any = table.clone(offer)
+			copy.robloxId = 1000 + index
+			table.insert(shop.offers, copy)
+		end
+		local list = ShopView.cards("storage", {
+			view = GameCore.view(state, env),
+			coins = 0,
+			plants = config.plants,
+			upgrades = config.upgrades,
+			land = land,
+			offers = Offers.visible(shop, allPrices, lang or "en"),
+			extras = open,
+			shop = shop,
+			t = function(key: string, args: any): string
+				return Locale.t(key, lang or "en", args)
+			end,
+		})
+		return byId(list)
+	end
+	t.equal(storageWith({ "U17" })["offer.mega_battery"], nil, "no Mega Battery card with one battery")
+	local mega = storageWith({ "U17", "U18" })["offer.mega_battery"]
+	t.truthy(mega ~= nil and mega.button.offer == "mega_battery", "the Mega Battery card shows from U18 on")
+	t.truthy(string.find(mega.info, "1.5 times", 1, true) ~= nil, "English card text")
+	t.equal(storageWith({ "U17", "U18" }, "de")["offer.mega_battery"].title, "Riesenbatterie", "German name")
 
 	local function ids(list: { any }): string
 		local names = {}
