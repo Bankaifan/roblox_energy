@@ -31,7 +31,7 @@ for _, offer in Config.shop.offers do
 end
 local function buyer(passes: { [string]: boolean }, turbo: boolean, skips: number, sunshine: boolean?): any
 	local values = ShopCore.envValues({ passes = passes, boosters = {} }, Config.shop, sunshine == true, turbo)
-	return { income = values.income, boost = values.boost, skips = skips }
+	return { income = values.income, boost = values.boost, skips = skips, storageFactor = values.storageFactor }
 end
 
 -- clicks: cranks per second until `crankUntil` seconds of play; every: seconds between purchases;
@@ -52,6 +52,8 @@ Sim.BOTS = {
 	},
 }
 -- Everything that multiplies at once (Premium, Turbo, Sunshine Hour): Z11 checks that the cap holds.
+-- A buyer of the Mega Battery only: the storage capacity factor of the catalogue.
+Sim.MEGA_BATTERY = buyer({ mega_battery = true }, false, 0)
 Sim.FULL_STACK = buyer({ premium = true }, true, 0, true)
 local STORAGE_NODES = { U17 = true, U18 = true, U19 = true, U20 = true, U21 = true, U22 = true }
 local STORAGE_PLAN = { "U17", "U21", "U18", "U19", "U20", "U22" }
@@ -124,6 +126,7 @@ function Sim.envAt(seed: number, time: number, buy: any?): any
 	if buy ~= nil then
 		env.income = buy.income
 		env.boost = buy.boost
+		env.storageFactor = buy.storageFactor
 	end
 	return env
 end
@@ -389,13 +392,13 @@ function Sim.day(bot: any, seed: number): number
 	return state.level
 end
 
--- Run revenue of one day (720 s from Morgen) with an empty storage.
-function Sim.dayRevenue(state: any, seed: number): number
+-- Run revenue of one day (720 s from Morgen) with an empty storage. `buy`: what a buyer owns (Sim.MEGA_BATTERY).
+function Sim.dayRevenue(state: any, seed: number, buy: any?): number
 	local current = clone(state)
 	current.storage.charge = 0
 	local start = current.runEarned
 	for time = 0, 719 do
-		current = GameCore.tick(current, Sim.envAt(seed, time), 1)
+		current = GameCore.tick(current, Sim.envAt(seed, time, buy), 1)
 	end
 	return current.runEarned - start
 end
