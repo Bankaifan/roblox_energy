@@ -192,6 +192,22 @@ function Shop.purchase(profile: any, offerId: any, day: any, shop: any): (any, n
 	return result, offer.seconds, nil
 end
 
+-- The yield of an owned pass that is still unpaid (Founder Pack: 30 minutes, once per profile). Returns the new profile
+-- with the pass marked paid in `paid` (kept across sessions) and the seconds to pay out now; 0 and the input when the
+-- pass is not owned, has no yield or was paid before. Paying out the coins is up to the caller.
+function Shop.claimPassYield(profile: any, offerId: any, shop: any): (any, number)
+	local offer = findOffer(shop, offerId)
+	if offer == nil or offer.type ~= "pass" or offer.seconds == nil or profile.passes[offerId] ~= true then
+		return profile, 0
+	end
+	if profile.paid[offerId] == true then
+		return profile, 0
+	end
+	local result = copy(profile)
+	result.paid[offerId] = true
+	return result, offer.seconds
+end
+
 -- The product offer with this Roblox product ID, or nil. A placeholder ID (0) matches nothing, and passes never match.
 function Shop.offerForProduct(shop: any, productId: any): string?
 	if not isFinite(productId) then
