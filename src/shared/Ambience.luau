@@ -49,9 +49,22 @@ function Ambience.setup()
 	clouds.Color = Color3.fromRGB(255, 240, 228)
 end
 
--- Sets the look for one mood. Effects that are not there yet (still replicating) are skipped.
-function Ambience.apply(mood: any)
-	Lighting.Brightness = mood.brightness
+-- Sets the look for one mood and, when given, one weather look (Core/WeatherLook). The weather dims the day only: at night
+-- (mood.glow = 1) it changes nothing. Effects that are not there yet (still replicating) are skipped.
+function Ambience.apply(mood: any, look: any?)
+	local day = 1 - mood.glow
+	local light = 1
+	local haze = 1
+	if look ~= nil then
+		light = 1 - (1 - look.light) * day
+		haze = 1 + (look.haze - 1) * day
+		local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+		if clouds ~= nil then
+			clouds.Cover = look.cover
+			clouds.Density = look.density
+		end
+	end
+	Lighting.Brightness = mood.brightness * light
 	Lighting.ExposureCompensation = mood.exposure
 	Lighting.Ambient = color(mood.ambient)
 	Lighting.OutdoorAmbient = color(mood.outdoor)
@@ -60,7 +73,7 @@ function Ambience.apply(mood: any)
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if atmosphere ~= nil then
 		atmosphere.Density = mood.density
-		atmosphere.Haze = mood.haze
+		atmosphere.Haze = mood.haze * haze
 		atmosphere.Glare = mood.glare
 		atmosphere.Color = color(mood.air)
 		atmosphere.Decay = color(mood.decay)
@@ -77,7 +90,7 @@ function Ambience.apply(mood: any)
 	end
 	local rays = Lighting:FindFirstChildOfClass("SunRaysEffect")
 	if rays ~= nil then
-		rays.Intensity = mood.rays
+		rays.Intensity = mood.rays * light
 	end
 end
 
