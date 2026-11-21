@@ -59,6 +59,14 @@ return function(t, load)
 	flywheel.plants[3] = 10
 	t.truthy(math.abs(GameCore.view(flywheel, env(2, 1)).crank - 12.2) < 1e-6, "U13 adds 2 % of 560/s")
 
+	-- Crank output: coins per turn (energy x price factor) and per second at the given speed.
+	local output = GameCore.crankOutput(flywheel, env(2, 1), 6)
+	local factor = GameCore.view(flywheel, env(2, 1)).price.factor
+	t.truthy(math.abs(output.turn - 12.2 * factor) < 1e-6, "a turn pays the energy at the price factor")
+	t.truthy(math.abs(output.second - output.turn * 6) < 1e-6, "per second is the turn times the speed")
+	local cranked = GameCore.apply(flywheel, { type = "Crank" }, env(2, 1))
+	t.truthy(math.abs(cranked.coins - flywheel.coins - output.turn) < 1e-6, "a real turn pays exactly the shown amount")
+
 	-- Goal: the next grid expansion and the run earnings; nothing after the last level.
 	local earning = fresh()
 	earning.runEarned = 4000000
