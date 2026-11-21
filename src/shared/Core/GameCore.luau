@@ -303,8 +303,7 @@ local function storageStep(
 	generated: number,
 	dt: number
 ): (number, number, number, number, string)
-	local capacity =
-		env.formulas.storageCapacity(storageStage(state, env), middayOutput(state, env), env.storageFactor)
+	local capacity = env.formulas.storageCapacity(storageStage(state, env), middayOutput(state, env), env.storageFactor)
 	local efficiency = storageEfficiency(state, env)
 	local charge = math.min(state.storage.charge, capacity)
 	local rate = capacity / env.config.effects.storageRateSeconds * dt
