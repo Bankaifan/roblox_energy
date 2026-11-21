@@ -47,3 +47,14 @@ def test_crank_is_not_a_hud_button_and_buttons_keep_touch_size():
     code = "\n".join(code_lines())
     assert 'send("Crank")' not in code
     assert re.search(r"local BUTTON_MIN_HEIGHT = 44\b", HUD)
+
+
+MARKET = (ROOT / "src" / "client" / "Controllers" / "Market.luau").read_text(encoding="utf-8")
+
+
+def test_market_permanent_plant_lines_wrap_and_the_card_grows():
+    # The cyan permanent plant lines (issue 252) wrap instead of being cut off, and the card height counts them.
+    assert re.search(r"control\.TextWrapped = true", MARKET)
+    assert "permanentHeights(card)" in MARKET
+    assert MARKET.count("permanentHeights(card)") >= 2
+    assert "TextTruncate" not in re.search(r"Permanent\{line\}.*?permanent\[line\] = control", MARKET, re.S).group(0)
