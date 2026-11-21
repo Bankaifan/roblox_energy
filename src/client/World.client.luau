@@ -10,6 +10,9 @@ local DayCycle = require(Shared:WaitForChild("Core"):WaitForChild("DayCycle") ::
 local Phases = require(Shared:WaitForChild("Config"):WaitForChild("Phases") :: ModuleScript) :: any
 local Ambience = require(Shared:WaitForChild("Ambience") :: ModuleScript) :: any
 local TurnRange = require(Shared:WaitForChild("Core"):WaitForChild("TurnRange") :: ModuleScript) :: any
+local WeatherLook = require(Shared:WaitForChild("Core"):WaitForChild("WeatherLook") :: ModuleScript) :: any
+local Weathers = require(Shared:WaitForChild("Config"):WaitForChild("Weather") :: ModuleScript) :: any
+local UserInputService = game:GetService("UserInputService")
 
 local MOOD_SECONDS = 0.25
 local ROTOR_SPEED = 0.8 -- radians per second
@@ -61,7 +64,7 @@ local function queueTurn(turner: Turner, pivot: CFrame, outParts: { BasePart }, 
 	end
 end
 
-local function turnAll(now: number)
+local function turnAll(now: number, rotorAngle: number)
 	local camera = workspace.CurrentCamera
 	if camera == nil then
 		return
@@ -72,7 +75,7 @@ local function turnAll(now: number)
 	for _, turner in rotors do
 		local p = turner.base.Position
 		if TurnRange.within(p.X, p.Y, p.Z, eye.X, eye.Y, eye.Z, range + turner.reach) then
-			local angle = (now * ROTOR_SPEED + p.X) % (2 * math.pi)
+			local angle = (rotorAngle + p.X) % (2 * math.pi)
 			queueTurn(turner, turner.base * CFrame.Angles(0, 0, angle), parts, frames)
 		end
 	end
@@ -140,18 +143,108 @@ local function glowPlants(glow: number)
 	end
 end
 
+-- Weather (issue 288): the id comes from the server's Env message, the same one the HUD reads. The look blends from the previous
+-- one to the new one over WeatherLook.BLEND_SECONDS; nothing here decides a weather.
+local fromLook: any = nil
+local toLook: any = nil
+local blendStart = 0
+local function currentLook(): any
+	if toLook == nil then
+		return nil
+	end
+	return WeatherLook.blend(fromLook, toLook, WeatherLook.share(os.clock() - blendStart))
+end
+
+local net = ReplicatedStorage:WaitForChild("Net")
+local envRemote = net:WaitForChild("Env") :: RemoteEvent
+envRemote.OnClientEvent:Connect(function(payload: any)
+	local look = WeatherLook.of(Weathers, payload.weather)
+	if look == nil then
+		return
+	end
+	fromLook = currentLook() or look
+	toLook = look
+	blendStart = os.clock()
+end)
+
+-- At most two emitters, on one part that follows the camera; half the rate on touch devices.
+local TOUCH_FACTOR = if UserInputService.TouchEnabled then 0.5 else 1
+local weatherPart = Instance.new("Part")
+weatherPart.Name = "WeatherParticles"
+weatherPart.Anchored = true
+weatherPart.CanCollide = false
+weatherPart.CanQuery = false
+weatherPart.CanTouch = false
+weatherPart.Transparency = 1
+weatherPart.Size = Vector3.new(80, 1, 80)
+
+local rain = Instance.new("ParticleEmitter")
+rain.Name = "Rain"
+rain.Rate = 0
+rain.Lifetime = NumberRange.new(0.9, 1.1)
+rain.Speed = NumberRange.new(70, 80)
+rain.EmissionDirection = Enum.NormalId.Bottom
+rain.Orientation = Enum.ParticleOrientation.VelocityParallel
+rain.Size = NumberSequence.new(0.35)
+rain.Color = ColorSequence.new(Color3.fromRGB(170, 190, 220))
+rain.Transparency = NumberSequence.new(0.45)
+rain.Parent = weatherPart
+
+local streaks = Instance.new("ParticleEmitter")
+streaks.Name = "WindStreaks"
+streaks.Rate = 0
+streaks.Lifetime = NumberRange.new(1.4, 1.8)
+streaks.Speed = NumberRange.new(36, 44)
+streaks.EmissionDirection = Enum.NormalId.Right
+streaks.Orientation = Enum.ParticleOrientation.VelocityParallel
+streaks.Size = NumberSequence.new(0.5)
+streaks.Color = ColorSequence.new(Color3.fromRGB(235, 240, 245))
+streaks.Transparency = NumberSequence.new(0.7)
+streaks.Parent = weatherPart
+weatherPart.Parent = workspace
+
+local rotorAngle = 0
+local nextFlash = os.clock() + 8
+local flashAt = -1
+
+local function weatherEffects(look: any, delta: number)
+	rotorAngle = (rotorAngle + ROTOR_SPEED * look.rotor * delta) % (2 * math.pi)
+	rain.Rate = look.rain * TOUCH_FACTOR
+	streaks.Rate = look.streaks * TOUCH_FACTOR
+	local camera = workspace.CurrentCamera
+	if camera ~= nil then
+		weatherPart.Position = camera.CFrame.Position + Vector3.new(0, 30, 0)
+	end
+	local correction = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+	if correction == nil then
+		return
+	end
+	local clock = os.clock()
+	if toLook ~= nil and toLook.flash and clock >= nextFlash then
+		flashAt = clock
+		nextFlash = clock + 8 + math.random() * 12
+	end
+	correction.Brightness = math.max(0, 1 - (clock - flashAt) / 0.25) * 0.35
+end
+
 local sinceMood = math.huge
 RunService.Heartbeat:Connect(function(delta: number)
 	local now = workspace:GetServerTimeNow()
 	local clock = DayCycle.clockAt(now, Phases)
 	Lighting.ClockTime = clock
-	turnAll(now)
+	local look = currentLook()
+	if look ~= nil then
+		weatherEffects(look, delta)
+	else
+		rotorAngle = (rotorAngle + ROTOR_SPEED * delta) % (2 * math.pi)
+	end
+	turnAll(now, rotorAngle)
 
 	sinceMood += delta
 	if sinceMood >= MOOD_SECONDS then
 		sinceMood = 0
 		local mood = DayCycle.mood(clock)
-		Ambience.apply(mood)
+		Ambience.apply(mood, look)
 		glowProps(mood.glow)
 		glowPlants(mood.glow)
 	end
