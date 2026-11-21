@@ -64,9 +64,9 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 10, the default profile of Bauplan section 5.
+	-- The template: version 11, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 10, "the template is version 10")
+	t.equal(template.v, 11, "the template is version 11")
 	t.equal(template.tutorial, 1, "a new profile starts the tutorial at its first step")
 	t.equal(template.tutorialDone, false, "a new profile has not finished the tutorial")
 	t.equal(template.land.tools.scythe, true, "the scythe is owned from the start")
@@ -91,6 +91,8 @@ return function(t, load)
 	run.sparks = 8
 	run.sparksSpent = 3
 	run.plants = { 5, 2, 0, 1, 0, 0 }
+	run.built = { true, true, false, true, false, false }
+	run.permanent = { 3, 0, 0, 0, 0, 0 }
 	run.nodes = { U01 = true, U12 = true }
 	run.pnodes = { P1 = true, P2 = true }
 	run.storage = { charge = 40.5, mode = "charge" }
@@ -188,7 +190,7 @@ return function(t, load)
 		},
 	}
 	local migrated = Data.migrate(slotted, Steps)
-	t.equal(migrated.v, 10, "the profile is version 10 afterwards")
+	t.equal(migrated.v, 11, "the profile is version 11 afterwards")
 	t.truthy(same(migrated.rules.charge, { th = 0.8, on = true }), "of two charge slots the switched-on one wins")
 	t.truthy(same(migrated.rules.sell, { th = 1.2, on = true }), "the sell slot becomes the sell rule")
 	t.equal(migrated.rules["1"], nil, "no slot key is left")
@@ -213,12 +215,34 @@ return function(t, load)
 	t.truthy(paint5.pnodes.S1 == true and paint5.pnodes.P2 == true, "spark items are kept in pnodes")
 	local owned = Data.migrate({ v = 8, passes = { premium = true, smart_hub = true } }, Steps)
 	t.equal(next(owned.passes), nil, "saved pass flags are dropped by the 8 to 9 migration")
-	t.equal(owned.v, 10, "the pass fixture ends at version 10")
+	t.equal(owned.v, 11, "the pass fixture ends at version 11")
 	-- Version 9 -> 10: a profile gets sparksBought 0; a saved count stays, a bad one is 0, and it is not part of the run.
 	t.equal(Data.migrate({ v = 9, sparks = 4 }, Steps).sparksBought, 0, "a version 9 profile has bought no sparks")
 	t.equal(Data.migrate({ v = 9, sparksBought = 15 }, Steps).sparksBought, 15, "a saved count of bought sparks stays")
 	t.equal(Data.migrate({ v = 9, sparksBought = -3 }, Steps).sparksBought, 0, "a negative count is dropped")
 	t.equal(Data.toState(Data.template()).sparksBought, nil, "bought sparks are not a run field")
+	-- Version 10 -> 11 (issue 252): permanent plants start at 0; a type the saved run holds counts as built; a saved count
+	-- stays, a bad one is dropped; the flags are not part of the run, but sync sets a type built when the run holds a plant.
+	local v10 = Data.migrate({ v = 10, plants = { 3, 0, 2, 0, 0, 0 }, permanent = { 2, 99, -1, "x" } }, Steps)
+	t.equal(v10.v, 11, "a version 10 profile is lifted to version 11")
+	t.truthy(same(v10.permanent, { 2, 99, 0, 0, 0, 0 }), "saved permanent plants stay, bad ones are 0")
+	t.truthy(same(v10.built, { true, false, true, false, false, false }), "the types of the saved run count as built")
+	t.truthy(same(Data.migrate({ v = 10 }, Steps).permanent, { 0, 0, 0, 0, 0, 0 }), "no permanent plants before")
+	t.truthy(same(Data.migrate({ v = 10 }, Steps).built, Data.template().built), "nothing built in an empty profile")
+	t.equal(Data.toState(v10).permanent, nil, "permanent plants are not a run field")
+	local synced = Data.template()
+	synced.built[2] = true
+	local running = Data.toState(synced)
+	running.plants = { 0, 0, 0, 1, 0, 0 }
+	t.truthy(
+		same(Data.fromState(running, synced).built, { false, true, false, true, false, false }),
+		"a built type stays built"
+	)
+	local noBase = Data.fromState(running, { v = 11 })
+	t.truthy(
+		same(noBase.built, { false, false, false, true, false, false }),
+		"a base without flags gets them from the run"
+	)
 	t.equal(Data.migrate({ v = 6, paint = 4 }, Steps).paint, 4, "a saved colour stays")
 	t.equal(Data.migrate({ v = 6, paint = 9 }, Steps).paint, 0, "a colour out of range is dropped")
 	t.equal(Data.migrate({ v = 6, paint = 2.5 }, Steps).paint, 0, "a fractional colour is dropped")
@@ -226,7 +250,7 @@ return function(t, load)
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 11
+	newer.v = 12
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
@@ -250,9 +274,10 @@ return function(t, load)
 		[7] = Steps[7],
 		[8] = Steps[8],
 		[9] = Steps[9],
+		[10] = Steps[10],
 	}
 	local upgraded = Data.migrate(old, example)
-	t.equal(upgraded.v, 10, "the profile is the current version afterwards")
+	t.equal(upgraded.v, 11, "the profile is the current version afterwards")
 	t.equal(upgraded.coins, 50, "step 0 to 1 renames the field")
 	t.equal(upgraded.money, nil, "the old field is gone")
 	t.equal(upgraded.plants[1], 0, "fields new in version 2 come from the template")
@@ -269,7 +294,7 @@ return function(t, load)
 		grants = { founder = true, boostSeconds = 0, skipDay = 20000, skipCount = 2 },
 	}
 	local v2 = Data.migrate(v1, Steps)
-	t.equal(v2.v, 10, "a version 1 profile loads as the current version")
+	t.equal(v2.v, 11, "a version 1 profile loads as the current version")
 	t.equal(v2.passes.founder, nil, "a founder grant is no saved pass (migration 8 to 9 drops it)")
 	t.equal(v2.daily.day, 20000, "the Time Skip day is kept")
 	t.equal(v2.daily.skips, 2, "the Time Skip count is kept")
@@ -281,7 +306,7 @@ return function(t, load)
 	-- Migration 2 to 3: a profile that has earned coins gets the old game's land; a fresh one gets the template.
 	local old2 = { v = 2, coins = 10, lifetimeEarned = 50, nodes = { U21 = true } }
 	local v3 = Data.migrate(old2, Steps)
-	t.equal(v3.v, 10, "a version 2 profile loads as the current version")
+	t.equal(v3.v, 11, "a version 2 profile loads as the current version")
 	t.truthy(same(v3.land.sites, { 4, 4, 4, 4, 4, 4 }), "the first row of every field is prepared")
 	t.equal(v3.land.tools.shovel, true, "the tools are owned")
 	t.equal(v3.land.tools.pliers, true, "the cable pliers are owned")
