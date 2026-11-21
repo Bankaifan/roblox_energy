@@ -1,5 +1,5 @@
 --!strict
--- The monetisation catalogue (Bauplan.md, section 4): the 11 offers with their Robux prices and English and German
+-- The monetisation catalogue (Bauplan.md, section 4): the 14 offers with their Robux prices and English and German
 -- names, and the product defaults of section 10 (open questions 1 and 2), which Daniel can flip here. Pass and product
 -- IDs are 0 until Daniel fills them in from the Creator Hub. Read by Core/Shop and Core/Hints.
 return {
@@ -20,7 +20,8 @@ return {
 	crankLimit = 8, -- cranks per second at most, hand and Kurbelmotor together (the Net limit of "Crank")
 
 	-- type: "pass" (owned once) or "product" (bought again and again). seconds: cut yield or booster length.
-	-- queued: the booster joins the queue. daily: counted against skipsPerDay.
+	-- queued: the booster joins the queue. daily: counted against skipsPerDay. sparks: a spark pack, adds that many
+	-- sparks; granted only while the sparks still missing for all permanent nodes and spark items are at least that many.
 	offers = {
 		{
 			id = "founder",
@@ -66,6 +67,9 @@ return {
 			seconds = 900,
 			queued = true,
 		},
+		{ id = "sparks5", type = "product", robux = 79, robloxId = 0, en = "5 Sparks", de = "5 Funken", sparks = 5 },
+		{ id = "sparks15", type = "product", robux = 199, robloxId = 0, en = "15 Sparks", de = "15 Funken", sparks = 15 },
+		{ id = "sparks40", type = "product", robux = 449, robloxId = 0, en = "40 Sparks", de = "40 Funken", sparks = 40 },
 		{
 			id = "timeskip",
 			type = "product",
