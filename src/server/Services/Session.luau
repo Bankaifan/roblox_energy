@@ -347,6 +347,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			paint = nextState.paint,
 			golden = nextState.pnodes.S6 == true,
 			founder = profile ~= nil and profile.Data.passes.founder == true,
+			mega = profile ~= nil and profile.Data.passes.mega_battery == true,
 		}, nextState.land)
 		LandService.refresh(player, nextState)
 		ToolService.refresh(player, nextState.land or config.land.start)
