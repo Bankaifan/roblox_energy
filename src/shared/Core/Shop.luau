@@ -143,7 +143,8 @@ end
 
 -- The values the server passes into GameCore.env: income (sale price, Premium and Turbo, at most multiplierCap),
 -- boost (generation, Sunshine Hour; cut so that income x boost stays within multiplierCap), longMeter, ruleSlots
--- (nil without the Smart Hub: the core keeps its base) and autoBuild. `sunshine` and `turbo` say which boosters run.
+-- (nil without the Smart Hub: the core keeps its base), autoBuild and
+-- storageFactor (Mega Battery). `sunshine` and `turbo` say which boosters run.
 function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boolean): { [string]: any }
 	local income = Shop.saleMultiplier(profile, shop)
 	if turbo then
@@ -161,7 +162,16 @@ function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boole
 		longMeter = Shop.offlineBonusHours(profile, shop) > 0,
 		ruleSlots = if slots > 0 then slots else nil,
 		autoBuild = auto,
+		storageFactor = Shop.storageFactor(profile, shop),
 	}
+end
+
+-- Mega Battery: the factor on the storage capacity, else 1.
+function Shop.storageFactor(profile: any, shop: any): number
+	if profile.passes.mega_battery == true then
+		return shop.megaBatteryFactor
+	end
+	return 1
 end
 
 -- Smart Hub: the rule slots and the auto-build it gives at once. With smartHubImmediate off it gives nothing.
