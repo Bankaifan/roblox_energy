@@ -29,9 +29,24 @@ for _, offer in Config.shop.offers do
 		SKIP_SECONDS = offer.seconds
 	end
 end
-local function buyer(passes: { [string]: boolean }, turbo: boolean, skips: number, sunshine: boolean?): any
-	local values = ShopCore.envValues({ passes = passes, boosters = {} }, Config.shop, sunshine == true, turbo)
-	return { income = values.income, boost = values.boost, skips = skips, storageFactor = values.storageFactor }
+-- `permanent`: permanent plants of every type (Robux), which every run after an expansion starts with.
+local function buyer(
+	passes: { [string]: boolean },
+	turbo: boolean,
+	skips: number,
+	sunshine: boolean?,
+	permanent: number?
+): any
+	local units = permanent or 0
+	local profile = { passes = passes, boosters = {}, permanent = { units, units, units, units, units, units } }
+	local values = ShopCore.envValues(profile, Config.shop, sunshine == true, turbo)
+	return {
+		income = values.income,
+		boost = values.boost,
+		skips = skips,
+		storageFactor = values.storageFactor,
+		permanent = values.permanent,
+	}
 end
 
 -- clicks: cranks per second until `crankUntil` seconds of play; every: seconds between purchases;
@@ -49,6 +64,14 @@ Sim.BOTS = {
 		every = 1,
 		rank = true,
 		buy = buyer({}, false, Config.shop.skipsPerDay),
+	},
+	-- Ten permanent plants of every type (issue 252): the buyer built each type once and then bought them all.
+	permanent = {
+		clicks = 8,
+		crankUntil = math.huge,
+		every = 1,
+		rank = true,
+		buy = buyer({}, false, 0, false, Config.shop.permanentLimit),
 	},
 }
 -- A buyer of the Mega Battery only: the storage capacity factor of the catalogue.
@@ -127,6 +150,7 @@ function Sim.envAt(seed: number, time: number, buy: any?): any
 		env.income = buy.income
 		env.boost = buy.boost
 		env.storageFactor = buy.storageFactor
+		env.permanent = buy.permanent
 	end
 	return env
 end
