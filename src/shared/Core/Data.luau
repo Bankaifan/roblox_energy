@@ -5,7 +5,7 @@
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 9 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps (tool chains); 6: tutorial step; 7: paint, the colour of S5 Sign Paint; 8: tutorial v2, twelve steps; 9: saved pass flags dropped (Migrations/Steps)
+local VERSION = 10 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps (tool chains); 6: tutorial step; 7: paint, the colour of S5 Sign Paint; 8: tutorial v2, twelve steps; 9: saved pass flags dropped (Migrations/Steps); 10: sparksBought, sparks bought with Robux
 local MAX_SITES = { 25, 7, 7, 7, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design-v2.md, section 2)
 local CHAIN_LENGTH = { 1, 2, 2, 2, 3, 3 } -- stages of one cell per field (Config/Land chains)
 local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
@@ -52,6 +52,7 @@ local function template(): Profile
 		level = 0,
 		sparks = 0,
 		sparksSpent = 0,
+		sparksBought = 0, -- sparks bought with Robux (spark packs), already part of `sparks`
 		plants = { 0, 0, 0, 0, 0, 0 },
 		nodes = {},
 		pnodes = {},
