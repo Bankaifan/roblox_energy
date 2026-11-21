@@ -99,7 +99,7 @@ local function megaGain(state: any, buy: any): number?
 end
 
 local runs: { [string]: { any } } = {}
-for _, name in { "optimal", "occasional", "child", "premium", "turbo", "skips" } do
+for _, name in { "optimal", "occasional", "child", "premium", "turbo", "skips", "permanent" } do
 	runs[name] = {}
 	for _, start in STARTS do
 		for _, seed in SEEDS do
@@ -114,6 +114,7 @@ local BUYERS = {
 	{ name = "Premium Tariff", key = "premium" },
 	{ name = "Premium plus permanent Turbo", key = "turbo" },
 	{ name = "three Time Skips", key = "skips" },
+	{ name = "10 permanent plants of every type", key = "permanent" },
 }
 
 type Row = { id: string, measure: string, target: string, value: string, ok: boolean }
@@ -405,7 +406,7 @@ lines[#lines + 1] =
 lines[#lines + 1] =
 	"- Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (720 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22)."
 lines[#lines + 1] =
-	"- Buyers (optimal bot plus purchases from the start): Premium Tariff (income x1.5), Premium plus a permanent Turbo Feed-in (x3, the cap), three Time Skips (20 min of average yield each, paid after 10, 20 and 30 min of play). Income factor = coins earned in the first hour of play against the optimal bot without purchases, same seed and start; it compounds through the stage resets, so it is far above the income multiplier."
+	"- Buyers (optimal bot plus purchases from the start): Premium Tariff (income x1.5), Premium plus a permanent Turbo Feed-in (x3, the cap), three Time Skips (20 min of average yield each, paid after 10, 20 and 30 min of play), and ten permanent plants of every type (every run after an expansion starts with them, on top of the Starter Kit, as far as the ground carries them; no coins are spent on them). Income factor = coins earned in the first hour of play against the optimal bot without purchases, same seed and start; it compounds through the stage resets, so it is far above the income multiplier."
 lines[#lines + 1] =
 	"- Z11: the largest income x generation factor over the buyer runs, and with Premium, Turbo and Sunshine Hour all on (Core/Shop.envValues caps the product at multiplierCap)."
 lines[#lines + 1] =
