@@ -49,9 +49,19 @@ function Ambience.setup()
 	clouds.Color = Color3.fromRGB(255, 240, 228)
 end
 
--- Sets the look for one mood. Effects that are not there yet (still replicating) are skipped.
-function Ambience.apply(mood: any)
-	Lighting.Brightness = mood.brightness
+-- Sets the look for one mood. `look` (Core/WeatherLook, optional) puts the weather on top: clouds, and the mood's brightness and haze
+-- multiplied, so a night stays dark. Effects that are not there yet (still replicating) are skipped.
+function Ambience.apply(mood: any, look: any?)
+	local brightness = if look ~= nil then look.brightness else 1
+	local haze = if look ~= nil then look.haze else 1
+	if look ~= nil then
+		local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+		if clouds ~= nil then
+			clouds.Cover = look.cover
+			clouds.Density = look.density
+		end
+	end
+	Lighting.Brightness = mood.brightness * brightness
 	Lighting.ExposureCompensation = mood.exposure
 	Lighting.Ambient = color(mood.ambient)
 	Lighting.OutdoorAmbient = color(mood.outdoor)
@@ -60,7 +70,7 @@ function Ambience.apply(mood: any)
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if atmosphere ~= nil then
 		atmosphere.Density = mood.density
-		atmosphere.Haze = mood.haze
+		atmosphere.Haze = mood.haze * haze
 		atmosphere.Glare = mood.glare
 		atmosphere.Color = color(mood.air)
 		atmosphere.Decay = color(mood.decay)
