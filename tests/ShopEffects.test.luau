@@ -113,6 +113,36 @@ return function(t, load)
 		end,
 	}
 
+	-- Time Skip and Founder Pack pay their yield (issue 242): 20 and 30 minutes of average yield at the full rate, no
+	-- offline efficiency and no offline cap; it counts as run revenue; a Time Skip receipt pays once.
+	local skipEnv = envOf(base)
+	local perSecond = GameCore.yield(run(), 1, skipEnv)
+	t.truthy(perSecond > 0, "the run has an average yield")
+	local timeskip = Catalogue.offers[#Catalogue.offers]
+	t.equal(timeskip.id, "timeskip", "the Time Skip is the last offer")
+	t.equal(timeskip.seconds, 1200, "a Time Skip is 20 minutes")
+	local skipCoins = GameCore.yield(run(), timeskip.seconds, skipEnv)
+	t.truthy(math.abs(skipCoins - (perSecond * 1200)) < 1e-6, "a Time Skip is 20 minutes of yield")
+	t.truthy(skipCoins > GameCore.offline(run(), 1200, skipEnv).coins, "full rate: more than the offline credit")
+	local longAway = GameCore.offline(run(), 1e9, skipEnv).coins
+	t.truthy(GameCore.yield(run(), 3600 * 100, skipEnv) > longAway, "and not limited by the offline cap")
+	local paid = GameCore.payout(run(), skipCoins)
+	t.truthy(math.abs(paid.coins - skipCoins) < 1e-6, "the yield is paid as coins")
+	t.truthy(math.abs(paid.runEarned - skipCoins) < 1e-6, "it counts as run revenue")
+	t.truthy(math.abs(paid.lifetimeEarned - skipCoins) < 1e-6, "and as lifetime revenue")
+	t.equal(GameCore.payout(paid, -skipCoins * 2).coins, 0, "taking a payout back never goes below 0")
+	local receipted, status, receiptSeconds = Shop.receipt(base, "r1", "timeskip", DAY, Catalogue)
+	t.equal(status, "granted", "a Time Skip receipt is granted")
+	t.equal(receiptSeconds, 1200, "with its 20 minutes")
+	local _, dupStatus, dupSeconds = Shop.receipt(receipted, "r1", "timeskip", DAY, Catalogue)
+	t.equal(dupStatus, "duplicate", "the same receipt again is a duplicate")
+	t.equal(dupSeconds, 0, "and pays nothing")
+	local founderSeconds = select(2, Shop.claimPassYield(owned("founder"), "founder", Catalogue))
+	t.truthy(
+		math.abs(GameCore.yield(run(), founderSeconds, skipEnv) - perSecond * 1800) < 1e-6,
+		"the Founder Pack pays 30 minutes"
+	)
+
 	for _, offer in Catalogue.offers do
 		if COSMETIC[offer.id] then
 			t.truthy(measures[offer.id] == nil, `{offer.id}: listed as cosmetic and as an effect`)
