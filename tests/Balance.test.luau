@@ -16,6 +16,17 @@ return function(t)
 		t.truthy(owned == 0 or first.land.sites[index] >= 1, `plant {index} is only owned with a prepared site`)
 	end
 
+	-- Buyers: the shop factors reach the env, the cap holds, and the Time Skips pay out three times on day one.
+	t.equal(Sim.BOTS.premium.buy.income, 1.5, "Premium Tariff: income x1.5")
+	t.equal(Sim.BOTS.turbo.buy.income, 3, "Premium plus Turbo: income x3")
+	t.truthy(Sim.FULL_STACK.income * Sim.FULL_STACK.boost <= 3, "all boosters together stay within x3")
+	local record = Sim.record()
+	Sim.play(Sim.BOTS.skips, Sim.fresh(), 1, 0, 2000, record)
+	t.equal(record.skipped, 3, "three Time Skips on day one")
+	local plain = Sim.record()
+	Sim.play(Sim.BOTS.optimal, Sim.fresh(), 1, 0, 2000, plain)
+	t.equal(plain.skipped, 0, "the optimal bot buys nothing")
+
 	local stage4 = Sim.withStorage(first, 4)
 	t.truthy(stage4.nodes.U20 == true and stage4.nodes.U22 == nil, "stage 4 is U17 to U20 without U22")
 	t.truthy(stage4.rules.charge.on and stage4.rules.sell.th == 1.2, "stage 1 and up come with the two rules")
