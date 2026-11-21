@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+## [0.14] - 2026-11-21
+- Ein gebautes Haus auf dem Dach-PV-Feld steht nach dem Hammer als leeres Haus da; mit dem Kauf des Dach-PV kommen die Module dazu.
+- bare house cells (PlotLayout.bare), panel models stripped from the house clone
+- Each player spawns on a platform at their own plot.
+- Field work can be done in any order: mow all cells first, work them on later.
+- The tutorial text is a box at the top centre with a yellow border; the income per second is large in the top right corner.
+- The income per second is large in the top right corner.
+- The production tab opens only at the control board, not in the shop.
+- Shop cards grow to fit their text, so nothing is cut off.
+- After buying Mounting Rails or Cable Pliers the tutorial points at aligning or wiring until it is done.
+- Gemähte Zellen sind bis zum Rand kahl, Nachbarzellen bleiben Gras: man sieht, wo noch gemäht werden muss.
+- Jeder Netz-Ausbau bringt 3 Funken mehr (8 bis 35, zusammen 215), sodass alle Funken-Upgrades ohne Bezahlung erreichbar sind.
+- Premium-Tarif, Sonnenstunde, Turbo-Einspeisung, Langzeit-Zähler und Smart-Zentrale wirken jetzt im Spiel (Verkaufspreis, Erzeugung, Offline-Deckel, dritte Regel, Auto-Bau).
+- Zeitsprung zahlt jetzt 20 Minuten Ertrag aus, das Gründer-Paket einmalig 30 Minuten; Langzeit-Zähler zählt schon bei der Offline-Gutschrift.
+- Pässe zählen nur noch, wenn Roblox sie in dieser Sitzung bestätigt; gespeicherte Pass-Flags werden entfernt.
+- Der Shop liest die Robux-Preise zur Laufzeit von Roblox (regionale Preise); Angebote ohne ID oder Preis bleiben verborgen.
+- Neue geplante Robux-Preise: Turbo 39, Sonnenstunde 99, Long Meter 129, Smart Hub 199, Premium 349, VIP 399.
+- Neuer Reiter Extras im Marktfenster listet die Robux-Angebote mit Live-Preis, ab Minute 12 und nur ohne Tutorial.
+- Neue stille Kaufhinweise: Gründerpaket, Smart-Zentrale, Premium-Tarif und Langzeit-Zähler erscheinen als eine Zeile an ihrem Ort und führen zur Extras-Karte.
+- Der Balance-Bericht misst jetzt Läufe mit Käufen (Premium-Tarif, Premium plus Turbo, drei Zeitsprünge); Z11 ist gemessen (höchstens x3).
+- Pass Auto Crank / Kurbelmotor: der Server dreht die Kurbel 4-mal pro Sekunde, solange der Spieler online ist (mit Handkurbeln höchstens 8 pro Sekunde).
+- Die Riesenbatterie (249 Robux) macht den Speicher 1,5-mal so groß; erhältlich im Speicher-Tab ab dem zweiten Akku und unter Extras.
+- Funken-Pakete für Robux (5, 15 und 40 Funken) im Funken-Tab und im Extras-Tab; sie lassen sich nur kaufen, solange dir noch mindestens so viele Funken für Ausbauten fehlen.
+- Anlagen lassen sich für Robux als Stamm-Anlagen kaufen (bis zu 10 je Typ) und bleiben nach jedem Netz-Ausbau erhalten.
+- Gründer-Paket: kupferne Kurbel und Gründer-Schild am Grundstück, mit S6 gewinnt die goldene Kurbel.
+- Neon-Anlagen, Ausbau-Feuerwerk und Themen-Grundstück wirken jetzt: Leuchten und Thema sind wählbar, das Feuerwerk samt Server-Meldung kommt bei jedem Netz-Ausbau.
+- Der Riesenbatterie-Pass zeigt jetzt einen sichtbar größeren Container am Grundstück.
+- Windrad: Rotor dreht sich um seine Nabe auf waagerechter Achse, und das Windrad steht mittig auf seinem Sockel.
+- Das Tutorial führt jetzt durch den Hausbau: Hammer kaufen, dann Sense und Hammer auf dem Hausfeld einsetzen.
+- Die Kurbel zeigt am Prompt, wie viele Münzen eine Drehung und eine Sekunde einbringen.
+
 ## [0.13] - 2026-11-20
 - Welcome screen after the join: shows the time away and the offline coins, with one Collect button.
 - Saved data moves to version 2 (migration step 1 to 2) as the base for the shop catalogue.
