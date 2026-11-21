@@ -23,4 +23,5 @@ return function(t, load)
 	-- The river of the plot: every point is a leg, the flow is mostly along +x.
 	local px, pz = Spin.flowAt(Assets.river.points, 0, -8)
 	t.truthy(px > 0.5 and px * px + pz * pz > 0.99, "the plot river flows towards +x as a unit vector")
+	-- A hub wins over the mean of the parts: a blade a little shorter than the others must not move the centre.	local mean = { 1, 2, 3 }	t.equal(Spin.centre({ 4, 5, 6 }, mean)[1], 4, "the hub is the centre")	t.equal(Spin.centre(nil, mean), mean, "without a hub the mean stays")
 end
