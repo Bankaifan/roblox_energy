@@ -8,6 +8,7 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: any
 local River = require(Core:WaitForChild("River") :: ModuleScript) :: any
+local Cosmetics = require(Core:WaitForChild("Cosmetics") :: ModuleScript) :: any
 local Cable = require(Core:WaitForChild("Cable") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
@@ -52,8 +53,8 @@ type Record = {
 	cables: Folder?, -- cables from the farm cells to the grid box
 	buildKey: string, -- what the farm fences and masts show now
 	builds: Folder?, -- post fences round the solar farm cells and guyed masts on the mini turbine cells
-	golden: boolean, -- the Golden Crank (S6) is shown
 	themeKey: string, -- the Plot Themes design shown now ("" = none)
+	look: string, -- the crank look shown now (Cosmetics.crankLook)
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -678,19 +679,56 @@ local function updateBuilds(record: Record, land: any, counts: { number })
 	record.builds = folder
 end
 
--- S6 Golden Crank: the stone ring (the pad under the crank) turns gold and glows faintly; without S6 it keeps the yellow disc.
+-- The stone ring under the crank by look (Cosmetics.crankLook): S6 turns it gold with a faint glow, the Founder Pack
+-- copper, else it keeps the yellow disc. The Founder Pack also puts a founder sign beside the crank.
 local GOLD = Color3.fromRGB(255, 200, 40)
-local function updateCrank(record: Record, golden: boolean)
-	if record.golden == golden then
+local COPPER = Color3.fromRGB(184, 115, 51)
+
+local function updateFounderSign(record: Record, pad: BasePart, founder: boolean)
+	local sign = record.model:FindFirstChild("FounderSign")
+	if not founder then
+		if sign ~= nil then
+			sign:Destroy()
+		end
 		return
 	end
-	record.golden = golden
+	if sign ~= nil then
+		return
+	end
+	local at = pad.Position + Vector3.new(9, 5, 0)
+	local post = block(record.model, "FounderSign", Vector3.new(0.6, 5, 0.6), COPPER, at - Vector3.new(0, 3, 0))
+	post.CanCollide = false
+	local board = block(post, "Board", Vector3.new(7, 3, 0.4), COPPER, at)
+	board.Material = Enum.Material.Metal
+	board.CanCollide = false
+	board.Orientation = Vector3.new(0, 90, 0)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 50
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = "FOUNDER"
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.fromRGB(255, 240, 210)
+	label.Parent = gui
+end
+
+local function updateCrank(record: Record, look: string, founder: boolean)
 	local pad = record.model:FindFirstChild("CrankPad")
 	if pad == nil or not pad:IsA("BasePart") then
 		return
 	end
+	updateFounderSign(record, pad, founder)
+	if record.look == look then
+		return
+	end
+	record.look = look
 	local glow = pad:FindFirstChild("GoldenGlow")
-	if golden then
+	if look == "golden" then
 		pad.Color = GOLD
 		pad.Material = Enum.Material.Metal
 		if glow == nil then
@@ -702,13 +740,13 @@ local function updateCrank(record: Record, golden: boolean)
 			light.Shadows = false
 			light.Parent = pad
 		end
-	else
-		pad.Color = COLORS.Solar
-		pad.Material = Enum.Material.Plastic
-		if glow ~= nil then
-			glow:Destroy()
-		end
+		return
 	end
+	if glow ~= nil then
+		glow:Destroy()
+	end
+	pad.Color = if look == "copper" then COPPER else COLORS.Solar
+	pad.Material = if look == "copper" then Enum.Material.Metal else Enum.Material.Plastic
 end
 
 -- Gives the player a plot. Returns false when every slot is taken; the caller then turns the player away.
@@ -797,8 +835,8 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		cables = nil,
 		buildKey = "",
 		builds = nil,
-		golden = false,
 		themeKey = "",
+		look = "plain",
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -848,7 +886,14 @@ end
 function PlotService.update(
 	player: Player,
 	counts: { number },
-	extras: { stage: number, control: boolean, fill: number?, paint: number?, golden: boolean? }?,
+	extras: {
+		stage: number,
+		control: boolean,
+		fill: number?,
+		paint: number?,
+		golden: boolean?,
+		founder: boolean?,
+	}?,
 	land: any?
 )
 	local record = plots[player]
@@ -861,7 +906,8 @@ function PlotService.update(
 	updateFoundations(record, ownLand)
 	updateCables(record, ownLand)
 	updateBuilds(record, ownLand, counts)
-	updateCrank(record, extras ~= nil and extras.golden == true)
+	local founder = extras ~= nil and extras.founder == true
+	updateCrank(record, Cosmetics.crankLook(founder, extras ~= nil and extras.golden == true), founder)
 	for index in record.modelPlants do
 		if record.modelPlants[index] then
 			local cells = PlotLayout.mown(
