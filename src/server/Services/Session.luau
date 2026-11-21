@@ -7,6 +7,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameCore = require(Shared:WaitForChild("Core"):WaitForChild("GameCore") :: ModuleScript) :: any
 local Shop = require(Shared:WaitForChild("Core"):WaitForChild("Shop") :: ModuleScript) :: any
 local Catalogue = require(Shared:WaitForChild("Config"):WaitForChild("Shop") :: ModuleScript) :: any
+local Hints = require(Shared:WaitForChild("Core"):WaitForChild("Hints") :: ModuleScript) :: any
+local HintView = require(Shared:WaitForChild("Core"):WaitForChild("HintView") :: ModuleScript) :: any
 local Formulas = require(Shared:WaitForChild("Core"):WaitForChild("Formulas") :: ModuleScript) :: any
 local Env = require(script.Parent.Env)
 local PlotService = require(script.Parent.PlotService)
@@ -37,7 +39,7 @@ local states: { [Player]: any } = {}
 -- Players whose profile is still loading; `remotes` is set when their Ready arrives before the load ends.
 local loading: { [Player]: { remotes: { [string]: RemoteEvent }? } } = {}
 -- The time away and the offline coins credited at the join. Sent once, with the first Ready after the join.
-local welcomes: { [Player]: { away: number, coins: number } } = {}
+local welcomes: { [Player]: { away: number, coins: number, hint: boolean } } = {}
 -- When each run started (os.clock): the time played in this session, for the Extras tab (minute 12).
 local started: { [Player]: number } = {}
 -- Auto Crank: the hand cranks since the last tick (they use their share of the limit first) and the carried fraction.
@@ -150,8 +152,20 @@ function Session.start(player: Player)
 	end
 	loading[player] = nil
 	local phase, weather = Env.current()
-	local credited = GameCore.offline(state, away, envFor(phase, weather, player))
-	welcomes[player] = { away = away, coins = credited.coins - state.coins }
+	local env = envFor(phase, weather, player)
+	local credited = GameCore.offline(state, away, env)
+	-- The Long Meter hint of the welcome screen: the cap was reached and Core/HintView allows the line.
+	local capped = away >= GameCore.offlineCap(state, env)
+	local hint = #HintView.lines("welcome", {
+		extras = PurchaseService.extras(player, math.huge),
+		allowed = Hints.allowed,
+		firstSeconds = Catalogue.firstHintSeconds,
+		storageBought = false,
+		controlBought = false,
+		gridLevel = 0,
+		offlineCapped = capped,
+	}) > 0
+	welcomes[player] = { away = away, coins = credited.coins - state.coins, hint = hint }
 	states[player] = credited
 	started[player] = os.clock()
 	DataService.sync(player, credited)
