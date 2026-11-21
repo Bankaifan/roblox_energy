@@ -57,4 +57,4 @@ def test_market_permanent_plant_lines_wrap_and_the_card_grows():
     assert re.search(r"control\.TextWrapped = true", MARKET)
     assert "permanentHeights(card)" in MARKET
     assert MARKET.count("permanentHeights(card)") >= 2
-    assert "TextTruncate" not in re.search(r"Permanent\{line\}.*?permanent\[line\] = control", MARKET, re.S).group(0)
+    assert "TextTruncate" not in re.search(r"Permanent\{slot\}.*?permanent\[slot\] = control", MARKET, re.S).group(0)
