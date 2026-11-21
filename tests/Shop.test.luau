@@ -24,8 +24,8 @@ return function(t, load)
 		return Shop.purchase(profile, id, day or DAY, config or Catalogue)
 	end
 
-	-- The catalogue: sixteen offers, unique IDs, the Robux prices and names the Bauplan gives.
-	t.equal(#Catalogue.offers, 16, "sixteen offers")
+	-- The catalogue: 28 offers, unique IDs, the Robux prices and names the Bauplan gives.
+	t.equal(#Catalogue.offers, 28, "28 offers")
 	local seen: { [string]: boolean } = {}
 	local passes, products = 0, 0
 	for _, offer in Catalogue.offers do
@@ -44,7 +44,7 @@ return function(t, load)
 		end
 	end
 	t.equal(passes, 10, "ten passes")
-	t.equal(products, 6, "six products: two boosters, the Time Skip and three spark packs")
+	t.equal(products, 18, "18 products: two boosters, the Time Skip, three spark packs and twelve permanent plants")
 
 	-- The product defaults (Bauplan section 10): daily limits on, Smart Hub extras at once.
 	t.equal(Catalogue.dailyLimits, true, "daily limits are on")
@@ -311,4 +311,73 @@ return function(t, load)
 	local facts = Shop.extrasView(nearly, DAY, Catalogue, true, 0, Upgrades)
 	t.equal(facts.sparksMissing, 15, "the Extras facts hold the missing sparks")
 	t.equal(facts.level, 0, "and the grid level")
+
+	-- Permanent plants (issue 252): 2, 5, 12, 29, 69 and 159 Robux each, ten for 19, 45, 109, 259, 619 and 1429.
+	local single = { 2, 5, 12, 29, 69, 159 }
+	local tens = { 19, 45, 109, 259, 619, 1429 }
+	local seenPlants = 0
+	for _, offer in Catalogue.offers do
+		if offer.plant ~= nil then
+			seenPlants += 1
+			local price = if offer.count == 1 then single[offer.plant] else tens[offer.plant]
+			t.truthy(offer.count == 1 or offer.count == 10, `{offer.id}: one plant or ten`)
+			t.equal(offer.robux, price, `{offer.id}: its Robux price`)
+			t.equal(offer.robloxId, 0, `{offer.id}: placeholder product ID`)
+			t.equal(offer.type, "product", `{offer.id}: a product`)
+		end
+	end
+	t.equal(seenPlants, 12, "twelve permanent plant products")
+	t.equal(Catalogue.permanentLimit, 10, "at most ten permanent plants per type")
+
+	-- The unlock rule: a type can be bought only after it was built once.
+	local fresh = Data.template()
+	local _, _, notBuilt = Shop.purchase(fresh, "perm1", DAY, Catalogue)
+	t.equal(notBuilt, "not built", "a type never built cannot be bought")
+	local _, notBuiltStatus = Shop.receipt(fresh, "q-0", "perm1", DAY, Catalogue)
+	t.equal(notBuiltStatus, "refused", "and its receipt is refused")
+	t.equal(next(Shop.permanentOffers(fresh, Catalogue)), nil, "no permanent plant offer before something was built")
+	local builder = Data.template()
+	builder.built[1], builder.built[3] = true, true
+	t.truthy(Shop.permanentOffers(builder, Catalogue).perm1x10 == true, "a built type offers its pack")
+	t.truthy(Shop.permanentOffers(builder, Catalogue).perm2 == nil, "a type not built offers nothing")
+	t.equal(Shop.purchase(builder, "perm2", DAY, Catalogue), builder, "a refused purchase returns the input")
+
+	-- The grant: the count of that type goes up by the units of the offer, only that type, the input stays.
+	local permIds = withIds({ perm1 = 7001, perm1x10 = 7002, perm3 = 7003 })
+	local one, oneStatus, oneYield = Shop.receipt(builder, "q-1", "perm1", DAY, permIds)
+	t.equal(oneStatus, "granted", "a permanent plant receipt is granted")
+	t.equal(oneYield, 0, "it pays no yield")
+	t.equal(one.permanent[1], 1, "one unit of plant 1")
+	t.equal(one.permanent[3], 0, "no other type changes")
+	t.equal(builder.permanent[1], 0, "the input profile is not changed")
+	local again, againPermStatus = Shop.receipt(one, "q-1", "perm1", DAY, permIds)
+	t.equal(againPermStatus, "duplicate", "the same receipt again is a duplicate")
+	t.equal(again.permanent[1], 1, "and grants nothing more")
+	local pack = Shop.receipt(builder, "q-2", "perm1x10", DAY, permIds)
+	t.equal(pack.permanent[1], 10, "a pack grants ten")
+
+	-- The limit: never more than ten per type; the pack is offered only while ten still fit.
+	t.truthy(Shop.permanentOffers(one, Catalogue).perm1x10 == nil, "with one owned the pack of ten no longer fits")
+	t.truthy(Shop.permanentOffers(one, Catalogue).perm1 == true, "but a single unit does")
+	local nine = Data.template()
+	nine.built[3], nine.permanent[3] = true, 9
+	local ten, tenStatus = Shop.receipt(nine, "q-3", "perm3", DAY, permIds)
+	t.equal(tenStatus, "granted", "the tenth unit is granted")
+	t.equal(ten.permanent[3], 10, "ten permanent plants")
+	local over, overPermStatus = Shop.receipt(ten, "q-4", "perm3", DAY, permIds)
+	t.equal(overPermStatus, "refused", "an eleventh unit is refused")
+	t.equal(over, ten, "and nothing changes")
+	local _, _, limitReason = Shop.purchase(pack, "perm1", DAY, Catalogue)
+	t.equal(limitReason, "permanent limit", "the reason names the limit")
+	t.equal(next(Shop.permanentOffers(ten, Catalogue)), nil, "a full type has no offer")
+
+	-- The env carries the counts to the run start; the Extras facts carry the open offers.
+	t.equal(Shop.envValues(one, Catalogue, false, false).permanent[1], 1, "envValues holds the permanent plants")
+	t.truthy(
+		Shop.extrasView(builder, DAY, Catalogue, true, 0).permanent.perm1 == true,
+		"the Extras facts hold the offers"
+	)
+	local planted = Shop.permanentPlant(Catalogue, "perm3x10")
+	t.truthy(planted ~= nil and planted.id == 3 and planted.count == 10, "permanentPlant names plant and units")
+	t.equal(Shop.permanentPlant(Catalogue, "timeskip"), nil, "another offer is no permanent plant")
 end
