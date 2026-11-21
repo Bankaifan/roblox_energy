@@ -91,6 +91,10 @@ return function(t, load)
 		premium = function()
 			return baseIncome, income(owned("premium"))
 		end,
+		auto_crank = function()
+			return (Shop.autoCranks(base, Catalogue, 1, 0, 0)),
+				(Shop.autoCranks(owned("auto_crank"), Catalogue, 1, 0, 0))
+		end,
 		turbo = function()
 			return baseIncome, income(base, false, true)
 		end,
@@ -196,4 +200,18 @@ return function(t, load)
 		sold.storage.charge < 1e-6 and kept.storage.charge > 1,
 		"the reserve rule keeps charge that selling alone empties"
 	)
+
+	-- Auto Crank: 4 cranks per second with the pass, none without; with hand cranks the total stays at 8 per second;
+	-- the fraction of a short step is carried.
+	local crankPass = owned("auto_crank")
+	t.equal(Shop.autoCranks(base, Catalogue, 1, 0, 0), 0, "without the pass nobody cranks")
+	t.equal(Shop.autoCranks(crankPass, Catalogue, 1, 0, 0), 4, "the pass turns the crank 4 times per second")
+	t.equal(Shop.autoCranks(crankPass, Catalogue, 1, 3, 0), 4, "3 hand cranks leave room for all 4")
+	t.equal(Shop.autoCranks(crankPass, Catalogue, 1, 6, 0), 2, "6 hand cranks leave room for 2")
+	t.equal(Shop.autoCranks(crankPass, Catalogue, 1, 8, 0), 0, "8 hand cranks fill the limit")
+	t.equal(Shop.autoCranks(crankPass, Catalogue, 1, 20, 0), 0, "more hand cranks than the limit leave nothing")
+	local first, carry = Shop.autoCranks(crankPass, Catalogue, 0.3, 0, 0)
+	local second = Shop.autoCranks(crankPass, Catalogue, 0.3, 0, carry)
+	t.truthy(first + second == 2, "short steps add up to 4 per second (0.6 s: 2 cranks)")
+	t.equal(select(2, Shop.autoCranks(crankPass, Catalogue, 1, 8, 0)), 4, "a blocked second carries at most one second")
 end
