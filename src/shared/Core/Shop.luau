@@ -54,6 +54,27 @@ function Shop.activeBooster(profile: any): string?
 	return first.kind
 end
 
+-- The sparks still missing for every permanent node and spark item: their total cost minus the sparks earned and bought
+-- so far (`profile.sparks` holds both). `upgrades` is Config/Upgrades. Never below 0.
+function Shop.sparksMissing(profile: any, upgrades: any): number
+	local total = 0
+	for _, list in { upgrades.permanent, upgrades.spark or {} } do
+		for _, node in list do
+			total += node.sparks
+		end
+	end
+	return math.max(0, total - profile.sparks)
+end
+
+-- The sparks a pack gives (0 for any other offer).
+function Shop.packSparks(shop: any, offerId: any): number
+	local offer = findOffer(shop, offerId)
+	if offer == nil or offer.sparks == nil then
+		return 0
+	end
+	return offer.sparks
+end
+
 -- Skips still allowed on this day. With dailyLimits off, there is no limit.
 function Shop.skipsLeft(profile: any, day: number, shop: any): number
 	if not shop.dailyLimits then
@@ -69,7 +90,14 @@ end
 -- What the Extras tab needs from the profile: the passes owned, the seconds in the booster queue and the Time Skips left
 -- today (nil without a daily limit). `shown`: the tab may show at all, i.e. the shop is allowed for this player, the
 -- tutorial is done and `playSeconds` reached the first hint minute (Config/Shop).
-function Shop.extrasView(profile: any, day: number, shop: any, allowed: boolean, playSeconds: number): any
+function Shop.extrasView(
+	profile: any,
+	day: number,
+	shop: any,
+	allowed: boolean,
+	playSeconds: number,
+	upgrades: any?
+): any
 	local owned = {}
 	for id, flag in profile.passes do
 		if flag == true then
@@ -82,6 +110,9 @@ function Shop.extrasView(profile: any, day: number, shop: any, allowed: boolean,
 		owned = owned,
 		stock = Shop.boosterStock(profile),
 		skipsLeft = if skipsLeft == math.huge then nil else skipsLeft,
+		-- Spark packs: shown from grid stage 1 on, and only while the sparks still missing cover the pack.
+		level = profile.level,
+		sparksMissing = if upgrades ~= nil then Shop.sparksMissing(profile, upgrades) else 0,
 	}
 end
 
@@ -186,9 +217,10 @@ end
 
 -- What buying an offer does, on the given day. Returns the new profile, the seconds of cut yield to pay out now
 -- (0 for none) and nil. A refused purchase returns the input profile, 0 and the reason: "invalid day",
--- "unknown offer", "already owned", "booster stock full", "daily limit".
+-- "unknown offer", "already owned", "booster stock full", "daily limit", "no upgrades" or "sparks not needed" (a spark
+-- pack needs `upgrades`, Config/Upgrades, and is bought only while the sparks still missing are at least its size).
 -- Paying out the yield is up to the caller (GameCore.offline); a receipt is handled once, in ProcessReceipt.
-function Shop.purchase(profile: any, offerId: any, day: any, shop: any): (any, number, string?)
+function Shop.purchase(profile: any, offerId: any, day: any, shop: any, upgrades: any?): (any, number, string?)
 	if not isDay(day) then
 		return profile, 0, "invalid day"
 	end
@@ -203,6 +235,17 @@ function Shop.purchase(profile: any, offerId: any, day: any, shop: any): (any, n
 		end
 		result.passes[offerId] = true
 		return result, offer.seconds or 0, nil
+	end
+	if offer.sparks ~= nil then
+		if upgrades == nil then
+			return profile, 0, "no upgrades"
+		end
+		if Shop.sparksMissing(profile, upgrades) < offer.sparks then
+			return profile, 0, "sparks not needed"
+		end
+		result.sparks += offer.sparks
+		result.sparksBought += offer.sparks
+		return result, 0, nil
 	end
 	if offer.queued then
 		if Shop.boosterStock(profile) + offer.seconds > shop.boosterStockSeconds then
@@ -257,7 +300,14 @@ end
 -- with the credit, so a receipt is credited once. Returns the new profile, the status and the seconds of cut yield:
 -- "granted" (credited now), "duplicate" (the receipt is known: nothing changes), "refused" (no credit: no receipt ID, a
 -- pass, an unknown offer or a limit; the input comes back). Paying out the yield is up to the caller.
-function Shop.receipt(profile: any, receiptId: any, offerId: any, day: any, shop: any): (any, string, number)
+function Shop.receipt(
+	profile: any,
+	receiptId: any,
+	offerId: any,
+	day: any,
+	shop: any,
+	upgrades: any?
+): (any, string, number)
 	if type(receiptId) ~= "string" or receiptId == "" then
 		return profile, "refused", 0
 	end
@@ -270,7 +320,7 @@ function Shop.receipt(profile: any, receiptId: any, offerId: any, day: any, shop
 	if offer == nil or offer.type ~= "product" then
 		return profile, "refused", 0
 	end
-	local result, seconds, reason = Shop.purchase(profile, offerId, day, shop)
+	local result, seconds, reason = Shop.purchase(profile, offerId, day, shop, upgrades)
 	if reason ~= nil then
 		return profile, "refused", 0
 	end
