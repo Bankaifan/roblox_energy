@@ -113,7 +113,20 @@ function Shop.extrasView(
 		-- Spark packs: shown from grid stage 1 on, and only while the sparks still missing cover the pack.
 		level = profile.level,
 		sparksMissing = if upgrades ~= nil then Shop.sparksMissing(profile, upgrades) else 0,
+		-- Permanent plants: the units owned per plant and the offers that can be bought now (by offer id).
+		permanent = Shop.permanentOffers(profile, shop),
 	}
+end
+
+-- The permanent plant offers (offer id -> true) that can be bought now: the type was built and the units still fit.
+function Shop.permanentOffers(profile: any, shop: any): { [string]: boolean }
+	local open = {}
+	for _, offer in shop.offers do
+		if offer.plant ~= nil and Shop.permanentRefusal(profile, offer, shop) == nil then
+			open[offer.id] = true
+		end
+	end
+	return open
 end
 
 -- Premium Tariff: the sale price ×1,5, else ×1.
@@ -143,8 +156,8 @@ end
 
 -- The values the server passes into GameCore.env: income (sale price, Premium and Turbo, at most multiplierCap),
 -- boost (generation, Sunshine Hour; cut so that income x boost stays within multiplierCap), longMeter, ruleSlots
--- (nil without the Smart Hub: the core keeps its base), autoBuild and
--- storageFactor (Mega Battery). `sunshine` and `turbo` say which boosters run.
+-- (nil without the Smart Hub: the core keeps its base), autoBuild, storageFactor (Mega Battery) and permanent
+-- (the permanent plants per plant id). `sunshine` and `turbo` say which boosters run.
 function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boolean): { [string]: any }
 	local income = Shop.saleMultiplier(profile, shop)
 	if turbo then
@@ -163,6 +176,7 @@ function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boole
 		ruleSlots = if slots > 0 then slots else nil,
 		autoBuild = auto,
 		storageFactor = Shop.storageFactor(profile, shop),
+		permanent = table.clone(profile.permanent),
 	}
 end
 
@@ -225,9 +239,21 @@ function Shop.advance(profile: any, seconds: any): any
 	return result
 end
 
+-- Why a permanent plant offer cannot be bought now, or nil: "not built" (the type has never been built) or "permanent
+-- limit" (the units would pass shop.permanentLimit).
+function Shop.permanentRefusal(profile: any, offer: any, shop: any): string?
+	if profile.built[offer.plant] ~= true then
+		return "not built"
+	end
+	if profile.permanent[offer.plant] + offer.count > shop.permanentLimit then
+		return "permanent limit"
+	end
+	return nil
+end
+
 -- What buying an offer does, on the given day. Returns the new profile, the seconds of cut yield to pay out now
 -- (0 for none) and nil. A refused purchase returns the input profile, 0 and the reason: "invalid day",
--- "unknown offer", "already owned", "booster stock full", "daily limit", "no upgrades" or "sparks not needed" (a spark
+-- "unknown offer", "already owned", "booster stock full", "daily limit", "no upgrades", "sparks not needed" (a spark
 -- pack needs `upgrades`, Config/Upgrades, and is bought only while the sparks still missing are at least its size).
 -- Paying out the yield is up to the caller (GameCore.offline); a receipt is handled once, in ProcessReceipt.
 function Shop.purchase(profile: any, offerId: any, day: any, shop: any, upgrades: any?): (any, number, string?)
@@ -255,6 +281,14 @@ function Shop.purchase(profile: any, offerId: any, day: any, shop: any, upgrades
 		end
 		result.sparks += offer.sparks
 		result.sparksBought += offer.sparks
+		return result, 0, nil
+	end
+	if offer.plant ~= nil then
+		local reason = Shop.permanentRefusal(profile, offer, shop)
+		if reason ~= nil then
+			return profile, 0, reason
+		end
+		result.permanent[offer.plant] += offer.count
 		return result, 0, nil
 	end
 	if offer.queued then
