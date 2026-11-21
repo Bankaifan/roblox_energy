@@ -271,15 +271,15 @@ return function(t, load)
 	local function packFacts(level: number, missing: number): any
 		return { shown = true, owned = {}, stock = 0, skipsLeft = 3, level = level, sparksMissing = missing }
 	end
-	t.equal(#extras(packFacts(0, 215), allPrices), 11, "no spark pack before grid stage 1")
+	t.equal(#extras(packFacts(0, 215), allPrices), 12, "no spark pack before grid stage 1")
 	local stage1 = byId(extras(packFacts(1, 215), allPrices))
 	t.truthy(stage1["offer.sparks5"] ~= nil and stage1["offer.sparks40"] ~= nil, "all three packs from grid stage 1")
-	t.equal(#extras(packFacts(1, 215), allPrices), 14, "the Extras tab lists the packs")
+	t.equal(#extras(packFacts(1, 215), allPrices), 15, "the Extras tab lists the packs")
 	local needs = byId(extras(packFacts(1, 15), allPrices))
 	t.truthy(needs["offer.sparks15"] ~= nil and needs["offer.sparks5"] ~= nil, "packs up to the missing sparks stay")
 	t.equal(needs["offer.sparks40"], nil, "a pack larger than the missing sparks is hidden")
-	t.equal(#extras(packFacts(1, 0), allPrices), 11, "nothing missing: no pack")
-	t.equal(stage1["offer.sparks15"].price, "62 Robux", "a pack shows the live price")
+	t.equal(#extras(packFacts(1, 0), allPrices), 12, "nothing missing: no pack")
+	t.equal(stage1["offer.sparks15"].price, "63 Robux", "a pack shows the live price")
 	t.equal(stage1["offer.sparks15"].button.offer, "sparks15", "and opens the prompt of its offer")
 	t.truthy(string.find(stage1["offer.sparks5"].info, "5 sparks", 1, true) ~= nil, "English card text")
 	t.truthy(
