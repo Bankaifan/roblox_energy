@@ -51,9 +51,9 @@ Sim.BOTS = {
 		buy = buyer({}, false, Config.shop.skipsPerDay),
 	},
 }
--- Everything that multiplies at once (Premium, Turbo, Sunshine Hour): Z11 checks that the cap holds.
 -- A buyer of the Mega Battery only: the storage capacity factor of the catalogue.
 Sim.MEGA_BATTERY = buyer({ mega_battery = true }, false, 0)
+-- Everything that multiplies at once (Premium, Turbo, Sunshine Hour): Z11 checks that the cap holds.
 Sim.FULL_STACK = buyer({ premium = true }, true, 0, true)
 local STORAGE_NODES = { U17 = true, U18 = true, U19 = true, U20 = true, U21 = true, U22 = true }
 local STORAGE_PLAN = { "U17", "U21", "U18", "U19", "U20", "U22" }
