@@ -82,6 +82,7 @@ local function undoCredit(profile: any, before: any)
 	restored.boosters = before.boosters
 	restored.daily = before.daily
 	restored.sparksBought = before.sparksBought
+	restored.permanent = before.permanent
 	profile.Data = restored
 end
 
@@ -101,6 +102,15 @@ local addSparks: ((Player, number) -> boolean)? = nil
 
 function PurchaseService.setSparks(add: (Player, number) -> boolean)
 	addSparks = add
+end
+
+-- Permanent plants: the units bought go into the live run too (Session owns it), as far as the ground carries them; the
+-- profile keeps the count for every later run. Session registers addPlants(player, plant, n) -> false without a run yet;
+-- a negative n takes a grant back.
+local addPlants: ((Player, number, number) -> boolean)? = nil
+
+function PurchaseService.setPlants(add: (Player, number, number) -> boolean)
+	addPlants = add
 end
 
 local function quoteCoins(player: Player, seconds: number): number?
@@ -133,11 +143,21 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 	if sparks > 0 and (addSparks == nil or not addSparks(player, sparks)) then
 		return NotProcessedYet -- no run yet: Roblox asks again
 	end
+	local plant = Shop.permanentPlant(Catalogue, offerId)
+	if plant ~= nil and (addPlants == nil or not addPlants(player, plant.id, plant.count)) then
+		if sparks > 0 and addSparks ~= nil then
+			addSparks(player, -sparks)
+		end
+		return NotProcessedYet -- no run yet: Roblox asks again
+	end
 	-- The coins of the yield are written with the receipt ID, in the same step (no yield between), so one save holds both.
 	local coins = quoteCoins(player, seconds)
 	if coins == nil then
 		if sparks > 0 and addSparks ~= nil then
 			addSparks(player, -sparks)
+		end
+		if plant ~= nil and addPlants ~= nil then
+			addPlants(player, plant.id, -plant.count)
 		end
 		return NotProcessedYet -- no run yet: Roblox asks again
 	end
@@ -149,6 +169,9 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		return PurchaseGranted
 	end
 	undoCredit(profile, before) -- not saved: this credit is undone, the receipt is asked for again
+	if plant ~= nil and addPlants ~= nil then
+		addPlants(player, plant.id, -plant.count)
+	end
 	if sparks > 0 and addSparks ~= nil then
 		addSparks(player, -sparks)
 	end
