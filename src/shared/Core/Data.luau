@@ -74,6 +74,7 @@ local function template(): Profile
 		firstJoin = 0,
 		purchases = {},
 		passes = {},
+		paid = {}, -- pass yields already paid out (Founder Pack), kept across sessions: paid once per profile
 		boosters = {},
 		daily = { day = 0, skips = 0 },
 		cosmetics = {},
@@ -324,6 +325,9 @@ local CLEANERS: { [string]: (any, any) -> any } = {
 		return strings(value)
 	end,
 	passes = function(value: any): any
+		return entries(value, isTrue)
+	end,
+	paid = function(value: any): any
 		return entries(value, isTrue)
 	end,
 	boosters = boosters,
