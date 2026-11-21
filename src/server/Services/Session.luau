@@ -7,6 +7,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameCore = require(Shared:WaitForChild("Core"):WaitForChild("GameCore") :: ModuleScript) :: any
 local Shop = require(Shared:WaitForChild("Core"):WaitForChild("Shop") :: ModuleScript) :: any
 local Catalogue = require(Shared:WaitForChild("Config"):WaitForChild("Shop") :: ModuleScript) :: any
+local Cosmetics = require(Shared:WaitForChild("Core"):WaitForChild("Cosmetics") :: ModuleScript) :: any
 local Hints = require(Shared:WaitForChild("Core"):WaitForChild("Hints") :: ModuleScript) :: any
 local HintView = require(Shared:WaitForChild("Core"):WaitForChild("HintView") :: ModuleScript) :: any
 local Formulas = require(Shared:WaitForChild("Core"):WaitForChild("Formulas") :: ModuleScript) :: any
@@ -261,7 +262,39 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	end
 	if action.type == "Prestige" then
 		remotes.Snapshot:FireClient(player, nextState)
+		Session.fireworks(remotes, player, state.level, nextState.level)
 	end
+end
+
+-- Upgrade Fireworks: at a grid expansion of an owner of the pass, fireworks over the plot and a message to everyone.
+function Session.fireworks(remotes: { [string]: RemoteEvent }, player: Player, before: any, after: any)
+	local profile = DataService.profileOf(player)
+	if profile == nil or not Cosmetics.fireworksDue(before, after, profile.Data.passes.fireworks == true) then
+		return
+	end
+	PlotService.fireworks(player)
+	remotes.Notice:FireAllClients({ text = Cosmetics.expansionNotice(player.Name, after) })
+end
+
+-- SetCosmetic: the chosen glow colour or theme goes into the profile when Core/Cosmetics accepts it.
+function Session.setCosmetic(player: Player, slot: number, item: string)
+	local profile = DataService.profileOf(player)
+	if profile == nil then
+		return
+	end
+	local data = profile.Data
+	local choice = Cosmetics.choose(data.passes, data.cosmetics or {}, slot, item)
+	if choice ~= nil then
+		data.cosmetics = choice
+	end
+end
+
+-- The chosen glow colour and theme go to the owner with the extras, for the style buttons ("" = not owned).
+local function styleExtras(extras: any, flags: any): any
+	if flags ~= nil then
+		extras.style = { neon = flags.neon or "", theme = if flags.themed then flags.theme else "" }
+	end
+	return extras
 end
 
 -- Once per second: every run gets one step of `dt` seconds.
@@ -297,6 +330,10 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 		LandService.refresh(player, nextState)
 		ToolService.refresh(player, nextState.land or config.land.start)
 		PlotPublicService.tick(remotes, player, nextState)
+		local flags = if profile ~= nil then Cosmetics.flags(profile.Data.passes, profile.Data.cosmetics or {}) else nil
+		if flags ~= nil then
+			PlotService.style(player, flags)
+		end
 		TutorialService.observe(remotes, player, nextState)
 		remotes.Delta:FireClient(player, {
 			coins = nextState.coins,
@@ -304,7 +341,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			charge = nextState.storage.charge,
 			turbo = BoostService.turboRemaining(player),
 			skip = GameCore.yield(nextState, SKIP_SECONDS, env), -- what a Time Skip would give now (shop card)
-			extras = PurchaseService.extras(player, os.clock() - (started[player] or os.clock())),
+			extras = styleExtras(PurchaseService.extras(player, os.clock() - (started[player] or os.clock())), flags),
 			view = view,
 		})
 	end
