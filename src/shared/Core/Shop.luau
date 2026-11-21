@@ -66,6 +66,25 @@ function Shop.skipsLeft(profile: any, day: number, shop: any): number
 	return math.max(0, shop.skipsPerDay - used)
 end
 
+-- What the Extras tab needs from the profile: the passes owned, the seconds in the booster queue and the Time Skips left
+-- today (nil without a daily limit). `shown`: the tab may show at all, i.e. the shop is allowed for this player, the
+-- tutorial is done and `playSeconds` reached the first hint minute (Config/Shop).
+function Shop.extrasView(profile: any, day: number, shop: any, allowed: boolean, playSeconds: number): any
+	local owned = {}
+	for id, flag in profile.passes do
+		if flag == true then
+			owned[id] = true
+		end
+	end
+	local skipsLeft = Shop.skipsLeft(profile, day, shop)
+	return {
+		shown = allowed and profile.tutorialDone == true and playSeconds >= shop.firstHintSeconds,
+		owned = owned,
+		stock = Shop.boosterStock(profile),
+		skipsLeft = if skipsLeft == math.huge then nil else skipsLeft,
+	}
+end
+
 -- Premium Tariff: the sale price ×1,5, else ×1.
 function Shop.saleMultiplier(profile: any, shop: any): number
 	if profile.passes.premium == true then
