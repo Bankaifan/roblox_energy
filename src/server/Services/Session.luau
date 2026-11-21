@@ -326,6 +326,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			fill = storage.fill,
 			paint = nextState.paint,
 			golden = nextState.pnodes.S6 == true,
+			founder = profile ~= nil and profile.Data.passes.founder == true,
 		}, nextState.land)
 		LandService.refresh(player, nextState)
 		ToolService.refresh(player, nextState.land or config.land.start)
