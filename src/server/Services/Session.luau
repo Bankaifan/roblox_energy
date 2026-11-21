@@ -40,6 +40,9 @@ local loading: { [Player]: { remotes: { [string]: RemoteEvent }? } } = {}
 local welcomes: { [Player]: { away: number, coins: number } } = {}
 -- When each run started (os.clock): the time played in this session, for the Extras tab (minute 12).
 local started: { [Player]: number } = {}
+-- Auto Crank: the hand cranks since the last tick (they use their share of the limit first) and the carried fraction.
+local handCranks: { [Player]: number } = {}
+local crankCarry: { [Player]: number } = {}
 local Session = {}
 
 -- The bought effects of the player (Core/Shop.envValues): sale multiplier, Sunshine boost, Long Meter, Smart Hub.
@@ -164,6 +167,8 @@ function Session.stop(player: Player)
 	states[player] = nil
 	welcomes[player] = nil
 	started[player] = nil
+	handCranks[player] = nil
+	crankCarry[player] = nil
 	BoostService.forget(player)
 	LeaderboardService.forget(player)
 	PlotPublicService.forget(player)
@@ -218,6 +223,7 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	states[player] = nextState
 	DataService.sync(player, nextState)
 	if action.type == "Crank" then
+		handCranks[player] = (handCranks[player] or 0) + 1
 		TutorialService.crank(player)
 	end
 	if action.type == "BuyTool" then
@@ -236,6 +242,17 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 	for player, state in states do
 		-- Each player has their own factor: the Sunshine Hour is for everyone, the Turbo Feed-in is the owner's.
 		local env = envFor(phase, weather, player)
+		-- Auto Crank (pass): the server cranks for the owner while online; hand cranks count against the same limit.
+		local profile = DataService.profileOf(player)
+		if profile ~= nil then
+			local cranks, carry =
+				Shop.autoCranks(profile.Data, Catalogue, dt, handCranks[player] or 0, crankCarry[player] or 0)
+			crankCarry[player] = carry
+			for _ = 1, cranks do
+				state = GameCore.apply(state, { type = "Crank" }, env)
+			end
+		end
+		handCranks[player] = 0
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
 		DataService.sync(player, nextState)
