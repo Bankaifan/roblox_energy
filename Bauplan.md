@@ -291,7 +291,7 @@ Preise liegen in den Spannen der Preistabelle im Design-Dokument \[D\]. Für Kos
 
 | Angebot | Typ | Robux | Effekt | Sichtbar für andere | Platz im Spielverlauf |
 | --- | --- | --- | --- | --- | --- |
-| Gründer-Paket / Founder Pack | Pass | 59 | einmalig 30 Minuten Schnittertrag, goldene Kurbel, Gründer-Schild | Schild und Kurbel am Grundstück | Shop ab Minute 12, Hinweis nach dem Speicher-Kauf |
+| Gründer-Paket / Founder Pack | Pass | 59 | einmalig 30 Minuten Schnittertrag, kupferne Kurbel, Gründer-Schild | Schild und Kupfer-Kurbel am Grundstück; die goldene Kurbel (S6) hat Vorrang | Shop ab Minute 12, Hinweis nach dem Speicher-Kauf |
 | Smart-Zentrale / Smart Hub | Pass | 199 | dritter Regel-Platz und Auto-Ausbau sofort statt über P3 und P8 | Antenne auf der Regelzentrale | im Regel-Menü, sobald U21 gekauft ist |
 | Langzeit-Zähler / Long Meter | Pass | 129 | Offline-Deckel +4 Stunden | nein | eine Zeile im Willkommen-Bildschirm, wenn der Deckel erreicht war |
 | Premium-Tarif / Premium Tariff | Pass | 349 | Verkaufspreis dauerhaft ×1,5 | goldenes Zählerhäuschen | am Markt-Terminal, nach dem ersten Netz-Ausbau hervorgehoben |
