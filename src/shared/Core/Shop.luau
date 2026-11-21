@@ -149,6 +149,19 @@ function Shop.offlineBonusHours(profile: any, shop: any): number
 	return 0
 end
 
+-- Auto Crank: the cranks the server adds in a step of `dt` seconds, and the fraction carried into the next step.
+-- Without the pass: 0. With it: autoCrankRate per second, but hand and motor together at most crankLimit per second,
+-- so `hand` (the hand cranks counted in this step) takes its share first. Nothing is owed for time offline.
+function Shop.autoCranks(profile: any, shop: any, dt: number, hand: number, carry: number): (number, number)
+	if profile.passes.auto_crank ~= true or not isFinite(dt) or dt <= 0 then
+		return 0, 0
+	end
+	local want = carry + shop.autoCrankRate * dt
+	local room = math.max(0, math.floor(shop.crankLimit * dt - hand + 1e-9))
+	local count = math.min(math.floor(want + 1e-9), room)
+	return count, math.min(want - count, shop.autoCrankRate)
+end
+
 -- Consumes `seconds` from the front of the booster queue. Finished entries are dropped; the rest keep their length.
 function Shop.advance(profile: any, seconds: any): any
 	if not isFinite(seconds) or seconds <= 0 then
