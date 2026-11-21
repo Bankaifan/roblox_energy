@@ -349,8 +349,9 @@ function PlantModels.tagRotor(copy: Model, plantId: number)
 end
 
 -- The walk-in container around the battery spot: floor, roof, back and end walls and a front wall with a door opening.
--- `facing` mirrors z for a plot that faces the other way; the front always looks at the plot centre.
-function PlantModels.container(origin: Vector3, groundY: number, facing: number?): Model
+-- `facing` mirrors z for a plot that faces the other way; the front always looks at the plot centre. `scale` (Cosmetics.containerScale,
+-- default 1) grows footprint and height.
+function PlantModels.container(origin: Vector3, groundY: number, facing: number?, scale: number?): Model
 	local c = Assets.container
 	local spot = Assets.furniture.battery
 	local side = facing or 1
@@ -378,7 +379,8 @@ function PlantModels.container(origin: Vector3, groundY: number, facing: number?
 		part.CanCollide = not glow
 		part.Parent = model
 	end
-	local w, d, h, t = c.size, c.depth, c.height, c.wall
+	local k = scale or 1 -- footprint and height only; the wall thickness and the door keep their size
+	local w, d, h, t = c.size * k, c.depth * k, c.height * k, c.wall
 	box("Floor", 0, t / 2, 0, w, t, d)
 	box("Roof", 0, h - t / 2, 0, w, t, d)
 	box("Back", 0, h / 2, d / 2 - t / 2, w, h, t) -- road side
