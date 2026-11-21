@@ -18,7 +18,10 @@ return function(t, load)
 	t.equal(WeatherLook.of(Weather, "Nebel"), nil, "an unknown weather has no look")
 	t.equal(WeatherLook.of({}, "Sonnig"), nil, "a weather missing in the config has no look")
 
-	t.truthy(WeatherLook.of(Weather, "Bewoelkt").cover > WeatherLook.of(Weather, "Sonnig").cover, "cloudy is cloudier than sunny")
+	t.truthy(
+		WeatherLook.of(Weather, "Bewoelkt").cover > WeatherLook.of(Weather, "Sonnig").cover,
+		"cloudy is cloudier than sunny"
+	)
 	t.truthy(WeatherLook.of(Weather, "Gewitter").rain > 0, "a storm rains")
 	t.equal(WeatherLook.of(Weather, "Sonnig").rain, 0, "sunny weather does not rain")
 
@@ -26,7 +29,10 @@ return function(t, load)
 	local storm = WeatherLook.of(Weather, "Gewitter")
 	t.equal(WeatherLook.blend(sunny, storm, 0).cover, sunny.cover, "a blend starts at the old look")
 	t.equal(WeatherLook.blend(sunny, storm, 1).cover, storm.cover, "a blend ends at the new look")
-	t.equal(WeatherLook.blend(sunny, storm, 0.5).cover, (sunny.cover + storm.cover) / 2, "a blend is linear")
+	t.truthy(
+		math.abs(WeatherLook.blend(sunny, storm, 0.5).cover - (sunny.cover + storm.cover) / 2) < 1e-9,
+		"a blend is linear"
+	)
 	t.equal(WeatherLook.share(0), 0, "no time, no blend")
 	t.equal(WeatherLook.share(WeatherLook.BLEND_SECONDS * 3), 1, "the share stops at 1")
 	t.equal(WeatherLook.share(WeatherLook.BLEND_SECONDS / 2), 0.5, "half the time, half the blend")
