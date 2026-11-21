@@ -19,6 +19,7 @@ return {
 	longMeterHours = 4, -- Langzeit-Zähler: offline cap +4 hours
 	autoCrankRate = 4, -- Kurbelmotor: cranks per second added by the server while the owner is online
 	megaBatteryFactor = 1.5, -- Riesenbatterie: storage capacity ×1,5 (measured at stage 4, docs/balance/report.md)
+	handCrankRate = 2, -- turns per second a player cranking by hand is assumed to make (for the crank readout)
 	crankLimit = 8, -- cranks per second at most, hand and Kurbelmotor together (the Net limit of "Crank")
 
 	-- type: "pass" (owned once) or "product" (bought again and again). seconds: cut yield or booster length.
