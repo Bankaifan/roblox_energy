@@ -24,7 +24,7 @@ return function(t, load)
 		return Shop.purchase(profile, id, day or DAY, config or Catalogue)
 	end
 
-	-- The catalogue: fifteen offers, unique IDs, the Robux prices and names the Bauplan gives.
+	-- The catalogue: sixteen offers, unique IDs, the Robux prices and names the Bauplan gives.
 	t.equal(#Catalogue.offers, 16, "sixteen offers")
 	local seen: { [string]: boolean } = {}
 	local passes, products = 0, 0
