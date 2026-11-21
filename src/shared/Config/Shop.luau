@@ -51,8 +51,8 @@ return {
 			en = "Long Meter",
 			de = "Langzeit-Zähler",
 		},
-		{ id = "auto_crank", type = "pass", robux = 129, robloxId = 0, en = "Auto Crank", de = "Kurbelmotor" },
-		{ id = "mega_battery", type = "pass", robux = 249, robloxId = 0, en = "Mega Battery", de = "Riesenbatterie" },
+		{ id = "auto_crank", type = "pass", robux = 129, robloxId = 2096623036, en = "Auto Crank", de = "Kurbelmotor" },
+		{ id = "mega_battery", type = "pass", robux = 249, robloxId = 2092751131, en = "Mega Battery", de = "Riesenbatterie" },
 		{
 			id = "premium",
 			type = "pass",
