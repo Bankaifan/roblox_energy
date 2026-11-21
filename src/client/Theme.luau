@@ -52,6 +52,11 @@ Theme.icons = {
 	["tool.drum"] = "🔌",
 	["tool.tamper"] = "🧱",
 	["tool.pliers"] = "🔗",
+	["tab.sparks"] = "✨",
+	["tab.production"] = "📊",
+	["tab.extras"] = "🎁",
+	["offer.pass"] = "🎟️",
+	["offer.product"] = "🎁",
 } :: { [string]: string }
 
 function Theme.icon(id: string): string
