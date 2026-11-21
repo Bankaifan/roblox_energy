@@ -14,7 +14,7 @@ Cosmetics.SLOT_THEME = 2
 -- What a plot shows for the passes its owner has. neon is the chosen glow colour (nil without the pass); theme is the
 -- chosen design ("classic" without the pass).
 export type Flags = {
-	founder: boolean, -- Founder Pack: the founder sign and the golden crank
+	founder: boolean, -- Founder Pack: the founder sign and the copper crank
 	premium: boolean, -- Premium Tariff: the golden meter house
 	vip: boolean, -- Grid VIP: the name tag and the glowing lines
 	fireworks: boolean, -- Upgrade Fireworks: fireworks and a server message at each upgrade
@@ -59,6 +59,14 @@ function Cosmetics.flags(passes: { [string]: any }, choice: { [any]: any }): Fla
 		theme = theme,
 		themed = owns(passes, "themes"),
 	}
+end
+
+-- Which crank a plot shows: the golden crank of S6 wins over the copper crank of the Founder Pack; else the plain one.
+function Cosmetics.crankLook(founder: boolean, golden: boolean): string
+	if golden then
+		return "golden"
+	end
+	return if founder then "copper" else "plain"
 end
 
 -- The prestige level as a whole number from 0. A missing, negative, NaN or infinite level counts as 0.
