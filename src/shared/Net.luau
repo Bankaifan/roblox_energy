@@ -49,10 +49,10 @@ Net.messages = {
 	Tutorial = { direction = "server", fields = { id = "string", index = "int" } },
 	Ready = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
 	Snapshot = { direction = "server", fields = {} }, -- the whole run state of the player
-	-- turbo: seconds of the owner's own Turbo Feed-in left (0 = off).
+	-- turbo: seconds of the owner's own Turbo Feed-in left (0 = off). skip: the coins a Time Skip would give now.
 	Delta = {
 		direction = "server",
-		fields = { coins = "number", rate = "number", charge = "number", turbo = "number" },
+		fields = { coins = "number", rate = "number", charge = "number", turbo = "number", skip = "number" },
 	},
 	-- sunshineEnds is the server time the Sunshine Hour ends (0 = off); the client counts down from it.
 	Env = {
