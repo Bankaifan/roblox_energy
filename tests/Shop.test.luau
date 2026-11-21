@@ -26,6 +26,15 @@ return function(t, load)
 
 	-- The catalogue: 28 offers, unique IDs, the Robux prices and names the Bauplan gives.
 	t.equal(#Catalogue.offers, 28, "28 offers")
+	-- Crank speed: the hand rate, plus the Auto Crank rate with the pass, never above the limit.
+	t.equal(Shop.crankSpeed({ passes = {} }, Catalogue), Catalogue.handCrankRate, "by hand only")
+	t.equal(
+		Shop.crankSpeed({ passes = { auto_crank = true } }, Catalogue),
+		math.min(Catalogue.handCrankRate + Catalogue.autoCrankRate, Catalogue.crankLimit),
+		"hand and motor together"
+	)
+
+	t.equal(Shop.crankSpeed({ passes = { auto_crank = true } }, with({ crankLimit = 3 })), 3, "capped by the limit")
 	local seen: { [string]: boolean } = {}
 	local passes, products = 0, 0
 	for _, offer in Catalogue.offers do
