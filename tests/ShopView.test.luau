@@ -6,6 +6,8 @@ return function(t, load)
 	local Formulas = load("Core/Formulas")
 	local Locale = load("Config/Locale")
 	local Land = load("Config/Land")
+	local Shop = load("Core/Shop")
+	local Data = load("Core/Data")
 	local config: { [string]: any } = {
 		plants = load("Config/Plants"),
 		upgrades = load("Config/Upgrades"),
@@ -317,7 +319,9 @@ return function(t, load)
 	t.equal(ShopView.tabsFor(false, true)[6].id, "extras", "Extras is the last tab")
 	t.equal(#ShopView.tabsFor(true, true), 7, "the control board has seven tabs with Extras")
 	for _, offer in Catalogue.offers do
-		t.truthy(Locale.tables.de[`offer.{offer.id}.info`] ~= nil, `German text for {offer.id}`)
+		if offer.plant == nil then
+			t.truthy(Locale.tables.de[`offer.{offer.id}.info`] ~= nil, `German text for {offer.id}`)
+		end
 	end
 
 	-- Mega Battery: offered in the Storage tab from the second battery (U18) on, in both languages.
@@ -353,6 +357,92 @@ return function(t, load)
 	t.truthy(mega ~= nil and mega.button.offer == "mega_battery", "the Mega Battery card shows from U18 on")
 	t.truthy(string.find(mega.info, "1.5 times", 1, true) ~= nil, "English card text")
 	t.equal(storageWith({ "U17", "U18" }, "de")["offer.mega_battery"].title, "Riesenbatterie", "German name")
+
+	local function ids(list: { any }): string
+		local names = {}
+		for _, tab in list do
+			table.insert(names, tab.id)
+		end
+		return table.concat(names, ",")
+	end
+	t.equal(ids(ShopView.tabsFor(false)), "plants,upgrades,storage,tools,sparks", "the market has no production tab")
+	t.equal(
+		ids(ShopView.tabsFor(true)),
+		"plants,upgrades,storage,tools,sparks,production",
+		"the control board has all tabs"
+	)
+
+	for _, tab in ShopView.tabs do
+		t.truthy(Locale.tables.de[tab.key] ~= nil and Locale.tables.de[tab.hint] ~= nil, `texts for tab {tab.id}`)
+	end
+
+	-- Permanent plants (issue 252): a second, small cyan line on the plant card, from minute 12 and only with the shop shown.
+	local permShop: any = table.clone(Catalogue)
+	permShop.offers = {}
+	local permPrices: { [number]: number } = {}
+	for index, offer in Catalogue.offers do
+		local copy: any = table.clone(offer)
+		copy.robloxId = 2000 + index
+		table.insert(permShop.offers, copy)
+		permPrices[2000 + index] = offer.robux
+	end
+	local function plantTab(facts: any, lang: string?, prices: any?): { any }
+		local permState = fresh()
+		return ShopView.cards("plants", {
+			view = GameCore.view(permState, env),
+			coins = 0,
+			plants = config.plants,
+			upgrades = config.upgrades,
+			land = land,
+			offers = Offers.visible(permShop, prices or permPrices, lang or "en"),
+			extras = facts,
+			shop = permShop,
+			t = function(key: string, args: any): string
+				return Locale.t(key, lang or "en", args)
+			end,
+		})
+	end
+	local builtProfile = Data.template()
+	builtProfile.built[1] = true
+	local permFacts = { shown = true, owned = {}, stock = 0, permanent = Shop.permanentOffers(builtProfile, permShop) }
+	local permCards = plantTab(permFacts)
+	t.equal(#permCards[1].permanent, 2, "a built plant has a single and a pack line")
+	t.equal(permCards[1].permanent[1].text, "Permanent plant, 2 Robux", "the single line says what it is and costs")
+	t.equal(permCards[1].permanent[1].offer, "perm1", "a tap opens the prompt of the single")
+	t.equal(permCards[1].permanent[2].offer, "perm1x10", "and of the pack")
+	t.equal(permCards[3].permanent, nil, "a type never built has no line")
+	t.equal(#permCards, 6, "the plant list is the same size")
+	t.equal(
+		plantTab({ shown = false, owned = {}, stock = 0, permanent = permFacts.permanent })[1].permanent,
+		nil,
+		"no line before the shop shows"
+	)
+	t.equal(plantTab(permFacts, "en", {})[1].permanent, nil, "no line without a fetched price")
+	t.equal(plantTab({ shown = true, owned = {}, stock = 0 })[1].permanent, nil, "no line without the facts")
+	local fullProfile = Data.template()
+	fullProfile.built[1], fullProfile.permanent[1] = true, 9
+	local lastOne =
+		plantTab({ shown = true, owned = {}, stock = 0, permanent = Shop.permanentOffers(fullProfile, permShop) })
+	t.equal(#lastOne[1].permanent, 1, "with nine owned only the single line is left")
+	-- Both languages: every line stays short enough for the card width (at most 34 characters at the biggest price), and
+	-- the tab has no Extras card for a permanent plant.
+	for _, lang in { "en", "de" } do
+		for _, offer in permShop.offers do
+			if offer.plant ~= nil then
+				local profile = Data.template()
+				profile.built[offer.plant] = true
+				local line = plantTab(
+					{ shown = true, owned = {}, stock = 0, permanent = Shop.permanentOffers(profile, permShop) },
+					lang
+				)[offer.plant]
+				for _, entry in line.permanent do
+					t.truthy(utf8.len(entry.text) <= 34, `{lang} {entry.offer}: line fits ({entry.text})`)
+				end
+			end
+		end
+	end
+	t.equal(plantTab(permFacts, "de")[1].permanent[1].text, "Stamm-Anlage, 2 Robux", "German single line")
+	t.equal(plantTab(permFacts, "de")[1].permanent[2].text, "10 Stamm-Anlagen, 19 Robux", "German pack line")
 
 	local function ids(list: { any }): string
 		local names = {}
