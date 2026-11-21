@@ -120,6 +120,23 @@ return function(t, load)
 	t.equal(nextReason, nil, "a Time Skip on the next day is bought")
 	t.equal(nextYield, 1200, "and pays 20 minutes")
 	t.equal(Shop.skipsLeft(nextDay, DAY + 1, Catalogue), 2, "one used on the new day")
+	-- Extras tab view: owned passes, booster stock, Time Skips left, and when the tab may show at all.
+	local extrasBase = Data.template()
+	extrasBase.tutorialDone = true
+	extrasBase.passes.neon = true
+	local extrasQueued = buy(extrasBase, "sunshine")
+	local view = Shop.extrasView(extrasQueued, DAY, Catalogue, true, 720)
+	t.equal(view.shown, true, "tutorial done, minute 12 and allowed: the tab shows")
+	t.equal(view.owned.neon, true, "an owned pass is listed")
+	t.equal(view.stock, 600, "the booster stock is the queue")
+	t.equal(view.skipsLeft, 3, "three Time Skips left")
+	t.equal(Shop.extrasView(extrasBase, DAY, Catalogue, true, 719).shown, false, "hidden before minute 12")
+	t.equal(Shop.extrasView(extrasBase, DAY, Catalogue, false, 720).shown, false, "hidden when the shop is not allowed")
+	local unfinished = table.clone(extrasBase)
+	unfinished.tutorialDone = false
+	t.equal(Shop.extrasView(unfinished, DAY, Catalogue, true, 720).shown, false, "hidden during the tutorial")
+	t.equal(Shop.extrasView(extrasBase, DAY, with({ dailyLimits = false }), true, 720).skipsLeft, nil, "no limit: nil")
+
 	local unlimited = with({ dailyLimits = false })
 	local many = base
 	for _ = 1, 5 do
