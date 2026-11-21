@@ -236,7 +236,7 @@ return function(t, load)
 	end
 	local open = { shown = true, owned = {}, stock = 0, skipsLeft = 3 }
 	local listed = byId(extras(open, allPrices))
-	t.equal(#extras(open, allPrices), 11, "one card per offer with a price")
+	t.equal(#extras(open, allPrices), 12, "one card per offer with a price")
 	t.equal(#extras(open, {}), 0, "offers without a fetched price are hidden")
 	t.equal(#extras({ shown = false, owned = {}, stock = 0 }, allPrices), 0, "a hidden tab has no cards")
 	t.equal(listed["offer.founder"].price, "51 Robux", "the live price and the word Robux")
