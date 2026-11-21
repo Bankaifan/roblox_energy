@@ -101,6 +101,20 @@ end, function(player: Player, coins: number)
 	DataService.sync(player, nextState)
 end)
 
+-- Spark packs (PurchaseService): the sparks bought go into the live run, which DataService.sync copies into the profile.
+-- False without a run yet; a negative count takes a grant back.
+PurchaseService.setSparks(function(player: Player, count: number): boolean
+	local state = states[player]
+	if state == nil then
+		return false
+	end
+	local nextState = table.clone(state)
+	nextState.sparks = state.sparks + count
+	states[player] = nextState
+	DataService.sync(player, nextState)
+	return true
+end)
+
 -- Join: the profile loads first, so nobody plays without a saved profile. Then the offline income of the time away
 -- is credited, and the plot is given out.
 function Session.start(player: Player)
