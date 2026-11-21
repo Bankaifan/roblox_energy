@@ -167,4 +167,18 @@ Steps[9] = function(profile: any): any
 	return profile
 end
 
+-- Version 10 -> 11 (issue #252): the profile gets `permanent` (permanent plants, 0 before) and `built`, the plant types
+-- built at least once. A type the saved run holds counts as built; earlier runs are not known. The rest comes from
+-- Core/Data.reconcile.
+Steps[10] = function(profile: any): any
+	local built = {}
+	for index = 1, 6 do
+		built[index] = type(profile.plants) == "table"
+			and type(profile.plants[index]) == "number"
+			and profile.plants[index] > 0
+	end
+	profile.built = built
+	return profile
+end
+
 return Steps
