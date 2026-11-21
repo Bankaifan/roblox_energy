@@ -74,9 +74,10 @@ function Formulas.cost(baseCost: number, owned: number): number
 	return baseCost * COST_GROWTH ^ owned
 end
 
--- Speicher_max = Sekunden_Stufe × Mittagserzeugung. Stage 0 means no storage.
-function Formulas.storageCapacity(stage: number, middayOutput: number): number
-	return (STORAGE_SECONDS[stage] or 0) * middayOutput
+-- Speicher_max = Sekunden_Stufe × Mittagserzeugung × Faktor. Stage 0 means no storage. `factor` is the Mega Battery
+-- (Core/Shop.storageFactor), 1 when missing.
+function Formulas.storageCapacity(stage: number, middayOutput: number, factor: number?): number
+	return (STORAGE_SECONDS[stage] or 0) * middayOutput * (factor or 1)
 end
 
 -- Fill level of the storage from 0 to 1 (0 without capacity).
