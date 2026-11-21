@@ -124,6 +124,7 @@ end
 local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecision
 	local profile = DataService.profileOf(player)
 	if profile == nil then
+		warn(`[PurchaseService] receipt {receipt.ReceiptId}: no loaded profile for {player.Name}`)
 		return NotProcessedYet
 	end
 	local offerId = Shop.offerForProduct(Catalogue, receipt.ProductId)
@@ -137,18 +138,21 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		return PurchaseGranted
 	end
 	if status ~= "granted" then
+		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId} refused: {status}`)
 		return NotProcessedYet
 	end
 	local sparks = Shop.packSparks(Catalogue, offerId)
 	if sparks > 0 and (addSparks == nil or not addSparks(player, sparks)) then
-		return NotProcessedYet -- no run yet: Roblox asks again
+		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: no run yet, asked again later`)
+		return NotProcessedYet
 	end
 	local plant = Shop.permanentPlant(Catalogue, offerId)
 	if plant ~= nil and (addPlants == nil or not addPlants(player, plant.id, plant.count)) then
 		if sparks > 0 and addSparks ~= nil then
 			addSparks(player, -sparks)
 		end
-		return NotProcessedYet -- no run yet: Roblox asks again
+		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: no run yet, asked again later`)
+		return NotProcessedYet
 	end
 	-- The coins of the yield are written with the receipt ID, in the same step (no yield between), so one save holds both.
 	local coins = quoteCoins(player, seconds)
@@ -159,7 +163,8 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		if plant ~= nil and addPlants ~= nil then
 			addPlants(player, plant.id, -plant.count)
 		end
-		return NotProcessedYet -- no run yet: Roblox asks again
+		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: no run yet, asked again later`)
+		return NotProcessedYet
 	end
 	profile.Data = data
 	if coins > 0 and payout ~= nil then
@@ -168,6 +173,9 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 	if saveNow(profile, receipt.ReceiptId) then
 		return PurchaseGranted
 	end
+	warn(
+		`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: the save was not confirmed in time, credit undone`
+	)
 	undoCredit(profile, before) -- not saved: this credit is undone, the receipt is asked for again
 	if plant ~= nil and addPlants ~= nil then
 		addPlants(player, plant.id, -plant.count)
@@ -195,6 +203,7 @@ end
 
 -- The one ProcessReceipt callback. An error counts as not processed: nothing is granted then.
 local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
+	print(`[PurchaseService] receipt {receipt.ReceiptId} arrived, product {receipt.ProductId}`)
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	if player == nil then
 		return NotProcessedYet
