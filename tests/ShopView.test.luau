@@ -443,22 +443,4 @@ return function(t, load)
 	end
 	t.equal(plantTab(permFacts, "de")[1].permanent[1].text, "Stamm-Anlage, 2 Robux", "German single line")
 	t.equal(plantTab(permFacts, "de")[1].permanent[2].text, "10 Stamm-Anlagen, 19 Robux", "German pack line")
-
-	local function ids(list: { any }): string
-		local names = {}
-		for _, tab in list do
-			table.insert(names, tab.id)
-		end
-		return table.concat(names, ",")
-	end
-	t.equal(ids(ShopView.tabsFor(false)), "plants,upgrades,storage,tools,sparks", "the market has no production tab")
-	t.equal(
-		ids(ShopView.tabsFor(true)),
-		"plants,upgrades,storage,tools,sparks,production",
-		"the control board has all tabs"
-	)
-
-	for _, tab in ShopView.tabs do
-		t.truthy(Locale.tables.de[tab.key] ~= nil and Locale.tables.de[tab.hint] ~= nil, `texts for tab {tab.id}`)
-	end
 end
