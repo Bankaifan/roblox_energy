@@ -9,7 +9,7 @@ Type: **Pass** = Game Pass, **Product** = Developer Product.
 
 | # | English name | German name | Type | Robux | Description |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Founder Pack | Gründer-Paket | Pass | 59 | Grants 30 minutes of harvest income once, plus a golden crank and a founder sign on the plot. |
+| 1 | Founder Pack | Gründer-Paket | Pass | 59 | Grants 30 minutes of harvest income once, plus a copper crank and a founder sign on the plot. |
 | 2 | Smart Hub | Smart-Zentrale | Pass | 199 | Adds a third grid slot and unlocks automatic expansion immediately instead of after P3 and P8. |
 | 3 | Long Meter | Langzeit-Zähler | Pass | 129 | Raises the offline cap by 4 hours. |
 | 4 | Premium Tariff | Premium-Tarif | Pass | 349 | Permanently multiplies the sale price by 1.5. |
