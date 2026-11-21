@@ -147,6 +147,15 @@ return function(t, load)
 		"the Founder Pack pays 30 minutes"
 	)
 
+	-- Spark packs add their sparks to the profile (and so to what the run can spend); the sparks left to spend grow by
+	-- exactly the pack size.
+	for _, size in { 5, 15, 40 } do
+		measures[`sparks{size}`] = function()
+			local after = Shop.purchase(base, `sparks{size}`, DAY, Catalogue, Config.upgrades)
+			return base.sparks, after.sparks
+		end
+	end
+
 	for _, offer in Catalogue.offers do
 		if COSMETIC[offer.id] then
 			t.truthy(measures[offer.id] == nil, `{offer.id}: listed as cosmetic and as an effect`)
