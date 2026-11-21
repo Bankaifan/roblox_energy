@@ -83,6 +83,23 @@ local function undoCredit(profile: any, before: any)
 	profile.Data = restored
 end
 
+-- The payout of cut yield (Time Skip, Founder Pack) goes into the live run, which Session owns. Session registers two
+-- functions: quote(player, seconds) -> coins of that many seconds of full-rate yield (nil without a run yet) and
+-- apply(player, coins) -> adds the coins to the run as revenue and copies it into the profile (a negative amount takes
+-- a payout back). Without them nothing is paid.
+local payout: { quote: (Player, number) -> number?, apply: (Player, number) -> () }? = nil
+
+function PurchaseService.setPayout(quote: (Player, number) -> number?, apply: (Player, number) -> ())
+	payout = { quote = quote, apply = apply }
+end
+
+local function quoteCoins(player: Player, seconds: number): number?
+	if payout == nil or seconds <= 0 then
+		return 0
+	end
+	return payout.quote(player, seconds)
+end
+
 -- The credit of one receipt, under the receipt lock. Nothing is written unless the save is confirmed.
 local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecision
 	local profile = DataService.profileOf(player)
@@ -95,18 +112,29 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		return NotProcessedYet
 	end
 	local before = profile.Data
-	local data, status = Shop.receipt(before, receipt.ReceiptId, offerId, today(), Catalogue)
+	local data, status, seconds = Shop.receipt(before, receipt.ReceiptId, offerId, today(), Catalogue)
 	if status == "duplicate" then
 		return PurchaseGranted
 	end
 	if status ~= "granted" then
 		return NotProcessedYet
 	end
+	-- The coins of the yield are written with the receipt ID, in the same step (no yield between), so one save holds both.
+	local coins = quoteCoins(player, seconds)
+	if coins == nil then
+		return NotProcessedYet -- no run yet: Roblox asks again
+	end
 	profile.Data = data
+	if coins > 0 and payout ~= nil then
+		payout.apply(player, coins)
+	end
 	if saveNow(profile, receipt.ReceiptId) then
 		return PurchaseGranted
 	end
 	undoCredit(profile, before) -- not saved: this credit is undone, the receipt is asked for again
+	if coins > 0 and payout ~= nil then
+		payout.apply(player, -coins)
+	end
 	return NotProcessedYet
 end
 
@@ -138,7 +166,7 @@ end
 
 -- Records one owned pass in the profile for this session. Passes are not kept across sessions (migration 8 to 9, and
 -- join clears them): ownership is what Roblox reports now. Shop.purchase keeps the ownership once.
--- The cut yield of a pass (Founder Pack) is not paid here; the payout is open.
+-- The yield of a pass (Founder Pack) is paid by claimYield, once per profile.
 function PurchaseService.grantPass(player: Player, offerId: string)
 	local profile = DataService.profileOf(player)
 	if profile == nil then
@@ -147,6 +175,27 @@ function PurchaseService.grantPass(player: Player, offerId: string)
 	local data, _, reason = Shop.purchase(profile.Data, offerId, today(), Catalogue)
 	if reason == nil then
 		profile.Data = data
+	end
+	PurchaseService.claimYield(player)
+end
+
+-- Pays the yield of every owned pass that has one and was not paid before (Core/Shop.claimPassYield: the flag is saved
+-- in the profile, so a pass seen again on a later join pays nothing). Without a run (Session.start has not finished)
+-- nothing is paid and the flag stays open; Session.start calls this again once the run exists.
+function PurchaseService.claimYield(player: Player)
+	local profile = DataService.profileOf(player)
+	if profile == nil or payout == nil then
+		return
+	end
+	for _, offer in Catalogue.offers do
+		if offer.type == "pass" and offer.seconds ~= nil then
+			local data, seconds = Shop.claimPassYield(profile.Data, offer.id, Catalogue)
+			local coins = if seconds > 0 then payout.quote(player, seconds) else nil
+			if coins ~= nil then
+				profile.Data = data
+				payout.apply(player, coins)
+			end
+		end
 	end
 end
 
