@@ -5,7 +5,7 @@ The status in the report and the check in `tests/test_balance_report.py` (run by
 
 - Seven rows were out of the Bauplan tolerance (Z1, Z2, Z3, Z5, Z6, Z7, Z10). All their figures get the new range.
 - New range = lowest run minus 1, rounded down; highest run plus 1, rounded up (counts of stages: not below 1).
-- Rows in target keep the Bauplan tolerance (Z4, Z8, Z9). Z11 is not measured.
+- Rows in target keep the Bauplan tolerance (Z4, Z8, Z9). Z11 is measured (at most x3, no range check).
 - Z5 occasional bot: not reached within the 6 h cap, so no figure is checked for it.
 
 | Nr | Figure | Bauplan (old) | New (check) | Reason |
