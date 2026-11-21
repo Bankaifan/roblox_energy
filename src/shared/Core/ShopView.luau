@@ -338,7 +338,11 @@ local function toolCards(input: Input): { Card }
 	return cards
 end
 
+-- The Robux cards, defined below: all offers with a price, or only the spark packs.
+local robuxCards: (Input, boolean) -> { Card }
+
 -- One card per permanent node and spark item (view.sparks.items): name, price in sparks, the effect line, owned or Buy.
+-- The spark packs for Robux follow at the bottom.
 local function sparkCards(input: Input): { Card }
 	local cards: { Card } = {}
 	local sparks = input.view.sparks
@@ -361,6 +365,9 @@ local function sparkCards(input: Input): { Card }
 			card.price = input.t("market.sparkPrice", { cost = item.sparks })
 			card.button = buy(input, item.buyable, "BuyNode", { node = item.id })
 		end
+		table.insert(cards, card)
+	end
+	for _, card in robuxCards(input, true) do
 		table.insert(cards, card)
 	end
 	return cards
@@ -411,7 +418,8 @@ end
 
 -- Extras tab: one card per Robux offer with a fetched price (`input.offers`; the others are not listed). A pass already
 -- owned says so in green; a booster that does not fit the queue and a Time Skip over the daily limit have no button.
-local function extrasCards(input: Input): { Card }
+-- A spark pack is offered from grid stage 1 on, and only while the sparks still missing cover it.
+function robuxCards(input: Input, packsOnly: boolean): { Card }
 	local cards: { Card } = {}
 	local facts = input.extras
 	if facts == nil or facts.shown ~= true then
@@ -420,6 +428,13 @@ local function extrasCards(input: Input): { Card }
 	local t = input.t
 	for _, entry in input.offers or {} do
 		local offer = findOffer(input.shop, entry.id)
+		local pack = offer ~= nil and offer.sparks ~= nil
+		if pack and not ((facts.level or 0) >= 1 and (facts.sparksMissing or 0) >= offer.sparks) then
+			continue
+		end
+		if packsOnly and not pack then
+			continue
+		end
 		local card: Card = {
 			id = `offer.{entry.id}`,
 			icon = `offer.{entry.type}`,
@@ -443,6 +458,10 @@ local function extrasCards(input: Input): { Card }
 		table.insert(cards, card)
 	end
 	return cards
+end
+
+local function extrasCards(input: Input): { Card }
+	return robuxCards(input, false)
 end
 
 local BUILDERS: { [string]: (Input) -> { Card } } = {
