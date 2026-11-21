@@ -161,4 +161,10 @@ Steps[8] = function(profile: any): any
 	return profile
 end
 
+-- Version 9 -> 10 (issue #251): the profile gets `sparksBought`, the sparks bought with Robux (0 before). Nothing to
+-- convert: Core/Data.reconcile fills it from the template.
+Steps[9] = function(profile: any): any
+	return profile
+end
+
 return Steps
