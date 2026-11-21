@@ -54,6 +54,40 @@ return function(t, load)
 	end
 	t.equal(passes, 10, "ten passes")
 	t.equal(products, 18, "18 products: two boosters, the Time Skip, three spark packs and twelve permanent plants")
+	-- The Creator Hub IDs (issue 281, the owner's update): every offer is pinned to its exact ID.
+	local creatorHubIds: { [string]: number } = {
+		founder = 2096875000,
+		smart_hub = 2092415147,
+		long_meter = 2092793166,
+		auto_crank = 2096623036,
+		mega_battery = 2092751131,
+		premium = 2092673252,
+		grid_vip = 2092403157,
+		neon = 2094533031,
+		fireworks = 2092283063,
+		themes = 2097016970,
+		sunshine = 3734134439,
+		turbo = 3734134487,
+		timeskip = 3734134518,
+		sparks5 = 3734138157,
+		sparks15 = 3734138182,
+		sparks40 = 3734138203,
+		perm1 = 3734152391,
+		perm1x10 = 3734152514,
+		perm2 = 3734152579,
+		perm2x10 = 3734152954,
+		perm3 = 3734153153,
+		perm3x10 = 3734153895,
+		perm4 = 3734154151,
+		perm4x10 = 3734154228,
+		perm5 = 3734154380,
+		perm5x10 = 3734154462,
+		perm6 = 3734154528,
+		perm6x10 = 3734154630,
+	}
+	for _, offer in Catalogue.offers do
+		t.equal(offer.robloxId, creatorHubIds[offer.id], `{offer.id}: its Creator Hub ID`)
+	end
 
 	-- The product defaults (Bauplan section 10): daily limits on, Smart Hub extras at once.
 	t.equal(Catalogue.dailyLimits, true, "daily limits are on")
