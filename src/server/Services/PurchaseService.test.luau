@@ -26,7 +26,7 @@ return function(t)
 	-- A fresh player (random ID, so the Mock store holds nothing for them yet).
 	local userId = math.random(100000, 999999)
 	local player: any = { UserId = userId, Name = `test{userId}`, Parent = true }
-	local receipt = { PlayerId = userId, ReceiptId = `pt-{userId}-1`, ProductId = PRODUCT_ID }
+	local receipt = { PlayerId = userId, PurchaseId = `pt-{userId}-1`, ProductId = PRODUCT_ID }
 
 	-- No loaded profile: nothing is credited, Roblox asks again on the next join.
 	t.equal(PurchaseService.receive(player, receipt), NotYet, "without a loaded profile the receipt waits")
@@ -39,12 +39,12 @@ return function(t)
 	t.equal(#data.boosters, 1, "one Sunshine Hour in the queue")
 	t.equal(data.boosters[1].kind, "sunshine", "the queue holds the Sunshine Hour")
 	t.equal(data.boosters[1].left, sunshine.seconds, "for its full length")
-	t.equal(data.purchases[1], receipt.ReceiptId, "the receipt ID is kept with the credit")
+	t.equal(data.purchases[1], receipt.PurchaseId, "the receipt ID is kept with the credit")
 	t.equal(PurchaseService.receive(player, receipt), Granted, "the same receipt again is granted")
 	t.equal(#DataService.profileOf(player).Data.boosters, 1, "but credited only once")
 
 	-- An unknown product is refused, nothing is credited.
-	local unknown = { PlayerId = userId, ReceiptId = `pt-{userId}-2`, ProductId = 1 }
+	local unknown = { PlayerId = userId, PurchaseId = `pt-{userId}-2`, ProductId = 1 }
 	t.equal(PurchaseService.receive(player, unknown), NotYet, "an unknown product is refused")
 	t.equal(#DataService.profileOf(player).Data.boosters, 1, "and nothing is credited")
 
@@ -54,7 +54,7 @@ return function(t)
 	t.truthy(DataService.load(player) ~= nil, "the profile loads again")
 	local saved = DataService.profileOf(player).Data
 	t.equal(#saved.boosters, 1, "the Sunshine Hour survives the save")
-	t.equal(saved.purchases[1], receipt.ReceiptId, "and so does the receipt ID")
+	t.equal(saved.purchases[1], receipt.PurchaseId, "and so does the receipt ID")
 	t.equal(PurchaseService.receive(player, receipt), Granted, "after the rejoin the old receipt is still a duplicate")
 	t.equal(#DataService.profileOf(player).Data.boosters, 1, "and is not credited again")
 	DataService.release(player, nil)
@@ -63,8 +63,8 @@ return function(t)
 	-- Two receipts at once (Sunshine Hour and another bought together): each waits for its own save, both are granted,
 	-- both are credited and both IDs survive a save and a reload. Neither credit may undo the other.
 	t.truthy(DataService.load(player) ~= nil, "the profile loads for the overlapping receipts")
-	local first = { PlayerId = userId, ReceiptId = `pt-{userId}-3`, ProductId = PRODUCT_ID }
-	local second = { PlayerId = userId, ReceiptId = `pt-{userId}-4`, ProductId = PRODUCT_ID }
+	local first = { PlayerId = userId, PurchaseId = `pt-{userId}-3`, ProductId = PRODUCT_ID }
+	local second = { PlayerId = userId, PurchaseId = `pt-{userId}-4`, ProductId = PRODUCT_ID }
 	local results: { first: any?, second: any? } = {}
 	task.spawn(function()
 		results.first = PurchaseService.receive(player, first)
@@ -80,14 +80,14 @@ return function(t)
 	t.equal(results.second, Granted, "the second overlapping receipt is granted")
 	local both = DataService.profileOf(player).Data
 	t.equal(#both.boosters, 3, "both overlapping receipts are credited (one before, two now)")
-	t.truthy(table.find(both.purchases, first.ReceiptId) ~= nil, "the first receipt ID is kept")
-	t.truthy(table.find(both.purchases, second.ReceiptId) ~= nil, "the second receipt ID is kept")
+	t.truthy(table.find(both.purchases, first.PurchaseId) ~= nil, "the first receipt ID is kept")
+	t.truthy(table.find(both.purchases, second.PurchaseId) ~= nil, "the second receipt ID is kept")
 	DataService.release(player, nil)
 	DataService.flush(10)
 	t.truthy(DataService.load(player) ~= nil, "the profile loads after the overlapping receipts")
 	local reloaded = DataService.profileOf(player).Data
 	t.equal(#reloaded.boosters, 3, "the saved queue holds all three Sunshine Hours")
-	t.truthy(table.find(reloaded.purchases, second.ReceiptId) ~= nil, "and the second receipt ID is saved")
+	t.truthy(table.find(reloaded.purchases, second.PurchaseId) ~= nil, "and the second receipt ID is saved")
 	DataService.release(player, nil)
 	DataService.flush(10)
 
