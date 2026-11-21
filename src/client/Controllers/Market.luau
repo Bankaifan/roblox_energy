@@ -19,6 +19,8 @@ local Plants = require(Config:WaitForChild("Plants") :: ModuleScript) :: any
 local Upgrades = require(Config:WaitForChild("Upgrades") :: ModuleScript) :: any
 local Effects = require(Config:WaitForChild("Effects") :: ModuleScript) :: any
 local ShopView = require(Shared:WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript) :: any
+local Hints = require(Shared:WaitForChild("Core"):WaitForChild("Hints") :: ModuleScript) :: any
+local HintView = require(Shared:WaitForChild("Core"):WaitForChild("HintView") :: ModuleScript) :: any
 local PopupGate = require(Shared:WaitForChild("Core"):WaitForChild("PopupGate") :: ModuleScript) :: any
 local Theme = require(script.Parent.Parent.Theme)
 local OfferPrices = require(script.Parent.OfferPrices)
@@ -587,6 +589,27 @@ function Market.build(net: Instance, language: () -> string)
 			skipCoins = latestSkip,
 			shop = Catalogue,
 		})
+		-- The purchase hints of this tab: one quiet card each at the end, only where Core/Hints allows it.
+		if latest ~= nil then
+			local listed: { [string]: boolean } = {}
+			for _, offer in OfferPrices.visible(language()) do
+				listed[offer.id] = true
+			end
+			for _, hintCard in
+				HintView.cards(currentTab, {
+					extras = latestExtras,
+					allowed = Hints.allowed,
+					firstSeconds = Catalogue.firstHintSeconds,
+					storageBought = latest.storage.stage >= 1,
+					controlBought = latest.storage.controlOwned,
+					gridLevel = latest.sparks.gridLevel,
+					offlineCapped = false, -- only the welcome screen has this fact
+					listed = listed,
+				}, t)
+			do
+				table.insert(cards, hintCard)
+			end
+		end
 		for index, data in cards do
 			local card = pool[index]
 			if card == nil then
