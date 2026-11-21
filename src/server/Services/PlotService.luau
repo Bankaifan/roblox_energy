@@ -15,6 +15,7 @@ local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
 local PlotGround = require(script.Parent.PlotGround)
+local PlotStyle = require(script.Parent.PlotStyle)
 local LandService = require(script.Parent.LandService)
 
 local PlotService = {}
@@ -52,6 +53,7 @@ type Record = {
 	buildKey: string, -- what the farm fences and masts show now
 	builds: Folder?, -- post fences round the solar farm cells and guyed masts on the mini turbine cells
 	golden: boolean, -- the Golden Crank (S6) is shown
+	themeKey: string, -- the Plot Themes design shown now ("" = none)
 	river: { number }, -- the dig stage of each river segment (River.stages)
 	course: any, -- the river course of this plot (River.course)
 }
@@ -796,6 +798,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		buildKey = "",
 		builds = nil,
 		golden = false,
+		themeKey = "",
 	}
 	plots[player] = record
 	LandService.build(player, { origin = origin, facing = place.facing, model = model })
@@ -885,6 +888,28 @@ function PlotService.update(
 		local first = PlotLayout.sites(field, 1, Assets.TILE, Assets.PLOT_TILES)[1]
 		column.Size = Vector3.new(side, height, side)
 		column.Position = sitePoint(record, first) + Vector3.new(0, height / 2, 0)
+	end
+end
+
+-- Cosmetics (Core/Cosmetics flags): the glow of Neon Plants on every unit; the design of Plot Themes is rebuilt when it changes.
+function PlotService.style(player: Player, flags: any)
+	local record = plots[player]
+	if record == nil then
+		return
+	end
+	PlotStyle.neon(record.origin, record.copies, record.columns, flags.neon)
+	local key = if flags.themed then flags.theme else ""
+	if record.themeKey ~= key then
+		record.themeKey = key
+		PlotStyle.theme(record.model, record.origin, record.facing, if flags.themed then flags.theme else nil)
+	end
+end
+
+-- Upgrade Fireworks above the player's plot.
+function PlotService.fireworks(player: Player)
+	local record = plots[player]
+	if record ~= nil then
+		PlotStyle.fireworks(record.origin)
 	end
 end
 
