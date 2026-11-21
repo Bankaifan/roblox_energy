@@ -356,6 +356,12 @@ local function crankEnergy(state: State, env: Env): number
 	return energy
 end
 
+-- Coins one crank turn pays: the energy per click sold at the price factor of this second (the crank does not take
+-- the income multiplier, it sells at the market price only).
+local function crankCoins(state: State, env: Env): number
+	return crankEnergy(state, env) * env.formulas.price(env.phase, env.weather, market(state, env, env.phase))
+end
+
 local function crank(state: State, env: Env): boolean
 	local energy = crankEnergy(state, env)
 	local price = env.formulas.price(env.phase, env.weather, market(state, env, env.phase))
@@ -1006,6 +1012,12 @@ local function productionView(state: State, env: Env): { [string]: any }
 		})
 	end
 	return { rows = rows, total = total, grid = globalMultiplier(state, env) }
+end
+
+-- What the crank pays now: coins per turn and per second at `turnsPerSecond` turns (Shop.crankSpeed).
+function GameCore.crankOutput(state: State, env: Env, turnsPerSecond: number): { [string]: number }
+	local turn = crankCoins(state, env)
+	return { turn = turn, second = turn * turnsPerSecond, speed = turnsPerSecond }
 end
 
 -- What the HUD shows, so the client does no game logic: each plant's next price and whether the coins cover it,
