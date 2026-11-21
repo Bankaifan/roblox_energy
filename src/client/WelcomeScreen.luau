@@ -93,10 +93,14 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 	local away = row(panel, 2, ROW_TEXT)
 	local coins = row(panel, 3, ROW_TEXT)
 
+	-- The Long Meter hint: one quiet line when the server says the offline cap was reached (Core/HintView).
+	local hint = row(panel, 4, ROW_TEXT)
+	hint.Visible = false
+
 	local collect = Instance.new("TextButton")
 	collect.TextSize = ROW_TEXT
 	collect.TextWrapped = true
-	collect.LayoutOrder = 4
+	collect.LayoutOrder = 5
 	fitRow(collect, BUTTON_MIN_HEIGHT)
 	collect.Parent = panel
 	collect.Activated:Connect(function()
@@ -109,6 +113,8 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 		collect.Text = Locale.t("welcome.collect", lang)
 		away.Text = Locale.t("welcome.away", lang, { duration = duration(welcome.away, lang) })
 		coins.Text = Locale.t("welcome.coins", lang, { coins = string.format("%.0f", welcome.coins) })
+		hint.Text = Locale.t("hint.longMeter", lang)
+		hint.Visible = welcome.hint == true
 		gui.Enabled = true
 	end
 end
