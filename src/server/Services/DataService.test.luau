@@ -33,6 +33,7 @@ local function fakePlayer(userId: number): any
 end
 
 return function(t)
+	DataService.useMock()
 	-- Load, sync, release; a second load gives the run that was synced.
 	local player = fakePlayer(9001)
 	local run = Data.toState(Data.template())

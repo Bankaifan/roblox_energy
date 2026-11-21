@@ -1,8 +1,9 @@
 --!strict
 -- Saves the run of each player (Bauplan.md, "Speichern"): one ProfileStore profile per player, with a session lock.
 -- load starts the session and migrates the saved profile (Migrations/Steps); sync copies the run into the profile
--- before ProfileStore's autosave; release saves and unlocks on leave and on shutdown. In Studio the Mock store is used,
--- so no real save is written. A live server uses the DataStore of STORE_NAME.
+-- before ProfileStore's autosave; release saves and unlocks on leave and on shutdown. In Studio the profiles go to their own
+-- DataStore (STUDIO_STORE_NAME), so test progress survives a restart and the live saves stay untouched. Without Studio API
+-- access ProfileStore falls back to memory. A live server uses the DataStore of STORE_NAME.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -12,12 +13,16 @@ local ProfileStore = require(script.Parent.Parent.Vendor.ProfileStore) :: any
 
 local STORE_NAME = "PowerGrid_Profiles"
 
-local store = ProfileStore.New(STORE_NAME, Data.template())
-if RunService:IsStudio() then
-	store = store.Mock
-end
+local STUDIO_STORE_NAME = "PowerGrid_Profiles_Studio"
+
+local store = ProfileStore.New(if RunService:IsStudio() then STUDIO_STORE_NAME else STORE_NAME, Data.template())
 
 local DataService = {}
+
+-- The Studio test runner switches to the in-memory Mock store, so its fake players never reach a real DataStore.
+function DataService.useMock()
+	store = ProfileStore.New(STORE_NAME, Data.template()).Mock
+end
 local profiles: { [Player]: any } = {}
 local unsaved = 0
 
