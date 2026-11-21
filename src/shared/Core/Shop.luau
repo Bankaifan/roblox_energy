@@ -118,6 +118,15 @@ function Shop.extrasView(
 	}
 end
 
+-- The plant id and the units of a permanent plant offer ({ id, count }), or nil for any other offer.
+function Shop.permanentPlant(shop: any, offerId: any): { id: number, count: number }?
+	local offer = findOffer(shop, offerId)
+	if offer == nil or offer.plant == nil then
+		return nil
+	end
+	return { id = offer.plant, count = offer.count }
+end
+
 -- The permanent plant offers (offer id -> true) that can be bought now: the type was built and the units still fit.
 function Shop.permanentOffers(profile: any, shop: any): { [string]: boolean }
 	local open = {}
