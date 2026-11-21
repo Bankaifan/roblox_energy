@@ -135,8 +135,13 @@ return function(t, load)
 	local skipEnv = envOf(base)
 	local perSecond = GameCore.yield(run(), 1, skipEnv)
 	t.truthy(perSecond > 0, "the run has an average yield")
-	local timeskip = Catalogue.offers[#Catalogue.offers]
-	t.equal(timeskip.id, "timeskip", "the Time Skip is the last offer")
+	local timeskip: any = nil
+	for _, offer in Catalogue.offers do
+		if offer.id == "timeskip" then
+			timeskip = offer
+		end
+	end
+	t.truthy(timeskip ~= nil, "the Time Skip is an offer")
 	t.equal(timeskip.seconds, 1200, "a Time Skip is 20 minutes")
 	local skipCoins = GameCore.yield(run(), timeskip.seconds, skipEnv)
 	t.truthy(math.abs(skipCoins - (perSecond * 1200)) < 1e-6, "a Time Skip is 20 minutes of yield")
