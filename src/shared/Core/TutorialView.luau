@@ -15,7 +15,7 @@ export type Input = {
 export type Presentation = {
 	key: string?, -- the Locale key of the line, nil = no line
 	args: { [string]: any }?, -- numbers, or a Locale key for `tool`
-	target: string?, -- "crank", "market", "field1", "field2"
+	target: string?, -- "crank", "market", "field1", "field2", "field3"
 	hotbar: string?, -- a tool id to point at above the hotbar
 	tab: string?, -- a market tab to pulse
 	card: string?, -- a market card to pulse
@@ -42,6 +42,9 @@ TutorialView.KEYS = {
 	"tutorial.wheel",
 	"tutorial.container",
 	"tutorial.storage",
+	"tutorial.hammer",
+	"tutorial.build.take",
+	"tutorial.build.do",
 	"tutorial.grow",
 	"tutorial.expand",
 	"nudge.crank",
@@ -95,6 +98,20 @@ local function work(input: Input, tool: string, prefix: string, target: string):
 	return { key = prefix .. ".do", target = target }
 end
 
+-- The tool the house field needs now: its chain (scythe, then hammer) is worked stage by stage, so the stage of the cell in
+-- work (land.steps[3], stages done) picks the tool. Before any cell is started it is the first stage.
+local function houseTool(input: Input): string
+	local chain = input.land.chains[3]
+	local stage = 0
+	local land = input.view.land
+	if land ~= nil and land.steps ~= nil then
+		for _, done in land.steps[3] or {} do
+			stage = math.max(stage, done)
+		end
+	end
+	return chain[math.min(stage + 1, #chain)].tool
+end
+
 -- What to show for the step `id`.
 function TutorialView.present(id: string, input: Input): Presentation
 	local view = input.view
@@ -123,6 +140,11 @@ function TutorialView.present(id: string, input: Input): Presentation
 		return buy(input, "tutorial.container", input.land.containerCost, "storage", "container")
 	elseif id == "storage" then
 		return buy(input, "tutorial.storage", runUpgradeCost(input, "U17"), "upgrades", "U17")
+	elseif id == "hammer" then
+		local tool = toolOf(input, "hammer")
+		return buy(input, "tutorial.hammer", if tool ~= nil then tool.price else 0, "tools", "tool.hammer")
+	elseif id == "build" then
+		return work(input, houseTool(input), "tutorial.build", "field3")
 	elseif id == "grow" then
 		local goal = view.goal
 		return { key = "tutorial.grow", args = { required = if goal ~= nil then goal.required else 0 } }
