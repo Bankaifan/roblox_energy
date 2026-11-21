@@ -68,6 +68,7 @@ local function envFor(phase: any, weather: any, player: Player?): any
 		ruleSlots = bought.ruleSlots,
 		autoBuild = bought.autoBuild,
 		storageFactor = bought.storageFactor,
+		permanent = bought.permanent,
 		nextWeather = Env.nextWeather(),
 	}
 end
@@ -112,6 +113,20 @@ PurchaseService.setSparks(function(player: Player, count: number): boolean
 	end
 	local nextState = table.clone(state)
 	nextState.sparks = state.sparks + count
+	states[player] = nextState
+	DataService.sync(player, nextState)
+	return true
+end)
+
+-- Permanent plants (PurchaseService): the units bought stand in the live run at once, as far as the ground carries them.
+-- The count for later runs is in the profile (Core/Shop.purchase). False without a run yet; a negative count takes a grant back.
+PurchaseService.setPlants(function(player: Player, plant: number, count: number): boolean
+	local state = states[player]
+	if state == nil then
+		return false
+	end
+	local phase, weather = Env.current()
+	local nextState = GameCore.grantPlants(state, envFor(phase, weather, player), plant, count)
 	states[player] = nextState
 	DataService.sync(player, nextState)
 	return true
