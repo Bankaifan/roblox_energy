@@ -85,6 +85,19 @@ local function uplift(state: any, stage: number): number?
 	return (with / without - 1) * 100
 end
 
+-- Percent more run revenue over one day with the Mega Battery than without, at storage stage 4 (Sim.MEGA_BATTERY).
+local function megaGain(state: any, buy: any): number?
+	local plain, mega = 0, 0
+	for _, seed in SEEDS do
+		plain += Sim.dayRevenue(Sim.withStorage(state, 4), seed)
+		mega += Sim.dayRevenue(Sim.withStorage(state, 4), seed, buy)
+	end
+	if plain == 0 then
+		return nil
+	end
+	return (mega / plain - 1) * 100
+end
+
 local runs: { [string]: { any } } = {}
 for _, name in { "optimal", "occasional", "child", "premium", "turbo", "skips" } do
 	runs[name] = {}
@@ -357,6 +370,19 @@ for _, buyer in BUYERS do
 		.. text(factors, "x", 2)
 		.. "."
 end
+-- Mega Battery: the storage capacity factor of the catalogue; the extra income at stage 4 must stay at or below 15 %.
+local megaGains = collect(optimal, function(run)
+	if run.snapshots[4] == nil then
+		return nil
+	end
+	return megaGain(run.snapshots[4], Sim.MEGA_BATTERY)
+end)
+local megaMedian = stats(megaGains)
+lines[#lines + 1] = "- Mega Battery (limit +15 %, counts toward x3): capacity x"
+	.. string.format("%.2f", Sim.MEGA_BATTERY.storageFactor)
+	.. ", extra revenue at storage stage 4 "
+	.. text(megaGains, " %")
+	.. if megaMedian ~= nil and megaMedian <= 15 then "; within the limit." else "; OVER THE LIMIT."
 lines[#lines + 1] = ""
 lines[#lines + 1] = "## Assumptions of the bots"
 lines[#lines + 1] = ""
@@ -382,6 +408,8 @@ lines[#lines + 1] =
 	"- Buyers (optimal bot plus purchases from the start): Premium Tariff (income x1.5), Premium plus a permanent Turbo Feed-in (x3, the cap), three Time Skips (20 min of average yield each, paid after 10, 20 and 30 min of play). Income factor = coins earned in the first hour of play against the optimal bot without purchases, same seed and start; it compounds through the stage resets, so it is far above the income multiplier."
 lines[#lines + 1] =
 	"- Z11: the largest income x generation factor over the buyer runs, and with Premium, Turbo and Sunshine Hour all on (Core/Shop.envValues caps the product at multiplierCap)."
+lines[#lines + 1] =
+	"- Mega Battery: one day (720 s from Morgen) at storage stage 4 with rules, with and without the capacity factor, averaged over 9 seeds, from the state before expansion 4 of each optimal run."
 lines[#lines + 1] = "- Z8: median first expansion of the optimal bot, Nacht start against Morgen start."
 lines[#lines + 1] = "- Z9: longest streak of seconds in the first 10 min with no offer affordable, per run."
 lines[#lines + 1] =
