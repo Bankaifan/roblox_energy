@@ -52,7 +52,14 @@ return {
 			de = "Langzeit-Zähler",
 		},
 		{ id = "auto_crank", type = "pass", robux = 129, robloxId = 2096623036, en = "Auto Crank", de = "Kurbelmotor" },
-		{ id = "mega_battery", type = "pass", robux = 249, robloxId = 2092751131, en = "Mega Battery", de = "Riesenbatterie" },
+		{
+			id = "mega_battery",
+			type = "pass",
+			robux = 249,
+			robloxId = 2092751131,
+			en = "Mega Battery",
+			de = "Riesenbatterie",
+		},
 		{
 			id = "premium",
 			type = "pass",
@@ -106,7 +113,15 @@ return {
 			seconds = 900,
 			queued = true,
 		},
-		{ id = "sparks5", type = "product", robux = 79, robloxId = 3734138157, en = "5 Sparks", de = "5 Funken", sparks = 5 },
+		{
+			id = "sparks5",
+			type = "product",
+			robux = 79,
+			robloxId = 3734138157,
+			en = "5 Sparks",
+			de = "5 Funken",
+			sparks = 5,
+		},
 		{
 			id = "sparks15",
 			type = "product",
