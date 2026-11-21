@@ -53,6 +53,36 @@ return function(t, load)
 	t.equal(Cosmetics.publicState("Ada", 0 / 0, {}, {}, {}).level, 0, "a NaN level counts as 0")
 	t.equal(Cosmetics.publicState("Ada", nil, {}, {}, {}).level, 0, "a missing level counts as 0")
 
+	-- Selection (SetCosmetic): only with the pass, only listed items, saved keys as text, the old choice is kept.
+	t.equal(Cosmetics.flags({ themes = true }, {}).themed, true, "Plot Themes shows the design")
+	t.equal(Cosmetics.flags({ neon = true }, {}).themed, false, "no design without Plot Themes")
+	local picked = Cosmetics.choose({ neon = true, themes = true }, { [2] = "night" }, Cosmetics.SLOT_NEON, "gold")
+	t.equal(picked and picked["1"], "gold", "a glow colour is chosen")
+	t.equal(picked and picked["2"], "night", "the other slot keeps its choice")
+	t.equal(Cosmetics.flags({ neon = true, themes = true }, picked or {}).neon, "gold", "the chosen colour shows")
+	t.equal(Cosmetics.choose({}, {}, Cosmetics.SLOT_NEON, "gold"), nil, "no choice without the pass")
+	t.equal(Cosmetics.choose({ neon = true }, {}, Cosmetics.SLOT_THEME, "night"), nil, "a theme needs Plot Themes")
+	t.equal(Cosmetics.choose({ neon = true }, {}, Cosmetics.SLOT_NEON, "purple"), nil, "an unknown colour is refused")
+	t.equal(Cosmetics.choose({ neon = true }, {}, 3, "gold"), nil, "an unknown slot is refused")
+	t.equal(Cosmetics.nextItem(Cosmetics.SLOT_NEON, "green"), "cyan", "the next colour")
+	t.equal(Cosmetics.nextItem(Cosmetics.SLOT_NEON, "gold"), "green", "the colours wrap around")
+	t.equal(Cosmetics.nextItem(Cosmetics.SLOT_THEME, nil), "classic", "no choice starts at the first theme")
+	t.equal(Cosmetics.nextItem(9, "x"), nil, "an unknown slot has no next item")
+	for _, id in Cosmetics.NEON_COLOURS do
+		t.equal(#Cosmetics.neonRgb(id), 3, `{id}: a glow colour`)
+	end
+	for _, id in Cosmetics.THEMES do
+		local look = Cosmetics.themeLook(id)
+		t.truthy(#look.ground == 3 and #look.fence == 3 and #look.sign == 3, `{id}: ground, fence and sign`)
+	end
+	t.truthy(Cosmetics.themeLook("desert").ground[1] ~= Cosmetics.themeLook("night").ground[1], "the themes differ")
+
+	-- Upgrade Fireworks: at a grid expansion of an owner of the pass only.
+	t.truthy(Cosmetics.fireworksDue(0, 1, true), "an expansion with the pass fires")
+	t.equal(Cosmetics.fireworksDue(0, 1, false), false, "no fireworks without the pass")
+	t.equal(Cosmetics.fireworksDue(2, 2, true), false, "no expansion, no fireworks")
+	t.equal(Cosmetics.expansionNotice("Ada", 3), "Ada expanded the grid to level 3!", "the server message")
+
 	t.truthy(Cosmetics.publicDue(nil, 100, 5), "the first PlotPublic of a plot goes at once")
 	t.equal(Cosmetics.publicDue(100, 104.9, 5), false, "no second PlotPublic before 5 seconds")
 	t.truthy(Cosmetics.publicDue(100, 105, 5), "the next PlotPublic is due after 5 seconds")
