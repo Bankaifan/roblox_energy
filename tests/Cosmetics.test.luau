@@ -21,6 +21,11 @@ return function(t, load)
 	t.equal(all.neon, "green", "the first colour is the default glow")
 	t.equal(all.theme, "classic", "the first theme is the default")
 
+	t.equal(Cosmetics.crankLook(false, false), "plain", "no pass, no S6: the plain crank")
+	t.equal(Cosmetics.crankLook(true, false), "copper", "the Founder Pack gives the copper crank")
+	t.equal(Cosmetics.crankLook(false, true), "golden", "S6 gives the golden crank")
+	t.equal(Cosmetics.crankLook(true, true), "golden", "with S6 the golden crank wins")
+
 	local chosen = Cosmetics.flags({ neon = true, themes = true }, { [1] = "gold", [2] = "night" })
 	t.equal(chosen.neon, "gold", "the chosen glow colour is kept")
 	t.equal(chosen.theme, "night", "the chosen theme is kept")
