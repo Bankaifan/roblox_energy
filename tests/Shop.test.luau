@@ -1,5 +1,5 @@
 --!strict
--- Shop (Bauplan.md, section 4): the 14 offers, the effects of passes and boosters (caps, queue, no stacking), the
+-- Shop (Bauplan.md, section 4): the 16 offers, the effects of passes and boosters (caps, queue, no stacking), the
 -- daily limit of Time Skips with its reset, the one-time Founder Pack, and no negative or NaN values after a load.
 return function(t, load)
 	local Shop = load("Core/Shop")
@@ -25,7 +25,7 @@ return function(t, load)
 	end
 
 	-- The catalogue: fifteen offers, unique IDs, the Robux prices and names the Bauplan gives.
-	t.equal(#Catalogue.offers, 15, "fifteen offers")
+	t.equal(#Catalogue.offers, 16, "sixteen offers")
 	local seen: { [string]: boolean } = {}
 	local passes, products = 0, 0
 	for _, offer in Catalogue.offers do
@@ -43,7 +43,7 @@ return function(t, load)
 			products += 1
 		end
 	end
-	t.equal(passes, 9, "nine passes")
+	t.equal(passes, 10, "ten passes")
 	t.equal(products, 6, "six products: two boosters, the Time Skip and three spark packs")
 
 	-- The product defaults (Bauplan section 10): daily limits on, Smart Hub extras at once.
