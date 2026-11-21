@@ -10,11 +10,17 @@ return function(t, load)
 			rate = 0,
 			view = {
 				plants = { { cost = 15, needsSite = false, sites = 1 }, { cost = 120 } },
-				tools = { { id = "shovel", price = 30, buyable = false, textKey = "tool.shovel" } },
+				tools = {
+					{ id = "shovel", price = 30, buyable = false, textKey = "tool.shovel" },
+					{ id = "hammer", price = 250, buyable = false, textKey = "tool.hammer" },
+				},
 				goal = { required = 10000000, allowed = false, sparks = 5 },
 			},
 			upgrades = { run = { { id = "U12", cost = 50 }, { id = "U17", cost = 2000 } } },
-			land = { containerCost = 500 },
+			land = {
+				containerCost = 500,
+				chains = { {}, {}, { { tool = "scythe" }, { tool = "hammer" } } },
+			},
 			hand = nil,
 			popup = nil,
 		}
@@ -62,6 +68,24 @@ return function(t, load)
 	t.equal(TutorialView.present("mow", input({ hand = "scythe" })).target, "field1", "in hand: the meadow")
 	t.equal(TutorialView.present("dig", input({ hand = "scythe" })).hotbar, "shovel", "dig needs the shovel")
 	t.equal(TutorialView.present("dig", input({ hand = "shovel" })).target, "field2", "the spring of the river")
+
+	-- The house: buy the hammer, then work the plot with the scythe first and the hammer second.
+	local hammer = TutorialView.present("hammer", input({ coins = 10 }))
+	t.truthy(hammer.key == "tutorial.save" and hammer.args.cost == 250, "the hammer price from the view")
+	t.truthy(TutorialView.present("hammer", input({ coins = 300, popup = "tools" })).card == "tool.hammer", "its card")
+	local fresh = TutorialView.present("build", input({ hand = "hammer" }))
+	t.truthy(fresh.key == "tutorial.build.take" and fresh.hotbar == "scythe", "no cell started: the scythe first")
+	t.equal(
+		TutorialView.present("build", input({ hand = "scythe" })).target,
+		"field3",
+		"scythe in hand: the house field"
+	)
+	local started = input({ hand = "scythe" })
+	started.view.land = { steps = { {}, {}, { 1 } } }
+	local second = TutorialView.present("build", started)
+	t.truthy(second.key == "tutorial.build.take" and second.hotbar == "hammer", "scythe stage done: the hammer")
+	started.hand = "hammer"
+	t.truthy(TutorialView.present("build", started).target == "field3", "hammer in hand: the house field")
 
 	-- Costs come from the config and the view.
 	t.equal(TutorialView.present("gear", input({ coins = 10 })).args.cost, 50, "U12 costs 50")
