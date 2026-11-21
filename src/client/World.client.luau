@@ -17,7 +17,7 @@ local WHEEL_SPEED = 0.6 -- water wheels, radians per second
 
 -- Turning models (issue 113): only those within TurnRange.RANGE studs of the camera move, all of them in one BulkMoveTo per tick.
 -- Each entry keeps its parts with their offset to the base pivot, so a turn is one multiplication per part.
-type Turner = { parts: { BasePart }, offsets: { CFrame }, base: CFrame }
+type Turner = { parts: { BasePart }, offsets: { CFrame }, base: CFrame, reach: number }
 
 local function newTurner(model: Model): Turner
 	local base = model:GetPivot()
@@ -28,7 +28,7 @@ local function newTurner(model: Model): Turner
 			table.insert(offsets, base:ToObjectSpace(part.CFrame))
 		end
 	end
-	return { parts = parts, offsets = offsets, base = base }
+	return { parts = parts, offsets = offsets, base = base, reach = model:GetExtentsSize().Magnitude / 2 }
 end
 
 local function track(tag: string): { [Model]: Turner }
@@ -71,7 +71,7 @@ local function turnAll(now: number)
 	local parts: { BasePart }, frames: { CFrame } = {}, {}
 	for _, turner in rotors do
 		local p = turner.base.Position
-		if TurnRange.within(p.X, p.Y, p.Z, eye.X, eye.Y, eye.Z, range) then
+		if TurnRange.within(p.X, p.Y, p.Z, eye.X, eye.Y, eye.Z, range + turner.reach) then
 			local angle = (now * ROTOR_SPEED + p.X) % (2 * math.pi)
 			queueTurn(turner, turner.base * CFrame.Angles(0, 0, angle), parts, frames)
 		end
@@ -82,7 +82,7 @@ local function turnAll(now: number)
 		if
 			typeof(axis) == "Vector3"
 			and typeof(centre) == "Vector3"
-			and TurnRange.within(centre.X, centre.Y, centre.Z, eye.X, eye.Y, eye.Z, range)
+			and TurnRange.within(centre.X, centre.Y, centre.Z, eye.X, eye.Y, eye.Z, range + turner.reach)
 		then
 			local sense = (wheel:GetAttribute("SpinSense") :: number?) or 1
 			local angle = (now * WHEEL_SPEED * sense) % (2 * math.pi)
