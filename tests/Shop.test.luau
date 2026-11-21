@@ -324,6 +324,21 @@ return function(t, load)
 	-- Permanent plants (issue 252): 2, 5, 12, 29, 69 and 159 Robux each, ten for 19, 45, 109, 259, 619 and 1429.
 	local single = { 2, 5, 12, 29, 69, 159 }
 	local tens = { 19, 45, 109, 259, 619, 1429 }
+	-- Product IDs read from the Creator Hub (permanent plant products), keyed by offer id.
+	local productIds = {
+		perm1 = 3734152391,
+		perm1x10 = 3734152514,
+		perm2 = 3734152579,
+		perm2x10 = 3734152954,
+		perm3 = 3734153153,
+		perm3x10 = 3734153895,
+		perm4 = 3734154151,
+		perm4x10 = 3734154228,
+		perm5 = 3734154380,
+		perm5x10 = 3734154462,
+		perm6 = 3734154528,
+		perm6x10 = 3734154630,
+	}
 	local seenPlants = 0
 	for _, offer in Catalogue.offers do
 		if offer.plant ~= nil then
@@ -331,7 +346,7 @@ return function(t, load)
 			local price = if offer.count == 1 then single[offer.plant] else tens[offer.plant]
 			t.truthy(offer.count == 1 or offer.count == 10, `{offer.id}: one plant or ten`)
 			t.equal(offer.robux, price, `{offer.id}: its Robux price`)
-			t.truthy(offer.robloxId > 0, `{offer.id}: a Creator Hub product ID`)
+			t.equal(offer.robloxId, productIds[offer.id], `{offer.id}: its Creator Hub product ID`)
 			t.equal(offer.type, "product", `{offer.id}: a product`)
 		end
 	end
