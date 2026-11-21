@@ -28,6 +28,7 @@ Out of target: 0 of 11 rows.
 - Premium Tariff (no target): first expansion median 15.6 min (min 12.5, max 21.2, n=27); stage 6 median 75.8 min (min 69.6, max 84.2, n=27); income factor median 5.92x (min 1.68, max 36.08, n=27).
 - Premium plus permanent Turbo (no target): first expansion median 10.8 min (min 6.8, max 12.5, n=27); stage 6 median 54.8 min (min 48.2, max 60.1, n=27); income factor median 52.38x (min 34.63, max 296.82, n=27).
 - three Time Skips (no target): first expansion median 13.9 min (min 11.7, max 20.0, n=27); stage 6 median 82.3 min (min 74.8, max 92.8, n=27); income factor median 5.62x (min 1.01, max 20.85, n=27).
+- Mega Battery (limit +15 %, counts toward x3): capacity x1.50, extra revenue at storage stage 4 median 2.7 % (min 2.5, max 3.7, n=27); within the limit.
 
 ## Assumptions of the bots
 
@@ -42,6 +43,7 @@ Out of target: 0 of 11 rows.
 - Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (720 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22).
 - Buyers (optimal bot plus purchases from the start): Premium Tariff (income x1.5), Premium plus a permanent Turbo Feed-in (x3, the cap), three Time Skips (20 min of average yield each, paid after 10, 20 and 30 min of play). Income factor = coins earned in the first hour of play against the optimal bot without purchases, same seed and start; it compounds through the stage resets, so it is far above the income multiplier.
 - Z11: the largest income x generation factor over the buyer runs, and with Premium, Turbo and Sunshine Hour all on (Core/Shop.envValues caps the product at multiplierCap).
+- Mega Battery: one day (720 s from Morgen) at storage stage 4 with rules, with and without the capacity factor, averaged over 9 seeds, from the state before expansion 4 of each optimal run.
 - Z8: median first expansion of the optimal bot, Nacht start against Morgen start.
 - Z9: longest streak of seconds in the first 10 min with no offer affordable, per run.
 - Z10: first day per Bauplan section 1: sessions of 35, 25 and 25 min, offline 4 h and 14 h, from Morgen.
