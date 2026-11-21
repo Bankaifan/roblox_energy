@@ -772,6 +772,18 @@ function GameCore.apply(state: State, action: { [string]: any }, env: Env): (Sta
 	return state, false
 end
 
+-- The average yield per second: every plant at its expected income, the market and the income multiplier. Storage,
+-- rules and the crank do not count.
+local function averageRate(state: State, env: Env): number
+	local rate = 0
+	for _, plant in env.config.plants do
+		local expected = env.formulas.expectedIncome(plant.kind, env.config.phases, env.config.weathers)
+		local multiplier = plantMultiplier(state, env, plant)
+		rate += env.formulas.production(plant.nominalPower, effectiveCount(state, env, plant), multiplier, expected)
+	end
+	return rate * market(state, env, nil) * (env.income or 1)
+end
+
 -- Offline income: Schnittrate × min(Abwesenheit, Deckel) × Wirkungsgrad. Storage, rules and the crank do not count.
 function GameCore.offline(state: State, seconds: number, env: Env): State
 	local result = copy(state)
@@ -792,14 +804,30 @@ function GameCore.offline(state: State, seconds: number, env: Env): State
 	if state.pnodes.P4 then
 		efficiency = effects.offlineEfficiencyP4
 	end
-	local rate = 0
-	for _, plant in env.config.plants do
-		local expected = env.formulas.expectedIncome(plant.kind, env.config.phases, env.config.weathers)
-		local multiplier = plantMultiplier(state, env, plant)
-		rate += env.formulas.production(plant.nominalPower, effectiveCount(state, env, plant), multiplier, expected)
-	end
 	local away = math.min(seconds, hours * 3600)
-	credit(result, rate * market(state, env, nil) * away * efficiency * (env.income or 1))
+	credit(result, averageRate(state, env) * away * efficiency)
+	return result
+end
+
+-- Coins of `seconds` of average yield at the full rate: no offline efficiency and no offline cap (Time Skip, Founder
+-- Pack). 0 for a seconds value that is not a positive finite number.
+function GameCore.yield(state: State, seconds: number, env: Env): number
+	if not isFinite(seconds) or seconds <= 0 then
+		return 0
+	end
+	return averageRate(state, env) * seconds
+end
+
+-- Pays out `amount` coins as run revenue (coins, runEarned and lifetimeEarned). A negative amount takes a payout back;
+-- nothing goes below 0. Returns a new state.
+function GameCore.payout(state: State, amount: number): State
+	local result = copy(state)
+	if not isFinite(amount) then
+		return result
+	end
+	result.coins = math.max(0, result.coins + amount)
+	result.runEarned = math.max(0, result.runEarned + amount)
+	result.lifetimeEarned = math.max(0, result.lifetimeEarned + amount)
 	return result
 end
 
