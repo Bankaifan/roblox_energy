@@ -204,6 +204,75 @@ return function(t, load)
 	t.truthy(house.multiplier > 1 and house.count == 2, "a node and the level lift the multiplier above 1")
 	t.equal(production.rows[1].effective, 3, "panels without aligned cells count as owned")
 
+	-- Extras tab: only offers with a fetched price, owned passes, booster stock, the daily limit, the Time Skip coins.
+	local Catalogue = load("Config/Shop")
+	local Offers = load("Core/Offers")
+	local function extras(facts: any, prices: { [number]: number }, lang: string?, skipCoins: number?): { any }
+		local shop: any = table.clone(Catalogue)
+		shop.offers = {}
+		for index, offer in Catalogue.offers do
+			local copy: any = table.clone(offer)
+			copy.robloxId = 1000 + index
+			table.insert(shop.offers, copy)
+		end
+		return ShopView.cards("extras", {
+			view = {},
+			coins = 0,
+			plants = config.plants,
+			upgrades = config.upgrades,
+			land = land,
+			offers = Offers.visible(shop, prices, lang or "en"),
+			extras = facts,
+			skipCoins = skipCoins,
+			shop = shop,
+			t = function(key: string, args: any): string
+				return Locale.t(key, lang or "en", args)
+			end,
+		})
+	end
+	local allPrices: { [number]: number } = {}
+	for index = 1, #Catalogue.offers do
+		allPrices[1000 + index] = 50 + index
+	end
+	local open = { shown = true, owned = {}, stock = 0, skipsLeft = 3 }
+	local listed = byId(extras(open, allPrices))
+	t.equal(#extras(open, allPrices), 11, "one card per offer with a price")
+	t.equal(#extras(open, {}), 0, "offers without a fetched price are hidden")
+	t.equal(#extras({ shown = false, owned = {}, stock = 0 }, allPrices), 0, "a hidden tab has no cards")
+	t.equal(listed["offer.founder"].price, "51 Robux", "the live price and the word Robux")
+	t.equal(listed["offer.founder"].button.offer, "founder", "View opens the prompt of the offer")
+	t.equal(listed["offer.founder"].button.text, "View", "the button says View")
+	t.equal(listed["offer.founder"].extra, true, "a Robux card has the cyan outline")
+	t.equal(byId(extras(open, allPrices, "de"))["offer.founder"].button.text, "Ansehen", "German button")
+	local partial = extras(open, { [1002] = 199 })
+	t.equal(#partial, 1, "only the offer with a price is listed")
+	t.equal(partial[1].id, "offer.smart_hub", "it is the Smart Hub")
+
+	local owned = byId(extras({ shown = true, owned = { neon = true }, stock = 0, skipsLeft = 3 }, allPrices))
+	t.equal(owned["offer.neon"].state, "owned", "an owned pass is owned")
+	t.equal(owned["offer.neon"].status, "Owned", "and says Owned")
+	t.equal(owned["offer.neon"].button, nil, "with no button")
+	t.equal(owned["offer.themes"].state, "extra", "another pass is still for sale")
+
+	local stocked = byId(extras({ shown = true, owned = {}, stock = 2800, skipsLeft = 3 }, allPrices))
+	t.equal(stocked["offer.turbo"].button, nil, "a booster that does not fit the queue has no button")
+	t.equal(stocked["offer.turbo"].status, "Queue full", "it says why")
+	t.truthy(stocked["offer.sunshine"].button ~= nil, "a booster that still fits can be viewed")
+
+	local limited = byId(extras({ shown = true, owned = {}, stock = 0, skipsLeft = 0 }, allPrices, "de"))
+	t.equal(limited["offer.timeskip"].button, nil, "a Time Skip over the daily limit has no button")
+	t.equal(limited["offer.timeskip"].status, "Heute aufgebraucht", "it says why")
+	local unlimited = byId(extras({ shown = true, owned = {}, stock = 0 }, allPrices))
+	t.truthy(unlimited["offer.timeskip"].button ~= nil, "no daily limit: the Time Skip can be viewed")
+
+	local skip = byId(extras(open, allPrices, "en", 12500))["offer.timeskip"]
+	t.truthy(string.find(skip.info, "12.5K coins", 1, true) ~= nil, "the Time Skip card shows the coins it gives now")
+	t.equal(ShopView.tabsFor(false, true)[6].id, "extras", "Extras is the last tab")
+	t.equal(#ShopView.tabsFor(true, true), 7, "the control board has seven tabs with Extras")
+	for _, offer in Catalogue.offers do
+		t.truthy(Locale.tables.de[`offer.{offer.id}.info`] ~= nil, `German text for {offer.id}`)
+	end
+
 	local function ids(list: { any }): string
 		local names = {}
 		for _, tab in list do
