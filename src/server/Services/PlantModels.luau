@@ -18,10 +18,10 @@ local function vec(v: Vector3): any
 end
 
 -- The parts of `root` as oriented boxes for Core/Flat.
-local function describe(root: Instance): { any }
+local function describe(root: Instance, skip: Instance?): { any }
 	local parts: { any } = {}
 	for _, item in root:GetDescendants() do
-		if item:IsA("BasePart") then
+		if item:IsA("BasePart") and not (skip ~= nil and item:IsDescendantOf(skip)) then
 			local frame = item.CFrame
 			table.insert(parts, {
 				pos = vec(item.Position),
@@ -37,8 +37,8 @@ end
 
 -- Centre and size of the model's box along the world axes. Model:GetBoundingBox follows the pivot's rotation instead
 -- (measured: the upright panel reports 5.2 x 0.13 x 8.2 there, 8.2 x 5.2 x 0.12 in the world).
-local function worldBox(model: Model): (Vector3, Vector3)
-	local box = Flat.box(describe(model))
+local function worldBox(model: Model, skip: Instance?): (Vector3, Vector3)
+	local box = Flat.box(describe(model, skip))
 	if box == nil then
 		return model:GetPivot().Position, Vector3.zero
 	end
@@ -297,7 +297,15 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childNa
 	if biggest.Size.Z < thin then
 		local_axis = Vector3.zAxis
 	end
-	local axis = biggest.CFrame:VectorToWorldSpace(local_axis)
+	local axis: Vector3 = biggest.CFrame:VectorToWorldSpace(local_axis)
+	-- The big turbine names its axle: from the hub ("Mid") to the "Node" on the nacelle side. The thin side of a blade is not it.
+	local hubPart, nodePart = wheel:FindFirstChild("Mid", true), wheel:FindFirstChild("Node", true)
+	if hubPart ~= nil and nodePart ~= nil and hubPart:IsA("BasePart") and nodePart:IsA("BasePart") then
+		local along = nodePart.Position - hubPart.Position
+		if along.Magnitude > 0.01 then
+			axis = along.Unit
+		end
+	end
 	local sum, count = Vector3.zero, 0
 	for _, item in wheel:GetDescendants() do
 		if item:IsA("BasePart") and math.max(item.Size.X, item.Size.Y, item.Size.Z) >= radius * 0.9 then
@@ -306,7 +314,13 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childNa
 		end
 	end
 	wheel:SetAttribute("SpinAxis", axis)
-	wheel:SetAttribute("SpinCentre", sum / count)
+	-- A model with a part named "Mid" (the hub of the big turbine) turns about it: the mean of the long parts moves when
+	-- one blade is a little shorter than the others.
+	local mid = wheel:FindFirstChild("Mid", true)
+	local mean = sum / count
+	local hub = if mid ~= nil and mid:IsA("BasePart") then { mid.Position.X, mid.Position.Y, mid.Position.Z } else nil
+	local at = Spin.centre(hub, { mean.X, mean.Y, mean.Z })
+	wheel:SetAttribute("SpinCentre", Vector3.new(at[1], at[2], at[3]))
 	wheel:SetAttribute("SpinSense", Spin.sense(axis.X, axis.Z, flowX, flowZ))
 	CollectionService:AddTag(wheel, "WheelRotor")
 end
@@ -426,8 +440,11 @@ function PlantModels.place(copy: Model, plantId: number, cell: number, centre: V
 	if angle ~= nil and angle ~= 0 then
 		copy:PivotTo(CFrame.Angles(0, math.rad(angle), 0) * copy:GetPivot())
 	end
-	local at, scaled = worldBox(copy)
-	local bottom = at.Y - scaled.Y / 2
+	local whole, scaled = worldBox(copy)
+	-- A wind turbine stands on its tower: the rotor reaches to one side, so the box without it centres the foundation.
+	local rotor = ROTOR_CHILD[plantId]
+	local at = worldBox(copy, if rotor ~= nil then copy:FindFirstChild(rotor) else nil)
+	local bottom = whole.Y - scaled.Y / 2
 	copy:PivotTo(copy:GetPivot() + Vector3.new(centre.X - at.X, groundY - bottom, centre.Z - at.Z))
 end
 
