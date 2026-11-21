@@ -63,6 +63,37 @@ local function envFor(phase: any, weather: any, player: Player?): any
 	}
 end
 
+-- Seconds of yield a Time Skip gives (Config/Shop); 0 if the catalogue has none.
+local function skipSeconds(): number
+	for _, offer in Catalogue.offers do
+		if offer.id == "timeskip" then
+			return offer.seconds
+		end
+	end
+	return 0
+end
+local SKIP_SECONDS = skipSeconds()
+local PASS_WAIT_SECONDS = 8 -- the join waits at most this long for the pass check before the offline credit
+
+-- Time Skip and Founder Pack payouts (PurchaseService): the coins of `seconds` of full-rate yield for the live run, and
+-- paying them into it. Both work on the run in memory; DataService.sync copies it into the profile.
+PurchaseService.setPayout(function(player: Player, seconds: number): number?
+	local state = states[player]
+	if state == nil then
+		return nil
+	end
+	local phase, weather = Env.current()
+	return GameCore.yield(state, seconds, envFor(phase, weather, player))
+end, function(player: Player, coins: number)
+	local state = states[player]
+	if state == nil then
+		return
+	end
+	local nextState = GameCore.payout(state, coins)
+	states[player] = nextState
+	DataService.sync(player, nextState)
+end)
+
 -- Join: the profile loads first, so nobody plays without a saved profile. Then the offline income of the time away
 -- is credited, and the plot is given out.
 function Session.start(player: Player)
@@ -72,31 +103,54 @@ function Session.start(player: Player)
 	loading[player] = {}
 	local state, away = DataService.load(player)
 	local job = loading[player]
-	loading[player] = nil
 	if state == nil then
+		loading[player] = nil
 		if player.Parent ~= nil then
 			player:Kick("Your save could not be loaded. Please rejoin.")
 		end
 		return
 	end
 	if player.Parent == nil then
+		loading[player] = nil
 		DataService.release(player)
 		return
 	end
 	-- No free plot means the server is full; the player is turned away before a run starts.
 	if not PlotService.create(player, config.plants) then
+		loading[player] = nil
 		DataService.release(player)
 		player:Kick("The server is full. Try another server.")
 		return
 	end
+	-- Owned passes and the paid-item policy come first: the offline credit needs the passes (Long Meter raises the cap).
+	-- Asked in a task and waited for at most PASS_WAIT_SECONDS, so a slow Roblox answer does not hold the join; a pass
+	-- that confirms later is granted then (the credit of this join has used the cap without it).
+	local checked = false
+	task.spawn(function()
+		local ok, err = pcall(PurchaseService.join, player)
+		if not ok then
+			warn(`[Session] pass check of {player.Name} failed: {err}`)
+		end
+		checked = true
+	end)
+	local deadline = os.clock() + PASS_WAIT_SECONDS
+	while not checked and player.Parent ~= nil and os.clock() < deadline do
+		task.wait()
+	end
+	if player.Parent == nil then
+		loading[player] = nil
+		DataService.release(player)
+		PlotService.remove(player)
+		return
+	end
+	loading[player] = nil
 	local phase, weather = Env.current()
 	local credited = GameCore.offline(state, away, envFor(phase, weather, player))
 	welcomes[player] = { away = away, coins = credited.coins - state.coins }
 	states[player] = credited
 	DataService.sync(player, credited)
 	ToolService.refresh(player, credited.land or config.land.start)
-	-- Owned passes and the paid-item policy: asked in the background, so the join does not wait for Roblox.
-	task.spawn(PurchaseService.join, player)
+	PurchaseService.claimYield(player) -- the Founder Pack yield, if the pass was confirmed and is still unpaid
 	if job.remotes ~= nil then
 		Session.ready(job.remotes, player)
 	end
@@ -200,6 +254,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			rate = (nextState.lifetimeEarned - state.lifetimeEarned) / dt,
 			charge = nextState.storage.charge,
 			turbo = BoostService.turboRemaining(player),
+			skip = GameCore.yield(nextState, SKIP_SECONDS, env), -- what a Time Skip would give now (shop card)
 			view = view,
 		})
 	end
