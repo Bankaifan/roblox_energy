@@ -23,12 +23,19 @@ local function stats(values: { number }): (number?, number?, number?)
 	return median, sorted[1], sorted[#sorted]
 end
 
-local function text(values: { number }, unit: string): string
+local function text(values: { number }, unit: string, digits: number?): string
 	local median, low, high = stats(values)
 	if median == nil or low == nil or high == nil then
 		return "not reached"
 	end
-	return string.format("median %.1f%s (min %.1f, max %.1f, n=%d)", median, unit, low, high, #values)
+	local shape = "median %."
+		.. (digits or 1)
+		.. "f%s (min %."
+		.. (digits or 1)
+		.. "f, max %."
+		.. (digits or 1)
+		.. "f, n=%d)"
+	return string.format(shape, median, unit, low, high, #values)
 end
 
 local function inside(value: number?, low: number, high: number): boolean
@@ -79,7 +86,7 @@ local function uplift(state: any, stage: number): number?
 end
 
 local runs: { [string]: { any } } = {}
-for _, name in { "optimal", "occasional", "child" } do
+for _, name in { "optimal", "occasional", "child", "premium", "turbo", "skips" } do
 	runs[name] = {}
 	for _, start in STARTS do
 		for _, seed in SEEDS do
@@ -90,6 +97,11 @@ for _, name in { "optimal", "occasional", "child" } do
 	end
 end
 local optimal, occasional, child = runs.optimal, runs.occasional, runs.child
+local BUYERS = {
+	{ name = "Premium Tariff", key = "premium" },
+	{ name = "Premium plus permanent Turbo", key = "turbo" },
+	{ name = "three Time Skips", key = "skips" },
+}
 
 type Row = { id: string, measure: string, target: string, value: string, ok: boolean }
 local rows: { Row } = {}
@@ -263,12 +275,18 @@ rows[#rows + 1] = {
 	ok = inside(stats(days.optimal), 4, 7) and inside(stats(days.occasional), 1, 2),
 }
 
+-- The largest product of income and generation factor in any buyer run, and with every booster at once.
+local factor = Sim.FULL_STACK.income * Sim.FULL_STACK.boost
+for _, buyer in BUYERS do
+	local buy = Sim.BOTS[buyer.key].buy
+	factor = math.max(factor, buy.income * buy.boost)
+end
 rows[#rows + 1] = {
 	id = "Z11",
 	measure = "Sum of bought multipliers",
 	target = "at most x3",
-	value = "not measured here (holds by construction, Bauplan section 2)",
-	ok = true,
+	value = string.format("x%.1f (largest over the buyer runs and Premium + Turbo + Sunshine Hour together)", factor),
+	ok = factor <= 3 + 1e-9,
 }
 
 local childFirst = collect(child, function(run)
@@ -304,7 +322,7 @@ for _, item in rows do
 	lines[#lines + 1] = "| " .. table.concat(cells, " | ") .. " |"
 end
 lines[#lines + 1] = ""
-lines[#lines + 1] = string.format("Out of target: %d of %d rows. Z11 is not measured here.", outside, #rows)
+lines[#lines + 1] = string.format("Out of target: %d of %d rows.", outside, #rows)
 lines[#lines + 1] = ""
 lines[#lines + 1] = "## Other values"
 lines[#lines + 1] = ""
@@ -313,6 +331,32 @@ lines[#lines + 1] = "- Child bot (no target): first expansion "
 	.. "; stage 6 "
 	.. text(childSix, " min")
 	.. "."
+for _, buyer in BUYERS do
+	local bought = runs[buyer.key]
+	local firstBought = collect(bought, function(run)
+		return minutes(run, 1)
+	end)
+	local sixBought = collect(bought, function(run)
+		return minutes(run, 6)
+	end)
+	-- Income factor: coins earned in the first hour of play against the optimal bot without purchases (same seed and start).
+	local factors = {}
+	for index, run in bought do
+		local plain = optimal[index].earnedHour
+		if run.earnedHour ~= nil and plain ~= nil and plain > 0 then
+			table.insert(factors, run.earnedHour / plain)
+		end
+	end
+	lines[#lines + 1] = "- "
+		.. buyer.name
+		.. " (no target): first expansion "
+		.. text(firstBought, " min")
+		.. "; stage 6 "
+		.. text(sixBought, " min")
+		.. "; income factor "
+		.. text(factors, "x", 2)
+		.. "."
+end
 lines[#lines + 1] = ""
 lines[#lines + 1] = "## Assumptions of the bots"
 lines[#lines + 1] = ""
@@ -334,6 +378,10 @@ lines[#lines + 1] =
 	"- Permanent nodes P1 to P8 in order, as soon as the sparks suffice. Auto-Ausbau and the third rule slot (P8) are not used."
 lines[#lines + 1] =
 	"- Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (720 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22)."
+lines[#lines + 1] =
+	"- Buyers (optimal bot plus purchases from the start): Premium Tariff (income x1.5), Premium plus a permanent Turbo Feed-in (x3, the cap), three Time Skips (20 min of average yield each, paid after 10, 20 and 30 min of play). Income factor = coins earned in the first hour of play against the optimal bot without purchases, same seed and start; it compounds through the stage resets, so it is far above the income multiplier."
+lines[#lines + 1] =
+	"- Z11: the largest income x generation factor over the buyer runs, and with Premium, Turbo and Sunshine Hour all on (Core/Shop.envValues caps the product at multiplierCap)."
 lines[#lines + 1] = "- Z8: median first expansion of the optimal bot, Nacht start against Morgen start."
 lines[#lines + 1] = "- Z9: longest streak of seconds in the first 10 min with no offer affordable, per run."
 lines[#lines + 1] =
