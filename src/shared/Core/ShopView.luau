@@ -167,6 +167,10 @@ local function upgradeCards(input: Input): { Card }
 	return cards
 end
 
+-- The Robux cards, defined below: all offers with a price, or only the spark packs.
+local robuxCards: (Input, boolean) -> { Card }
+
+-- The Storage tab: the container, the modes and the rules; from the second battery (U18) on also the Mega Battery offer.
 local function storageCards(input: Input): { Card }
 	local cards: { Card } = {}
 	local t = input.t
@@ -217,6 +221,13 @@ local function storageCards(input: Input): { Card }
 	end
 	for _, card in ShopView.ruleCards(input) do
 		table.insert(cards, card)
+	end
+	if stored.stage >= 2 then
+		for _, card in robuxCards(input, false) do
+			if card.id == "offer.mega_battery" then
+				table.insert(cards, card)
+			end
+		end
 	end
 	return cards
 end
@@ -337,9 +348,6 @@ local function toolCards(input: Input): { Card }
 	end
 	return cards
 end
-
--- The Robux cards, defined below: all offers with a price, or only the spark packs.
-local robuxCards: (Input, boolean) -> { Card }
 
 -- One card per permanent node and spark item (view.sparks.items): name, price in sparks, the effect line, owned or Buy.
 -- The spark packs for Robux follow at the bottom.
