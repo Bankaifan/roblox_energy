@@ -235,6 +235,15 @@ function PurchaseService.shopVisible(player: Player): boolean
 	return PolicyService.paidItemsAllowed(player)
 end
 
+-- The Extras tab facts of this player (Core/Shop.extrasView); `playSeconds` is the time played in this session.
+function PurchaseService.extras(player: Player, playSeconds: number): any
+	local profile = DataService.profileOf(player)
+	if profile == nil then
+		return { shown = false, owned = {}, stock = 0 }
+	end
+	return Shop.extrasView(profile.Data, today(), Catalogue, PurchaseService.shopVisible(player), playSeconds)
+end
+
 -- PromptGamePassPurchaseFinished: the event also fires when a free trial starts, so only a pass Roblox confirms is granted.
 function PurchaseService.passFinished(player: Player, gamePassId: number, wasPurchased: boolean)
 	if not wasPurchased then
