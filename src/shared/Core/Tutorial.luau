@@ -1,5 +1,5 @@
 --!strict
--- Tutorial v2 (docs/design/tutorial-v2.md, issues #200 to #208): twelve steps from the first crank turn to the first grid
+-- Tutorial v2 (docs/design/tutorial-v2.md, issues #200 to #208): fourteen steps from the first crank turn to the first grid
 -- expansion. Pure functions: the caller passes the facts of the run, nothing is read from the game, the profile or Roblox.
 -- The tutorial never shows a purchase hint (Core/Hints). Skipping or finishing it is final.
 export type Step =
@@ -13,6 +13,8 @@ export type Step =
 	| "wheel"
 	| "container"
 	| "storage"
+	| "hammer"
+	| "build"
 	| "grow"
 	| "expand"
 export type Facts = {
@@ -28,6 +30,9 @@ export type Facts = {
 	wheels: number, -- Water Wheels owned
 	container: boolean, -- the container is bought (land.container)
 	nodes: { [string]: boolean }, -- run nodes owned; U17 is the Home Battery (the storage)
+	hammer: boolean, -- the hammer is owned
+	built: number, -- house field cells prepared (land.sites[3])
+	houses: number, -- Houses owned (plant 3)
 	level: number, -- grid level; 1 or more means the first expansion is done
 }
 -- index: the floor step (1 to #STEPS), done: the tutorial is finished or skipped. Saved as profile.tutorial and tutorialDone.
@@ -45,6 +50,8 @@ local STEPS: { { id: Step, soft: number? } } = {
 	{ id = "wheel" },
 	{ id = "container" },
 	{ id = "storage" },
+	{ id = "hammer" },
+	{ id = "build" },
 	{ id = "grow", soft = 20 },
 	{ id = "expand" },
 }
@@ -80,6 +87,10 @@ function Tutorial.condition(id: Step, facts: Facts): boolean
 		return facts.container == true
 	elseif id == "storage" then
 		return facts.nodes.U17 == true
+	elseif id == "hammer" then
+		return facts.hammer == true or facts.houses >= 1
+	elseif id == "build" then
+		return facts.built >= 1 or facts.houses >= 1
 	elseif id == "expand" then
 		return facts.level >= 1
 	end
@@ -106,6 +117,9 @@ function Tutorial.facts(state: any, shown: number, cranks: number, marketOpened:
 		wheels = plants[2] or 0,
 		container = land ~= nil and land.container == true,
 		nodes = nodes,
+		hammer = land ~= nil and land.tools ~= nil and land.tools.hammer == true,
+		built = sites[3] or 0,
+		houses = plants[3] or 0,
 		level = state.level or 0,
 	}
 end
