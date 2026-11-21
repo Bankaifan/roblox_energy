@@ -12,6 +12,7 @@ local Upgrades = require(Shared:WaitForChild("Config"):WaitForChild("Upgrades") 
 local DataService = require(script.Parent.DataService) :: any
 local PolicyService = require(script.Parent.PolicyService) :: any
 
+-- Roblox hands ProcessReceipt a table with PurchaseId (a string, unique per purchase), PlayerId and ProductId; there is no ReceiptId field.
 local PurchaseGranted = Enum.ProductPurchaseDecision.PurchaseGranted
 local NotProcessedYet = Enum.ProductPurchaseDecision.NotProcessedYet
 local SAVE_WAIT_SECONDS = 15 -- a receipt waits for its save; Roblox lets the callback take a while
@@ -124,7 +125,7 @@ end
 local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecision
 	local profile = DataService.profileOf(player)
 	if profile == nil then
-		warn(`[PurchaseService] receipt {receipt.ReceiptId}: no loaded profile for {player.Name}`)
+		warn(`[PurchaseService] receipt {receipt.PurchaseId}: no loaded profile for {player.Name}`)
 		return NotProcessedYet
 	end
 	local offerId = Shop.offerForProduct(Catalogue, receipt.ProductId)
@@ -133,17 +134,17 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		return NotProcessedYet
 	end
 	local before = profile.Data
-	local data, status, seconds = Shop.receipt(before, receipt.ReceiptId, offerId, today(), Catalogue, Upgrades)
+	local data, status, seconds = Shop.receipt(before, receipt.PurchaseId, offerId, today(), Catalogue, Upgrades)
 	if status == "duplicate" then
 		return PurchaseGranted
 	end
 	if status ~= "granted" then
-		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId} refused: {status}`)
+		warn(`[PurchaseService] receipt {receipt.PurchaseId} for {offerId} refused: {status}`)
 		return NotProcessedYet
 	end
 	local sparks = Shop.packSparks(Catalogue, offerId)
 	if sparks > 0 and (addSparks == nil or not addSparks(player, sparks)) then
-		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: no run yet, asked again later`)
+		warn(`[PurchaseService] receipt {receipt.PurchaseId} for {offerId}: no run yet, asked again later`)
 		return NotProcessedYet
 	end
 	local plant = Shop.permanentPlant(Catalogue, offerId)
@@ -151,7 +152,7 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		if sparks > 0 and addSparks ~= nil then
 			addSparks(player, -sparks)
 		end
-		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: no run yet, asked again later`)
+		warn(`[PurchaseService] receipt {receipt.PurchaseId} for {offerId}: no run yet, asked again later`)
 		return NotProcessedYet
 	end
 	-- The coins of the yield are written with the receipt ID, in the same step (no yield between), so one save holds both.
@@ -163,18 +164,18 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		if plant ~= nil and addPlants ~= nil then
 			addPlants(player, plant.id, -plant.count)
 		end
-		warn(`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: no run yet, asked again later`)
+		warn(`[PurchaseService] receipt {receipt.PurchaseId} for {offerId}: no run yet, asked again later`)
 		return NotProcessedYet
 	end
 	profile.Data = data
 	if coins > 0 and payout ~= nil then
 		payout.apply(player, coins)
 	end
-	if saveNow(profile, receipt.ReceiptId) then
+	if saveNow(profile, receipt.PurchaseId) then
 		return PurchaseGranted
 	end
 	warn(
-		`[PurchaseService] receipt {receipt.ReceiptId} for {offerId}: the save was not confirmed in time, credit undone`
+		`[PurchaseService] receipt {receipt.PurchaseId} for {offerId}: the save was not confirmed in time, credit undone`
 	)
 	undoCredit(profile, before) -- not saved: this credit is undone, the receipt is asked for again
 	if plant ~= nil and addPlants ~= nil then
@@ -203,7 +204,7 @@ end
 
 -- The one ProcessReceipt callback. An error counts as not processed: nothing is granted then.
 local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
-	print(`[PurchaseService] receipt {receipt.ReceiptId} arrived, product {receipt.ProductId}`)
+	print(`[PurchaseService] receipt {receipt.PurchaseId} arrived, product {receipt.ProductId}`)
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	if player == nil then
 		return NotProcessedYet
@@ -212,7 +213,7 @@ local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
 	if ok then
 		return result
 	end
-	warn(`[PurchaseService] receipt {receipt.ReceiptId} not processed: {result}`)
+	warn(`[PurchaseService] receipt {receipt.PurchaseId} not processed: {result}`)
 	return NotProcessedYet
 end
 
