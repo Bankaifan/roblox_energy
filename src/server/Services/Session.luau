@@ -67,6 +67,7 @@ local function envFor(phase: any, weather: any, player: Player?): any
 		income = bought.income,
 		ruleSlots = bought.ruleSlots,
 		autoBuild = bought.autoBuild,
+		storageFactor = bought.storageFactor,
 		nextWeather = Env.nextWeather(),
 	}
 end
