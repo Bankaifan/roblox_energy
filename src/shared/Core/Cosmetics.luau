@@ -69,6 +69,15 @@ function Cosmetics.crankLook(founder: boolean, golden: boolean): string
 	return if founder then "copper" else "plain"
 end
 
+-- The factor on the walk-in container's footprint and height: the Mega Battery shows a larger one. This is a looks factor
+-- of its own (not the 1.5 of the storage): 1.25 leaves 3.25 studs to the control board (Assets.furniture). The
+-- door stays the same size.
+Cosmetics.MEGA_CONTAINER_SCALE = 1.25
+
+function Cosmetics.containerScale(megaBattery: boolean): number
+	return if megaBattery then Cosmetics.MEGA_CONTAINER_SCALE else 1
+end
+
 -- The prestige level as a whole number from 0. A missing, negative, NaN or infinite level counts as 0.
 local function wholeLevel(value: any): number
 	if type(value) ~= "number" or value ~= value or value < 1 or value == math.huge then
