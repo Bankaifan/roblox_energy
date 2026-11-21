@@ -176,7 +176,7 @@ function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boole
 		ruleSlots = if slots > 0 then slots else nil,
 		autoBuild = auto,
 		storageFactor = Shop.storageFactor(profile, shop),
-		permanent = table.clone(profile.permanent),
+		permanent = if profile.permanent ~= nil then table.clone(profile.permanent) else nil,
 	}
 end
 
