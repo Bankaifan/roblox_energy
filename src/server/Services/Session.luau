@@ -38,6 +38,8 @@ local states: { [Player]: any } = {}
 local loading: { [Player]: { remotes: { [string]: RemoteEvent }? } } = {}
 -- The time away and the offline coins credited at the join. Sent once, with the first Ready after the join.
 local welcomes: { [Player]: { away: number, coins: number } } = {}
+-- When each run started (os.clock): the time played in this session, for the Extras tab (minute 12).
+local started: { [Player]: number } = {}
 local Session = {}
 
 -- The bought effects of the player (Core/Shop.envValues): sale multiplier, Sunshine boost, Long Meter, Smart Hub.
@@ -148,6 +150,7 @@ function Session.start(player: Player)
 	local credited = GameCore.offline(state, away, envFor(phase, weather, player))
 	welcomes[player] = { away = away, coins = credited.coins - state.coins }
 	states[player] = credited
+	started[player] = os.clock()
 	DataService.sync(player, credited)
 	ToolService.refresh(player, credited.land or config.land.start)
 	PurchaseService.claimYield(player) -- the Founder Pack yield, if the pass was confirmed and is still unpaid
@@ -160,6 +163,7 @@ function Session.stop(player: Player)
 	local state = states[player]
 	states[player] = nil
 	welcomes[player] = nil
+	started[player] = nil
 	BoostService.forget(player)
 	LeaderboardService.forget(player)
 	PlotPublicService.forget(player)
@@ -255,6 +259,7 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			charge = nextState.storage.charge,
 			turbo = BoostService.turboRemaining(player),
 			skip = GameCore.yield(nextState, SKIP_SECONDS, env), -- what a Time Skip would give now (shop card)
+			extras = PurchaseService.extras(player, os.clock() - (started[player] or os.clock())),
 			view = view,
 		})
 	end
