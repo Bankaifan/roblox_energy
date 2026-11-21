@@ -876,8 +876,8 @@ function PlotService.create(player: Player, plants: { any }): boolean
 	if market ~= nil then
 		addPrompt(player, market, "ShopPrompt", "action.shop", nil)
 	end
-	-- Invisible marks for the tutorial arrow: the middle of field 1 and the river spring (cell 1 of field 2).
-	for number, cell in { [1] = 13, [2] = 1 } do
+	-- Invisible marks for the tutorial arrow: the middle of field 1, the river spring (cell 1 of field 2) and cell 1 of field 3 (the house field).
+	for number, cell in { [1] = 13, [2] = 1, [3] = 1 } do
 		local field = Assets.fields[number]
 		local site = PlotLayout.cellCentre(field, cell, Assets.TILE, Assets.PLOT_TILES)
 		local spot = Instance.new("Part")
