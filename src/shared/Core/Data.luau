@@ -5,7 +5,7 @@
 export type Profile = { [string]: any }
 export type Steps = { [number]: (Profile) -> Profile }
 
-local VERSION = 10 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps (tool chains); 6: tutorial step; 7: paint, the colour of S5 Sign Paint; 8: tutorial v2, twelve steps; 9: saved pass flags dropped (Migrations/Steps); 10: sparksBought, sparks bought with Robux
+local VERSION = 11 -- 3: land; 4: rules keyed by id, no slots; 5: land.steps (tool chains); 6: tutorial step; 7: paint, the colour of S5 Sign Paint; 8: tutorial v2, twelve steps; 9: saved pass flags dropped (Migrations/Steps); 10: sparksBought, sparks bought with Robux; 11: permanent plants and the types built once
 local MAX_SITES = { 25, 7, 7, 7, 4, 4 } -- prepared sites per field F1..F6 (docs/land-development-design-v2.md, section 2)
 local CHAIN_LENGTH = { 1, 2, 2, 2, 3, 3 } -- stages of one cell per field (Config/Land chains)
 local TOOLS = { -- the tool IDs of the land design; any other key in `land.tools` is dropped
@@ -53,6 +53,8 @@ local function template(): Profile
 		sparks = 0,
 		sparksSpent = 0,
 		sparksBought = 0, -- sparks bought with Robux (spark packs), already part of `sparks`
+		permanent = { 0, 0, 0, 0, 0, 0 }, -- permanent plants per type, bought with Robux: every run starts with them
+		built = { false, false, false, false, false, false }, -- the types built at least once (a permanent plant needs it)
 		plants = { 0, 0, 0, 0, 0, 0 },
 		nodes = {},
 		pnodes = {},
@@ -146,6 +148,15 @@ local function counts(value: any, default: { any }): { any }
 	local result = {}
 	for index, item in default do
 		result[index] = scalar(item, if type(value) == "table" then value[index] else nil)
+	end
+	return result
+end
+
+-- The plant types built once: one flag per plant, true only when saved as true.
+local function flags(value: any, default: { any }): { any }
+	local result = {}
+	for index in default do
+		result[index] = type(value) == "table" and value[index] == true
 	end
 	return result
 end
@@ -312,6 +323,8 @@ end
 -- How each field of the template is cleaned on load. Fields without an entry are scalars.
 local CLEANERS: { [string]: (any, any) -> any } = {
 	plants = counts,
+	permanent = counts,
+	built = flags,
 	nodes = function(value: any): any
 		return entries(value, isTrue)
 	end,
@@ -396,6 +409,13 @@ function Data.fromState(state: Profile, base: Profile?): Profile
 	local profile = deepCopy(base or template())
 	for _, key in STATE_FIELDS do
 		profile[key] = deepCopy(state[key])
+	end
+	-- A type with a plant in the run counts as built, for good (the runs reset the plants, the flag stays).
+	if type(profile.built) ~= "table" then
+		profile.built = template().built
+	end
+	for index in profile.built do
+		profile.built[index] = profile.built[index] == true or (state.plants[index] or 0) > 0
 	end
 	profile.v = VERSION
 	return profile
