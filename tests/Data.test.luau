@@ -64,9 +64,9 @@ return function(t, load)
 		return reload(state)
 	end
 
-	-- The template: version 9, the default profile of Bauplan section 5.
+	-- The template: version 10, the default profile of Bauplan section 5.
 	local template = Data.template()
-	t.equal(template.v, 9, "the template is version 9")
+	t.equal(template.v, 10, "the template is version 10")
 	t.equal(template.tutorial, 1, "a new profile starts the tutorial at its first step")
 	t.equal(template.tutorialDone, false, "a new profile has not finished the tutorial")
 	t.equal(template.land.tools.scythe, true, "the scythe is owned from the start")
@@ -188,7 +188,7 @@ return function(t, load)
 		},
 	}
 	local migrated = Data.migrate(slotted, Steps)
-	t.equal(migrated.v, 9, "the profile is version 9 afterwards")
+	t.equal(migrated.v, 10, "the profile is version 10 afterwards")
 	t.truthy(same(migrated.rules.charge, { th = 0.8, on = true }), "of two charge slots the switched-on one wins")
 	t.truthy(same(migrated.rules.sell, { th = 1.2, on = true }), "the sell slot becomes the sell rule")
 	t.equal(migrated.rules["1"], nil, "no slot key is left")
@@ -213,7 +213,12 @@ return function(t, load)
 	t.truthy(paint5.pnodes.S1 == true and paint5.pnodes.P2 == true, "spark items are kept in pnodes")
 	local owned = Data.migrate({ v = 8, passes = { premium = true, smart_hub = true } }, Steps)
 	t.equal(next(owned.passes), nil, "saved pass flags are dropped by the 8 to 9 migration")
-	t.equal(owned.v, 9, "the pass fixture ends at version 9")
+	t.equal(owned.v, 10, "the pass fixture ends at version 10")
+	-- Version 9 -> 10: a profile gets sparksBought 0; a saved count stays, a bad one is 0, and it is not part of the run.
+	t.equal(Data.migrate({ v = 9, sparks = 4 }, Steps).sparksBought, 0, "a version 9 profile has bought no sparks")
+	t.equal(Data.migrate({ v = 9, sparksBought = 15 }, Steps).sparksBought, 15, "a saved count of bought sparks stays")
+	t.equal(Data.migrate({ v = 9, sparksBought = -3 }, Steps).sparksBought, 0, "a negative count is dropped")
+	t.equal(Data.toState(Data.template()).sparksBought, nil, "bought sparks are not a run field")
 	t.equal(Data.migrate({ v = 6, paint = 4 }, Steps).paint, 4, "a saved colour stays")
 	t.equal(Data.migrate({ v = 6, paint = 9 }, Steps).paint, 0, "a colour out of range is dropped")
 	t.equal(Data.migrate({ v = 6, paint = 2.5 }, Steps).paint, 0, "a fractional colour is dropped")
@@ -221,7 +226,7 @@ return function(t, load)
 
 	-- A profile of a newer version, or without a version, is rejected.
 	local newer = Data.template()
-	newer.v = 10
+	newer.v = 11
 	local rejected, rejectedReason = Data.migrate(newer, Steps)
 	t.equal(rejected, nil, "a profile of a newer version is rejected")
 	t.equal(rejectedReason, "newer version", "the reason says newer version")
