@@ -53,7 +53,7 @@ function WeatherLook.blend(from: Look, to: Look, share: number): Look
 	local look = table.clone(to)
 	for name, value in to :: any do
 		if type(value) == "number" then
-			(look :: any)[name] = value + ((from :: any)[name] - value) * (1 - share)
+			(look :: any)[name] = (from :: any)[name] * (1 - share) + value * share
 		end
 	end
 	return look
