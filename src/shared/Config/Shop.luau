@@ -16,6 +16,8 @@ return {
 	multiplierCap = 3, -- the bought multipliers together, at most ×3
 	smartHubRuleSlots = 3, -- Smart-Zentrale: third rule slot
 	longMeterHours = 4, -- Langzeit-Zähler: offline cap +4 hours
+	autoCrankRate = 4, -- Kurbelmotor: cranks per second added by the server while the owner is online
+	crankLimit = 8, -- cranks per second at most, hand and Kurbelmotor together (the Net limit of "Crank")
 
 	-- type: "pass" (owned once) or "product" (bought again and again). seconds: cut yield or booster length.
 	-- queued: the booster joins the queue. daily: counted against skipsPerDay.
@@ -31,6 +33,7 @@ return {
 		},
 		{ id = "smart_hub", type = "pass", robux = 199, robloxId = 0, en = "Smart Hub", de = "Smart-Zentrale" },
 		{ id = "long_meter", type = "pass", robux = 129, robloxId = 0, en = "Long Meter", de = "Langzeit-Zähler" },
+		{ id = "auto_crank", type = "pass", robux = 129, robloxId = 0, en = "Auto Crank", de = "Kurbelmotor" },
 		{ id = "premium", type = "pass", robux = 349, robloxId = 0, en = "Premium Tariff", de = "Premium-Tarif" },
 		{ id = "grid_vip", type = "pass", robux = 399, robloxId = 0, en = "Grid VIP", de = "Netzbetreiber-VIP" },
 		{ id = "neon", type = "pass", robux = 99, robloxId = 0, en = "Neon Plants", de = "Neon-Anlagen" },
