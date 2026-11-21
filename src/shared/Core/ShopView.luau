@@ -20,6 +20,8 @@ export type Card = {
 	-- Two small buttons for a value the player sets in steps (the rule thresholds): lower and higher.
 	steps: { down: Button, up: Button }?,
 	extra: boolean?, -- a Robux offer: the card has the cyan outline
+	-- Permanent plants (Robux): up to two small cyan lines under a plant card, each a tap that opens the offer's purchase prompt.
+	permanent: { Button }?,
 }
 export type Input = {
 	view: any,
@@ -88,8 +90,36 @@ local function price(input: Input, cost: number): string
 	return input.t("market.price", { cost = ShopView.short(cost) })
 end
 
+local function findOffer(shop: any, id: string): any?
+	for _, offer in if shop ~= nil then shop.offers else {} do
+		if offer.id == id then
+			return offer
+		end
+	end
+	return nil
+end
+
 local function buy(input: Input, enabled: boolean, remote: string, payload: any): Button
 	return { text = input.t("action.buy"), enabled = enabled, remote = remote, payload = payload }
+end
+
+-- The permanent plant lines of one plant card: the single unit and the pack of 10, each only while the offer is for sale
+-- (a fetched price, Shop.permanentOffers) and the shop tab is allowed (minute 12, policy). Nil when there is none.
+local function permanentLines(input: Input, index: number): { Button }?
+	local facts = input.extras
+	if facts == nil or facts.shown ~= true or facts.permanent == nil then
+		return nil
+	end
+	local lines: { Button } = {}
+	for _, entry in input.offers or {} do
+		local offer = findOffer(input.shop, entry.id)
+		if offer ~= nil and offer.plant == index and facts.permanent[entry.id] == true then
+			local key = if offer.count > 1 then "market.permanentPack" else "market.permanent"
+			local text = input.t(key, { count = offer.count, price = math.floor(entry.price + 0.5) })
+			table.insert(lines, { text = text, enabled = true, offer = entry.id })
+		end
+	end
+	return if #lines > 0 then lines else nil
 end
 
 local function plantCards(input: Input): { Card }
@@ -123,6 +153,7 @@ local function plantCards(input: Input): { Card }
 			card.price = price(input, item.cost)
 			card.button = buy(input, item.affordable, "BuyPlant", { plant = index, qty = 1 })
 		end
+		card.permanent = permanentLines(input, index)
 		table.insert(cards, card)
 	end
 	return cards
@@ -415,15 +446,6 @@ local function productionCards(input: Input): { Card }
 	return cards
 end
 
-local function findOffer(shop: any, id: string): any?
-	for _, offer in if shop ~= nil then shop.offers else {} do
-		if offer.id == id then
-			return offer
-		end
-	end
-	return nil
-end
-
 -- Extras tab: one card per Robux offer with a fetched price (`input.offers`; the others are not listed). A pass already
 -- owned says so in green; a booster that does not fit the queue and a Time Skip over the daily limit have no button.
 -- A spark pack is offered from grid stage 1 on, and only while the sparks still missing cover it.
@@ -436,6 +458,9 @@ function robuxCards(input: Input, packsOnly: boolean): { Card }
 	local t = input.t
 	for _, entry in input.offers or {} do
 		local offer = findOffer(input.shop, entry.id)
+		if offer ~= nil and offer.plant ~= nil then
+			continue -- a permanent plant is sold on its plant card
+		end
 		local pack = offer ~= nil and offer.sparks ~= nil
 		if pack and not ((facts.level or 0) >= 1 and (facts.sparksMissing or 0) >= offer.sparks) then
 			continue
