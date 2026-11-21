@@ -70,7 +70,7 @@ return {
 			robloxId = 0,
 			en = "Time Skip",
 			de = "Zeitsprung",
-			seconds = 3600,
+			seconds = 1200, -- 20 minutes of average yield at the full rate
 			daily = true,
 		},
 	},
