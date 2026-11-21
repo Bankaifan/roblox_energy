@@ -236,7 +236,7 @@ return function(t, load)
 	end
 	local open = { shown = true, owned = {}, stock = 0, skipsLeft = 3 }
 	local listed = byId(extras(open, allPrices))
-	t.equal(#extras(open, allPrices), 12, "one card per offer with a price")
+	t.equal(#extras(open, allPrices), 12, "one card per offer with a price, the spark packs aside")
 	t.equal(#extras(open, {}), 0, "offers without a fetched price are hidden")
 	t.equal(#extras({ shown = false, owned = {}, stock = 0 }, allPrices), 0, "a hidden tab has no cards")
 	t.equal(listed["offer.founder"].price, "51 Robux", "the live price and the word Robux")
@@ -267,6 +267,53 @@ return function(t, load)
 
 	local skip = byId(extras(open, allPrices, "en", 12500))["offer.timeskip"]
 	t.truthy(string.find(skip.info, "12.5K coins", 1, true) ~= nil, "the Time Skip card shows the coins it gives now")
+	-- Spark packs: from grid stage 1 on and only while the missing sparks cover them; also at the bottom of the Sparks tab.
+	local function packFacts(level: number, missing: number): any
+		return { shown = true, owned = {}, stock = 0, skipsLeft = 3, level = level, sparksMissing = missing }
+	end
+	t.equal(#extras(packFacts(0, 215), allPrices), 11, "no spark pack before grid stage 1")
+	local stage1 = byId(extras(packFacts(1, 215), allPrices))
+	t.truthy(stage1["offer.sparks5"] ~= nil and stage1["offer.sparks40"] ~= nil, "all three packs from grid stage 1")
+	t.equal(#extras(packFacts(1, 215), allPrices), 14, "the Extras tab lists the packs")
+	local needs = byId(extras(packFacts(1, 15), allPrices))
+	t.truthy(needs["offer.sparks15"] ~= nil and needs["offer.sparks5"] ~= nil, "packs up to the missing sparks stay")
+	t.equal(needs["offer.sparks40"], nil, "a pack larger than the missing sparks is hidden")
+	t.equal(#extras(packFacts(1, 0), allPrices), 11, "nothing missing: no pack")
+	t.equal(stage1["offer.sparks15"].price, "62 Robux", "a pack shows the live price")
+	t.equal(stage1["offer.sparks15"].button.offer, "sparks15", "and opens the prompt of its offer")
+	t.truthy(string.find(stage1["offer.sparks5"].info, "5 sparks", 1, true) ~= nil, "English card text")
+	t.truthy(
+		string.find(byId(extras(packFacts(1, 215), allPrices, "de"))["offer.sparks5"].info, "Funken", 1, true) ~= nil,
+		"German card text"
+	)
+	local sparksTab = ShopView.cards("sparks", {
+		view = { sparks = { items = {}, available = 0 } },
+		coins = 0,
+		plants = config.plants,
+		upgrades = config.upgrades,
+		land = land,
+		offers = Offers.visible(
+			(function()
+				local shop: any = table.clone(Catalogue)
+				shop.offers = {}
+				for index, offer in Catalogue.offers do
+					local copy: any = table.clone(offer)
+					copy.robloxId = 1000 + index
+					table.insert(shop.offers, copy)
+				end
+				return shop
+			end)(),
+			allPrices,
+			"en"
+		),
+		extras = packFacts(1, 20),
+		shop = Catalogue,
+		t = function(key: string, args: any): string
+			return Locale.t(key, "en", args)
+		end,
+	})
+	t.equal(#sparksTab, 2, "the Sparks tab ends with the packs that still fit")
+	t.equal(sparksTab[1].id, "offer.sparks5", "the 5 pack comes first")
 	t.equal(ShopView.tabsFor(false, true)[6].id, "extras", "Extras is the last tab")
 	t.equal(#ShopView.tabsFor(true, true), 7, "the control board has seven tabs with Extras")
 	for _, offer in Catalogue.offers do
