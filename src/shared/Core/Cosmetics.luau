@@ -20,6 +20,7 @@ export type Flags = {
 	fireworks: boolean, -- Upgrade Fireworks: fireworks and a server message at each upgrade
 	neon: string?, -- Neon Plants: the glow colour, nil without the pass
 	theme: string, -- Plot Themes: the design
+	themed: boolean, -- Plot Themes owned: the plot shows the design (ground, fence and sign)
 }
 
 local function owns(passes: { [string]: any }, id: string): boolean
@@ -56,6 +57,7 @@ function Cosmetics.flags(passes: { [string]: any }, choice: { [any]: any }): Fla
 		fireworks = owns(passes, "fireworks"),
 		neon = neon,
 		theme = theme,
+		themed = owns(passes, "themes"),
 	}
 end
 
@@ -65,6 +67,77 @@ local function wholeLevel(value: any): number
 		return 0
 	end
 	return math.floor(value)
+end
+
+-- The pass a slot needs and its list of items.
+local SLOTS = {
+	[Cosmetics.SLOT_NEON] = { pass = "neon", items = Cosmetics.NEON_COLOURS },
+	[Cosmetics.SLOT_THEME] = { pass = "themes", items = Cosmetics.THEMES },
+}
+
+-- SetCosmetic: the choice with `item` set in `slot`, or nil when the slot is unknown, the pass is not owned or the item
+-- is not in the slot's list. Keys are kept as text (what a profile saves); the given choice is not changed.
+function Cosmetics.choose(
+	passes: { [string]: any },
+	choice: { [any]: any },
+	slot: number,
+	item: string
+): { [string]: string }?
+	local entry = SLOTS[slot]
+	if entry == nil or not owns(passes, entry.pass) or table.find(entry.items, item) == nil then
+		return nil
+	end
+	local result: { [string]: string } = {}
+	for key, value in choice do
+		if type(value) == "string" then
+			result[tostring(key)] = value
+		end
+	end
+	result[tostring(slot)] = item
+	return result
+end
+
+-- The item after `current` in the slot's list (the first when `current` is not in it); nil for an unknown slot.
+function Cosmetics.nextItem(slot: number, current: string?): string?
+	local entry = SLOTS[slot]
+	if entry == nil then
+		return nil
+	end
+	local at = if current ~= nil then table.find(entry.items, current) else nil
+	return entry.items[((at or 0) % #entry.items) + 1]
+end
+
+-- RGB (0 to 255) of each glow colour.
+local NEON_RGB = {
+	green = { 60, 255, 120 },
+	cyan = { 60, 230, 255 },
+	magenta = { 255, 60, 220 },
+	gold = { 255, 200, 40 },
+}
+
+function Cosmetics.neonRgb(id: string): { number }
+	return NEON_RGB[id] or NEON_RGB[Cosmetics.NEON_COLOURS[1]]
+end
+
+-- The three designs of Plot Themes: ground (the border strip), fence (posts and rails) and sign (the name board), RGB.
+local THEME_LOOKS = {
+	classic = { ground = { 96, 150, 70 }, fence = { 150, 110, 70 }, sign = { 190, 150, 100 } },
+	desert = { ground = { 214, 180, 120 }, fence = { 170, 100, 60 }, sign = { 232, 120, 70 } },
+	night = { ground = { 40, 56, 96 }, fence = { 70, 80, 120 }, sign = { 20, 28, 56 } },
+}
+
+function Cosmetics.themeLook(id: string): { ground: { number }, fence: { number }, sign: { number } }
+	return THEME_LOOKS[id] or THEME_LOOKS[Cosmetics.THEMES[1]]
+end
+
+-- Upgrade Fireworks: true when a grid expansion happened (the level went up) and the owner has the pass.
+function Cosmetics.fireworksDue(before: any, after: any, fireworks: boolean): boolean
+	return fireworks and wholeLevel(after) > wholeLevel(before)
+end
+
+-- The server message of an expansion with fireworks.
+function Cosmetics.expansionNotice(owner: string, level: any): string
+	return `{owner} expanded the grid to level {wholeLevel(level)}!`
 end
 
 -- The PlotPublic payload of one plot: the owner's name (the plot model carries it), the level, the count of each plant
