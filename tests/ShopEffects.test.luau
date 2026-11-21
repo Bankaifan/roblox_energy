@@ -83,6 +83,15 @@ return function(t, load)
 		return profile
 	end
 
+	-- The storage capacity the game core reports for a profile (stage 2 owned: U17 and U18).
+	local function storageCapacity(profile: any): number
+		local state = run()
+		state.nodes.U18 = true
+		state.storage.charge = 1000
+		local fill = GameCore.view(state, envOf(profile)).storage.fill
+		return 1000 / fill
+	end
+
 	local base = Data.template()
 	local baseIncome, baseOffline = income(base), offline(base)
 
@@ -94,6 +103,9 @@ return function(t, load)
 		auto_crank = function()
 			return (Shop.autoCranks(base, Catalogue, 1, 0, 0)),
 				(Shop.autoCranks(owned("auto_crank"), Catalogue, 1, 0, 0))
+		end,
+		mega_battery = function()
+			return storageCapacity(base), storageCapacity(owned("mega_battery"))
 		end,
 		turbo = function()
 			return baseIncome, income(base, false, true)
@@ -209,6 +221,12 @@ return function(t, load)
 		sold.storage.charge < 1e-6 and kept.storage.charge > 1,
 		"the reserve rule keeps charge that selling alone empties"
 	)
+
+	-- Mega Battery: the capacity of every stage is 1.5 times as large, and the sold-out charge scales with it.
+	near(storageCapacity(owned("mega_battery")), 1.5 * storageCapacity(base), "Mega Battery: capacity x1.5")
+	t.equal(Shop.storageFactor(base, Catalogue), 1, "without the pass the factor is 1")
+	t.equal(Shop.storageFactor(owned("mega_battery"), Catalogue), 1.5, "with the pass the factor is 1.5")
+	t.equal(Shop.envValues(owned("mega_battery"), Catalogue, false, false).storageFactor, 1.5, "the env carries it")
 
 	-- Auto Crank: 4 cranks per second with the pass, none without; with hand cranks the total stays at 8 per second;
 	-- the fraction of a short step is carried.
