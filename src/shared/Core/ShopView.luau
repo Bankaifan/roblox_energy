@@ -4,7 +4,8 @@
 -- sends the button's message; the server checks every message again. Texts come from the `t` function the caller gives.
 local ShopView = {}
 
-export type Button = { text: string, enabled: boolean, remote: string?, payload: any?, tab: string? }
+-- `offer`: opens the Roblox purchase prompt of this offer (Extras tab); the client checks that its price was fetched.
+export type Button = { text: string, enabled: boolean, remote: string?, payload: any?, tab: string?, offer: string? }
 export type Card = {
 	id: string,
 	icon: string,
@@ -18,6 +19,7 @@ export type Card = {
 	button: Button?,
 	-- Two small buttons for a value the player sets in steps (the rule thresholds): lower and higher.
 	steps: { down: Button, up: Button }?,
+	extra: boolean?, -- a Robux offer: the card has the cyan outline
 }
 export type Input = {
 	view: any,
@@ -27,24 +29,37 @@ export type Input = {
 	land: any,
 	ruleStep: number?, -- the threshold step of the rule steppers (Config/Effects.ruleStep); 0.1 when missing
 	t: (key: string, args: { [string]: any }?) -> string,
+	-- Extras tab: the Robux offers with a fetched price (Core/Offers.visible), the facts of Shop.extrasView, the coins a
+	-- Time Skip gives now and the catalogue (Config/Shop).
+	offers: { any }?,
+	extras: any?,
+	skipCoins: number?,
+	shop: any?,
 }
 
 -- The tabs in order, each with its Locale keys for the tab button and the one-line explanation under the tab row.
 ShopView.tabs = {
-	{ id = "plants", key = "tab.plants", hint = "market.hint.plants" },
-	{ id = "upgrades", key = "tab.upgrades", hint = "market.hint.upgrades" },
-	{ id = "storage", key = "tab.storage", hint = "market.hint.storage" },
-	{ id = "tools", key = "tab.tools", hint = "market.hint.tools" },
-	{ id = "sparks", key = "tab.sparks", hint = "market.hint.sparks" },
-	{ id = "production", key = "tab.production", hint = "market.hint.production", board = true },
-} :: { { id: string, key: string, hint: string, board: boolean? } }
+	{ id = "plants", icon = "plant.1", key = "tab.plants", hint = "market.hint.plants" },
+	{ id = "upgrades", icon = "upgrade", key = "tab.upgrades", hint = "market.hint.upgrades" },
+	{ id = "storage", icon = "container", key = "tab.storage", hint = "market.hint.storage" },
+	{ id = "tools", icon = "tool.scythe", key = "tab.tools", hint = "market.hint.tools" },
+	{ id = "sparks", icon = "tab.sparks", key = "tab.sparks", hint = "market.hint.sparks" },
+	{
+		id = "production",
+		icon = "tab.production",
+		key = "tab.production",
+		hint = "market.hint.production",
+		board = true,
+	},
+	{ id = "extras", icon = "tab.extras", key = "tab.extras", hint = "market.hint.extras", extras = true },
+} :: { { id: string, icon: string, key: string, hint: string, board: boolean?, extras: boolean? } }
 
 -- The tabs shown when the popup was opened at the control board (`atBoard`) or at the market. The production tab belongs to
--- the control board only.
-function ShopView.tabsFor(atBoard: boolean): { any }
+-- the control board only; the Extras tab shows only with `withExtras` (the server allows it and an offer has a price).
+function ShopView.tabsFor(atBoard: boolean, withExtras: boolean?): { any }
 	local shown = {}
 	for _, tab in ShopView.tabs do
-		if atBoard or not tab.board then
+		if (atBoard or not tab.board) and (withExtras == true or not tab.extras) then
 			table.insert(shown, tab)
 		end
 	end
@@ -385,6 +400,51 @@ local function productionCards(input: Input): { Card }
 	return cards
 end
 
+local function findOffer(shop: any, id: string): any?
+	for _, offer in if shop ~= nil then shop.offers else {} do
+		if offer.id == id then
+			return offer
+		end
+	end
+	return nil
+end
+
+-- Extras tab: one card per Robux offer with a fetched price (`input.offers`; the others are not listed). A pass already
+-- owned says so in green; a booster that does not fit the queue and a Time Skip over the daily limit have no button.
+local function extrasCards(input: Input): { Card }
+	local cards: { Card } = {}
+	local facts = input.extras
+	if facts == nil or facts.shown ~= true then
+		return cards
+	end
+	local t = input.t
+	for _, entry in input.offers or {} do
+		local offer = findOffer(input.shop, entry.id)
+		local card: Card = {
+			id = `offer.{entry.id}`,
+			icon = `offer.{entry.type}`,
+			title = entry.name,
+			info = t(`offer.{entry.id}.info`, { coins = ShopView.short(math.floor(input.skipCoins or 0)) }),
+			state = "extra",
+			extra = true,
+		}
+		local view = { text = t("extras.view"), enabled = true, offer = entry.id } :: Button
+		if entry.type == "pass" and facts.owned[entry.id] == true then
+			card.state = "owned"
+			card.status = t("extras.owned")
+		elseif offer ~= nil and offer.queued and facts.stock + offer.seconds > input.shop.boosterStockSeconds then
+			card.status = t("extras.stockFull")
+		elseif offer ~= nil and offer.daily and facts.skipsLeft ~= nil and facts.skipsLeft < 1 then
+			card.status = t("extras.limit")
+		else
+			card.price = t("extras.price", { price = math.floor(entry.price + 0.5) })
+			card.button = view
+		end
+		table.insert(cards, card)
+	end
+	return cards
+end
+
 local BUILDERS: { [string]: (Input) -> { Card } } = {
 	plants = plantCards,
 	upgrades = upgradeCards,
@@ -392,6 +452,7 @@ local BUILDERS: { [string]: (Input) -> { Card } } = {
 	tools = toolCards,
 	sparks = sparkCards,
 	production = productionCards,
+	extras = extrasCards,
 }
 
 -- The cards of `tab` for the server's view; an unknown tab or a missing view has no cards.
