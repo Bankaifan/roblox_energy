@@ -784,13 +784,9 @@ local function averageRate(state: State, env: Env): number
 	return rate * market(state, env, nil) * (env.income or 1)
 end
 
--- Offline income: Schnittrate × min(Abwesenheit, Deckel) × Wirkungsgrad. Storage, rules and the crank do not count.
-function GameCore.offline(state: State, seconds: number, env: Env): State
-	local result = copy(state)
+-- The offline cap (Deckel) in seconds: the longest time away that still pays.
+function GameCore.offlineCap(state: State, env: Env): number
 	local effects = env.config.effects
-	if not isFinite(seconds) or seconds < effects.offlineMinimumSeconds then
-		return result
-	end
 	local hours = effects.offlineHours
 	if state.pnodes.P6 then
 		hours = effects.offlineHoursP6
@@ -800,11 +796,21 @@ function GameCore.offline(state: State, seconds: number, env: Env): State
 	if env.longMeter then
 		hours += effects.longMeterHours
 	end
+	return hours * 3600
+end
+
+-- Offline income: Schnittrate × min(Abwesenheit, Deckel) × Wirkungsgrad. Storage, rules and the crank do not count.
+function GameCore.offline(state: State, seconds: number, env: Env): State
+	local result = copy(state)
+	local effects = env.config.effects
+	if not isFinite(seconds) or seconds < effects.offlineMinimumSeconds then
+		return result
+	end
 	local efficiency = effects.offlineEfficiency
 	if state.pnodes.P4 then
 		efficiency = effects.offlineEfficiencyP4
 	end
-	local away = math.min(seconds, hours * 3600)
+	local away = math.min(seconds, GameCore.offlineCap(state, env))
 	credit(result, averageRate(state, env) * away * efficiency)
 	return result
 end
