@@ -213,6 +213,15 @@ function Shop.offlineBonusHours(profile: any, shop: any): number
 	return 0
 end
 
+-- Crank turns per second at the current speed: the hand rate, plus the Auto Crank rate with the pass, at most crankLimit.
+function Shop.crankSpeed(profile: any, shop: any): number
+	local rate = shop.handCrankRate
+	if profile.passes.auto_crank == true then
+		rate += shop.autoCrankRate
+	end
+	return math.min(rate, shop.crankLimit)
+end
+
 -- Auto Crank: the cranks the server adds in a step of `dt` seconds, and the fraction carried into the next step.
 -- Without the pass: 0. With it: autoCrankRate per second, but hand and motor together at most crankLimit per second,
 -- so `hand` (the hand cranks counted in this step) takes its share first. Nothing is owed for time offline.
