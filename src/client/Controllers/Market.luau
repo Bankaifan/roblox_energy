@@ -320,9 +320,24 @@ function Market.build(net: Instance, language: () -> string)
 		action: TextButton,
 		down: TextButton,
 		up: TextButton,
+		permanent: { TextButton }, -- the permanent plant lines (cyan, small), at most two
 		data: any,
 	}
 	local pool: { CardUi } = {}
+
+	-- Permanent plant lines: small cyan text under the card, wrapped across its whole width, so nothing is cut off.
+	local PERMANENT_TEXT = 13
+	local PERMANENT_LINE_PAD = 6
+	local function permanentHeights(card: CardUi): { number }
+		local heights = {}
+		local lines = if card.data ~= nil and card.data.permanent ~= nil then card.data.permanent else {}
+		local width = cellWidth - (ICON + 2 * GAP + 2) - GAP
+		for index, line in lines do
+			local size = TextService:GetTextSize(line.text, PERMANENT_TEXT, Theme.fonts.bold, Vector2.new(width, 1000))
+			heights[index] = math.ceil(size.Y) + PERMANENT_LINE_PAD
+		end
+		return heights
+	end
 
 	-- The text block of a card: the title across the top, then info and price or status beside the button (or across
 	-- the card when it has no button).
@@ -330,11 +345,27 @@ function Market.build(net: Instance, language: () -> string)
 		local left = ICON + 2 * GAP + 2
 		local hasButton = card.data ~= nil and card.data.button ~= nil
 		local width = UDim.new(1, -(left + GAP + (if hasButton then BUTTON_WIDTH + GAP else 0)))
+		-- The permanent lines take the bottom of the card; the button and the text block sit above them.
+		local heights = permanentHeights(card)
+		local below = 0
+		for _, height in heights do
+			below += height
+		end
+		local y = cardHeight - below
+		for index, control in card.permanent do
+			control.Visible = heights[index] ~= nil
+			if heights[index] ~= nil then
+				control.Position = UDim2.fromOffset(left, y)
+				control.Size = UDim2.new(1, -(left + GAP), 0, heights[index])
+				y += heights[index]
+			end
+		end
+		card.action.Position = UDim2.new(1, -GAP, 1, -(GAP + below))
 		card.title.Position = UDim2.fromOffset(left, 8)
 		card.title.Size = UDim2.new(1, -(left + GAP), 0, 20)
 		card.info.Position = UDim2.fromOffset(left, 30)
-		card.info.Size = UDim2.new(width, UDim.new(0, cardHeight - 60))
-		card.status.Position = UDim2.fromOffset(left, cardHeight - 28)
+		card.info.Size = UDim2.new(width, UDim.new(0, cardHeight - 60 - below))
+		card.status.Position = UDim2.fromOffset(left, cardHeight - 28 - below)
 		card.status.Size = UDim2.new(width, UDim.new(0, 20))
 		-- A card with steppers (a rule): one line of text, then the two steppers left of the switch at the bottom.
 		if card.data ~= nil and card.data.steps ~= nil then
@@ -361,7 +392,15 @@ function Market.build(net: Instance, language: () -> string)
 		if data.steps ~= nil then
 			return 30 + info + TOUCH + 2 * GAP
 		end
-		return 30 + info + 30
+		local below = 0
+		for _, height in permanentHeights(card) do
+			below += height
+		end
+		local wanted = 30 + info + 30 + below
+		if data.button ~= nil then
+			wanted = math.max(wanted, 30 + TOUCH + GAP + below)
+		end
+		return wanted
 	end
 
 	-- Grows the cards (all one size in the grid) to the tallest text, never below the height the window gives.
@@ -429,6 +468,23 @@ function Market.build(net: Instance, language: () -> string)
 			control.Visible = false
 			return control
 		end
+		local permanent: { TextButton } = {}
+		for line = 1, 2 do
+			local control = Instance.new("TextButton")
+			control.Name = `Permanent{line}`
+			control.AutoButtonColor = false
+			control.BackgroundTransparency = 1
+			control.BorderSizePixel = 0
+			control.Font = Theme.fonts.bold
+			control.TextSize = PERMANENT_TEXT
+			control.TextColor3 = COLORS.energy
+			control.TextXAlignment = Enum.TextXAlignment.Left
+			control.TextWrapped = true
+			control.Text = ""
+			control.Visible = false
+			control.Parent = frame
+			permanent[line] = control
+		end
 		local card: CardUi = {
 			frame = frame,
 			stroke = Theme.outline(frame, COLORS.stroke),
@@ -439,12 +495,18 @@ function Market.build(net: Instance, language: () -> string)
 			action = action,
 			down = step("Down"),
 			up = step("Up"),
+			permanent = permanent,
 			data = nil,
 		}
 		arrange(card)
 		action.Activated:Connect(function()
 			act(card.data ~= nil and card.data.button or nil)
 		end)
+		for line, control in permanent do
+			control.Activated:Connect(function()
+				act(if card.data ~= nil and card.data.permanent ~= nil then card.data.permanent[line] else nil)
+			end)
+		end
 		card.down.Activated:Connect(function()
 			act(card.data ~= nil and card.data.steps ~= nil and card.data.steps.down or nil)
 		end)
@@ -483,6 +545,10 @@ function Market.build(net: Instance, language: () -> string)
 		end
 		if data.extra then
 			strokeColor = COLORS.energy -- Robux offers: the cyan outline, also for an owned pass
+		end
+		for line, control in card.permanent do
+			local entry = if data.permanent ~= nil then data.permanent[line] else nil
+			control.Text = if entry ~= nil then entry.text else ""
 		end
 		card.stroke.Color = strokeColor
 		card.status.TextColor3 = statusColor
