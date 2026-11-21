@@ -53,6 +53,8 @@ local function receive(remotes: { [string]: RemoteEvent }, player: Player, name:
 		TutorialService.marketOpened(player)
 	elseif action.type == "TutorialSkip" then
 		TutorialService.skip(remotes, player)
+	elseif action.type == "SetCosmetic" then
+		Session.setCosmetic(player, action.slot, action.item)
 	elseif action.type == "RankRequest" then
 		LeaderboardService.send(remotes, player)
 	else
