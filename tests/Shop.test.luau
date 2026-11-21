@@ -331,7 +331,7 @@ return function(t, load)
 			local price = if offer.count == 1 then single[offer.plant] else tens[offer.plant]
 			t.truthy(offer.count == 1 or offer.count == 10, `{offer.id}: one plant or ten`)
 			t.equal(offer.robux, price, `{offer.id}: its Robux price`)
-			t.equal(offer.robloxId, 0, `{offer.id}: placeholder product ID`)
+			t.truthy(offer.robloxId > 0, `{offer.id}: a Creator Hub product ID`)
 			t.equal(offer.type, "product", `{offer.id}: a product`)
 		end
 	end
