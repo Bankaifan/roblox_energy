@@ -47,6 +47,21 @@ return function(t, load)
 	t.truthy(near(Flat.normal({ body }, vec(0, 0, 1)), vec(0, 0, 1)), "a body alone takes the side nearer the target")
 	t.equal(Flat.normal({}, up), nil, "no parts, no normal")
 
+	local whole = { body }
+	for _, x in { 88.6, 89.6, 90.6, 91.6, 92.6, 86.6, 85.6, 87.6 } do
+		table.insert(whole, {
+			pos = vec(x, 2.599, -150.101),
+			size = vec(0.0025, 0.975, 4.977),
+			right = vec(0, 0, -1),
+			up = vec(-1, 0, 0),
+			back = vec(0, 1, 0),
+		})
+	end
+	local whole_normal = Flat.normal(whole, up)
+	t.truthy(near(whole_normal, vec(0, 0, -1)), "the plant 1 list (body and eight cell rows) has its glass on -z")
+	local whole_axis, whole_angle = Flat.turn(whole_normal, up)
+	t.truthy(near(rotate(whole_normal, whole_axis, whole_angle), up), "after the turn the glass side points up")
+
 	local axis, angle = Flat.turn(normal, up)
 	t.truthy(near(rotate(normal, axis, angle), up), "the turn puts the glass side up")
 	t.truthy(math.abs(angle - math.pi / 2) < 1e-6, "by a quarter turn")

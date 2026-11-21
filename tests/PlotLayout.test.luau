@@ -75,4 +75,32 @@ return function(t, load)
 	t.equal(#PlotLayout.bare(order, 4), 0, "one unit per cell leaves no bare cell")
 	t.equal(#PlotLayout.bare(order, 10), 0, "more units than cells leaves none")
 	t.equal(#PlotLayout.bare({}, 0), 0, "no cells, no bare cell")
+	local panelField = Assets.fields[1]
+	local panelCells = PlotLayout.cellCount(panelField)
+	for owned = 0, panelCells do
+		local prepared = PlotLayout.mown(nil, owned, panelCells)
+		local drawn = PlotLayout.unitCells(prepared, owned)
+		t.equal(#drawn, owned, `{owned} units on {owned} prepared cells draw {owned} units`)
+		t.equal(
+			#PlotLayout.cellSites(panelField, drawn, tile, tiles),
+			owned,
+			`{owned} units on {owned} prepared cells draw {owned} sites`
+		)
+	end
+	t.equal(
+		#PlotLayout.unitCells(PlotLayout.mown(nil, 3, panelCells), 5),
+		3,
+		"fewer prepared cells than units: only the prepared ones draw"
+	)
+	t.equal(
+		#PlotLayout.unitCells(PlotLayout.mown(nil, 30, panelCells), 30),
+		panelCells,
+		"a field never draws more than it has"
+	)
+	t.equal(
+		table.concat(PlotLayout.unitCells({ 4, 6, 2 }, 2), ","),
+		"4,6",
+		"units stand on the first cells in mown order"
+	)
+	t.equal(#PlotLayout.unitCells({ 4, 6, 2 }, -1), 0, "no negative count draws nothing")
 end

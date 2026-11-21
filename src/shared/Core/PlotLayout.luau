@@ -160,6 +160,16 @@ function PlotLayout.cellSites(field: Field, cells: { number }, tile: number, plo
 	return points
 end
 
+-- The cells that carry a unit: the first `owned` cells of the mown list, never more than the list has (a unit only ever
+-- stands on prepared ground).
+function PlotLayout.unitCells(cells: { number }, owned: number): { number }
+	local chosen: { number } = {}
+	for i = 1, math.min(math.floor(owned), #cells) do
+		table.insert(chosen, cells[i])
+	end
+	return chosen
+end
+
 -- Centres of the first `count` sites of a field, in the fixed fill order. A site is `field.size` x `field.size` tiles;
 -- its size never depends on `count`.
 function PlotLayout.sites(field: Field, count: number, tile: number, plotTiles: number): { Site }
