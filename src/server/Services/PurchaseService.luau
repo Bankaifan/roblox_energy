@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Shop = require(Shared:WaitForChild("Core"):WaitForChild("Shop") :: ModuleScript) :: any
 local Catalogue = require(Shared:WaitForChild("Config"):WaitForChild("Shop") :: ModuleScript) :: any
+local Upgrades = require(Shared:WaitForChild("Config"):WaitForChild("Upgrades") :: ModuleScript) :: any
 local DataService = require(script.Parent.DataService) :: any
 local PolicyService = require(script.Parent.PolicyService) :: any
 
@@ -80,6 +81,7 @@ local function undoCredit(profile: any, before: any)
 	restored.purchases = before.purchases
 	restored.boosters = before.boosters
 	restored.daily = before.daily
+	restored.sparksBought = before.sparksBought
 	profile.Data = restored
 end
 
@@ -91,6 +93,14 @@ local payout: { quote: (Player, number) -> number?, apply: (Player, number) -> (
 
 function PurchaseService.setPayout(quote: (Player, number) -> number?, apply: (Player, number) -> ())
 	payout = { quote = quote, apply = apply }
+end
+
+-- Spark packs: the sparks go into the live run too (Session owns it), or DataService.sync would write the old count back.
+-- Session registers addSparks(player, n) -> false without a run yet; a negative n takes a grant back.
+local addSparks: ((Player, number) -> boolean)? = nil
+
+function PurchaseService.setSparks(add: (Player, number) -> boolean)
+	addSparks = add
 end
 
 local function quoteCoins(player: Player, seconds: number): number?
@@ -112,16 +122,23 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		return NotProcessedYet
 	end
 	local before = profile.Data
-	local data, status, seconds = Shop.receipt(before, receipt.ReceiptId, offerId, today(), Catalogue)
+	local data, status, seconds = Shop.receipt(before, receipt.ReceiptId, offerId, today(), Catalogue, Upgrades)
 	if status == "duplicate" then
 		return PurchaseGranted
 	end
 	if status ~= "granted" then
 		return NotProcessedYet
 	end
+	local sparks = Shop.packSparks(Catalogue, offerId)
+	if sparks > 0 and (addSparks == nil or not addSparks(player, sparks)) then
+		return NotProcessedYet -- no run yet: Roblox asks again
+	end
 	-- The coins of the yield are written with the receipt ID, in the same step (no yield between), so one save holds both.
 	local coins = quoteCoins(player, seconds)
 	if coins == nil then
+		if sparks > 0 and addSparks ~= nil then
+			addSparks(player, -sparks)
+		end
 		return NotProcessedYet -- no run yet: Roblox asks again
 	end
 	profile.Data = data
@@ -132,6 +149,9 @@ local function credit(player: Player, receipt: any): Enum.ProductPurchaseDecisio
 		return PurchaseGranted
 	end
 	undoCredit(profile, before) -- not saved: this credit is undone, the receipt is asked for again
+	if sparks > 0 and addSparks ~= nil then
+		addSparks(player, -sparks)
+	end
 	if coins > 0 and payout ~= nil then
 		payout.apply(player, -coins)
 	end
@@ -241,7 +261,7 @@ function PurchaseService.extras(player: Player, playSeconds: number): any
 	if profile == nil then
 		return { shown = false, owned = {}, stock = 0 }
 	end
-	return Shop.extrasView(profile.Data, today(), Catalogue, PurchaseService.shopVisible(player), playSeconds)
+	return Shop.extrasView(profile.Data, today(), Catalogue, PurchaseService.shopVisible(player), playSeconds, Upgrades)
 end
 
 -- PromptGamePassPurchaseFinished: the event also fires when a free trial starts, so only a pass Roblox confirms is granted.
