@@ -3,6 +3,7 @@
 return function(t, load)
 	local Assets = load("Config/Assets")
 	local Plants = load("Config/Plants")
+	local Cosmetics = load("Core/Cosmetics")
 
 	for _, plant in Plants do
 		local entry = Assets.entry(plant.id)
@@ -129,6 +130,14 @@ return function(t, load)
 		"the container is clear of the market"
 	)
 	t.truthy(box.door < box.size and box.doorHeight < box.height, "the door fits the front wall")
+	-- The Mega Battery container (Cosmetics.containerScale) still leaves 3 studs to the board and stays on the plot.
+	local big = Cosmetics.containerScale(true)
+	t.truthy(
+		battery.x + box.size * big / 2 + 3 <= Assets.furniture.control.x - Assets.furniture.control.size / 2,
+		"the larger container leaves 3 studs to the board"
+	)
+	t.truthy(battery.z + box.depth * big / 2 <= Assets.PLOT_SIZE / 2, "the larger container stays on the plot")
+	t.truthy(battery.z - box.depth * big / 2 > 0, "the larger container stays in the yard")
 	t.equal(Assets.siteCount(1), 25, "25 panel tiles")
 	t.equal(Assets.siteCount(2), 7, "7 river segments")
 	t.equal(#PlotLayout.sites(Assets.fields[1], 99, tile, tiles), 25, "sites are capped at the field")
