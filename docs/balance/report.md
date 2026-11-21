@@ -18,13 +18,16 @@ Tolerances are enforced by tests/test_balance_report.py in make check. Changing 
 | Z8 | Night start: first expansion against morning start | at most +25 % | +11.4 % | in target |
 | Z9 | Longest pause without an affordable purchase, first 10 min | at most 45 s | median 2.0 s (min 1.0, max 5.0, n=27) | in target |
 | Z10 | Stage after the first day (sessions and offline) | stage 4-5 | optimal: median 5.0 (min 5.0, max 6.0, n=9); occasional: median 1.0 (min 1.0, max 1.0, n=9) | in target |
-| Z11 | Sum of bought multipliers | at most x3 | not measured here (holds by construction, Bauplan section 2) | in target |
+| Z11 | Sum of bought multipliers | at most x3 | x3.0 (largest over the buyer runs and Premium + Turbo + Sunshine Hour together) | in target |
 
-Out of target: 0 of 11 rows. Z11 is not measured here.
+Out of target: 0 of 11 rows.
 
 ## Other values
 
 - Child bot (no target): first expansion median 23.1 min (min 20.0, max 25.1, n=27); stage 6 median 127.1 min (min 121.4, max 132.8, n=27).
+- Premium Tariff (no target): first expansion median 15.6 min (min 12.5, max 21.2, n=27); stage 6 median 75.8 min (min 69.6, max 84.2, n=27); income factor median 5.92x (min 1.68, max 36.08, n=27).
+- Premium plus permanent Turbo (no target): first expansion median 10.8 min (min 6.8, max 12.5, n=27); stage 6 median 54.8 min (min 48.2, max 60.1, n=27); income factor median 52.38x (min 34.63, max 296.82, n=27).
+- three Time Skips (no target): first expansion median 13.9 min (min 11.7, max 20.0, n=27); stage 6 median 82.3 min (min 74.8, max 92.8, n=27); income factor median 5.62x (min 1.01, max 20.85, n=27).
 
 ## Assumptions of the bots
 
@@ -37,6 +40,8 @@ Out of target: 0 of 11 rows. Z11 is not measured here.
 - Storage plan (optimal and occasional): the rules (charge 0.7, sell 1.2) once U21 is owned, then U17, U21, U18, U19, U20, U22, each as soon as it is affordable. The plan is not ranked by payback: the bot does not value the storage gain (known limitation).
 - Permanent nodes P1 to P8 in order, as soon as the sparks suffice. Auto-Ausbau and the third rule slot (P8) are not used.
 - Z6 and Z7: the state before expansion 1 and 4 of each optimal run. One day (720 s from Morgen) averaged over 9 seeds. Stage 1 = U17 with rules, stage 4 = U17 to U20 with rules (no U22).
+- Buyers (optimal bot plus purchases from the start): Premium Tariff (income x1.5), Premium plus a permanent Turbo Feed-in (x3, the cap), three Time Skips (20 min of average yield each, paid after 10, 20 and 30 min of play). Income factor = coins earned in the first hour of play against the optimal bot without purchases, same seed and start; it compounds through the stage resets, so it is far above the income multiplier.
+- Z11: the largest income x generation factor over the buyer runs, and with Premium, Turbo and Sunshine Hour all on (Core/Shop.envValues caps the product at multiplierCap).
 - Z8: median first expansion of the optimal bot, Nacht start against Morgen start.
 - Z9: longest streak of seconds in the first 10 min with no offer affordable, per run.
 - Z10: first day per Bauplan section 1: sessions of 35, 25 and 25 min, offline 4 h and 14 h, from Morgen.
