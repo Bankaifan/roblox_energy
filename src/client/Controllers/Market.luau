@@ -332,8 +332,8 @@ function Market.build(net: Instance, language: () -> string)
 		local heights = {}
 		local lines = if card.data ~= nil and card.data.permanent ~= nil then card.data.permanent else {}
 		local width = cellWidth - (ICON + 2 * GAP + 2) - GAP
-		for index, line in lines do
-			local size = TextService:GetTextSize(line.text, PERMANENT_TEXT, Theme.fonts.bold, Vector2.new(width, 1000))
+		for index, entry in lines do
+			local size = TextService:GetTextSize(entry.text, PERMANENT_TEXT, Theme.fonts.bold, Vector2.new(width, 1000))
 			heights[index] = math.ceil(size.Y) + PERMANENT_LINE_PAD
 		end
 		return heights
@@ -469,9 +469,9 @@ function Market.build(net: Instance, language: () -> string)
 			return control
 		end
 		local permanent: { TextButton } = {}
-		for line = 1, 2 do
+		for slot = 1, 2 do
 			local control = Instance.new("TextButton")
-			control.Name = `Permanent{line}`
+			control.Name = `Permanent{slot}`
 			control.AutoButtonColor = false
 			control.BackgroundTransparency = 1
 			control.BorderSizePixel = 0
@@ -483,7 +483,7 @@ function Market.build(net: Instance, language: () -> string)
 			control.Text = ""
 			control.Visible = false
 			control.Parent = frame
-			permanent[line] = control
+			permanent[slot] = control
 		end
 		local card: CardUi = {
 			frame = frame,
@@ -502,9 +502,9 @@ function Market.build(net: Instance, language: () -> string)
 		action.Activated:Connect(function()
 			act(card.data ~= nil and card.data.button or nil)
 		end)
-		for line, control in permanent do
+		for slot, control in permanent do
 			control.Activated:Connect(function()
-				act(if card.data ~= nil and card.data.permanent ~= nil then card.data.permanent[line] else nil)
+				act(if card.data ~= nil and card.data.permanent ~= nil then card.data.permanent[slot] else nil)
 			end)
 		end
 		card.down.Activated:Connect(function()
@@ -546,8 +546,8 @@ function Market.build(net: Instance, language: () -> string)
 		if data.extra then
 			strokeColor = COLORS.energy -- Robux offers: the cyan outline, also for an owned pass
 		end
-		for line, control in card.permanent do
-			local entry = if data.permanent ~= nil then data.permanent[line] else nil
+		for slot, control in card.permanent do
+			local entry = if data.permanent ~= nil then data.permanent[slot] else nil
 			control.Text = if entry ~= nil then entry.text else ""
 		end
 		card.stroke.Color = strokeColor
