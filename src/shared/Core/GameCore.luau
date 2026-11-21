@@ -47,6 +47,7 @@ export type Env = {
 	ruleSlots: number?, -- rule slots open (Config/Effects.ruleSlots without the Smart Hub, 3 with it)
 	autoBuild: boolean?, -- the Smart Hub auto-build is owned
 	storageFactor: number?, -- the Mega Battery: the storage capacity times this (Core/Shop.storageFactor); nil = 1
+	permanent: { number }?, -- permanent plants per plant id (Robux): every run starts with them
 	nextWeather: Weather?, -- the weather of the next period; the view shows it only with U15
 }
 
@@ -686,17 +687,49 @@ local function setPaint(state: State, env: Env, action: { [string]: any }): bool
 	return true
 end
 
+-- The units of one plant the prepared ground carries: nothing without a site, sites x unitsPerSite, unlimited without
+-- the land rules.
+local function groundRoom(state: State, env: Env, id: number): number
+	if not landRequired(env) then
+		return math.huge
+	end
+	local sites = if state.land ~= nil then state.land.sites[id] or 0 else 0
+	local perSite = env.config.land.unitsPerSite
+	if sites < 1 then
+		return 0
+	end
+	return if perSite ~= nil then sites * perSite else math.huge
+end
+
 -- S1 Starter Kit: a new run starts with units of the first plants, where the ground of that plant is prepared.
 local function starterKit(state: State, env: Env)
 	for id, count in env.config.effects.starterKit do
-		local room = count
-		if landRequired(env) then
-			local sites = if state.land ~= nil then state.land.sites[id] or 0 else 0
-			local perSite = env.config.land.unitsPerSite
-			room = if sites < 1 then 0 elseif perSite ~= nil then math.min(count, sites * perSite) else count
-		end
-		state.plants[id] = room
+		state.plants[id] = math.min(count, groundRoom(state, env, id))
 	end
+end
+
+-- Permanent plants (bought with Robux, env.permanent per plant id): every run starts with them on top of the Starter Kit,
+-- on the same ground, so the price of the next unit counts them as owned.
+local function permanentKit(state: State, env: Env)
+	for id, count in env.permanent or {} do
+		if env.config.plants[id] ~= nil and isCount(count) then
+			state.plants[id] =
+				math.min(state.plants[id] + count, math.max(groundRoom(state, env, id), state.plants[id]))
+		end
+	end
+end
+
+-- A permanent plant bought during a run: `count` more units of plant `id` at once, as far as the ground carries them
+-- (a negative count takes units back, never below 0). Returns the new state; the input is never changed.
+function GameCore.grantPlants(state: State, env: Env, id: number, count: number): State
+	local result = copy(state)
+	if env.config.plants[id] == nil or not isFinite(count) or count ~= math.floor(count) then
+		return result
+	end
+	local owned = result.plants[id]
+	local room = math.max(0, groundRoom(result, env, id) - owned)
+	result.plants[id] = math.max(0, owned + math.min(count, room))
+	return result
 end
 
 -- Netz-Ausbau: needs the run revenue of the next level. Plants, run nodes and coins go back to the start;
@@ -730,6 +763,7 @@ local function prestige(state: State, env: Env): boolean
 	if state.pnodes.S1 then
 		starterKit(state, env)
 	end
+	permanentKit(state, env)
 	state.runEarned = 0
 	state.storage.charge = 0
 	return true
