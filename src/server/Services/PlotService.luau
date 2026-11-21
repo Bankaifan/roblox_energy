@@ -11,6 +11,7 @@ local River = require(Core:WaitForChild("River") :: ModuleScript) :: any
 local Cosmetics = require(Core:WaitForChild("Cosmetics") :: ModuleScript) :: any
 local Cable = require(Core:WaitForChild("Cable") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
+local ShopView = require(Core:WaitForChild("ShopView") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
@@ -293,6 +294,21 @@ local function addPrompt(
 		end)
 	end
 	return prompt
+end
+
+-- The crank prompt's second line shows what the crank pays now (GameCore.crankOutput), so it is there only while the
+-- player stands in the prompt range. Written once a second by Session, in the owner's language.
+function PlotService.setCrankOutput(player: Player, output: { [string]: number })
+	local record = plots[player]
+	local crank = if record ~= nil then record.model:FindFirstChild("CrankPrompt", true) else nil
+	if crank == nil or not crank:IsA("ProximityPrompt") then
+		return
+	end
+	crank.ObjectText = Locale.t(
+		"crank.output",
+		Locale.resolve(player.LocaleId),
+		{ turn = ShopView.short(output.turn), second = ShopView.short(output.second) }
+	)
 end
 
 -- Control center from U21, one battery unit per storage stage; both are rebuilt only when the number changes.
