@@ -4,6 +4,7 @@
 local GameCore = require("../src/shared/Core/GameCore")
 local Formulas = require("../src/shared/Core/Formulas")
 local Env = require("../src/shared/Core/Env")
+local ShopCore = require("../src/shared/Core/Shop")
 
 local Config = {
 	plants = require("../src/shared/Config/Plants"),
@@ -13,18 +14,45 @@ local Config = {
 	weathers = require("../src/shared/Config/Weather"),
 	effects = require("../src/shared/Config/Effects"),
 	land = require("../src/shared/Config/Land"),
+	shop = require("../src/shared/Config/Shop"),
 }
 
 local Sim = {}
 
 Sim.LIMIT = 6 * 3600 -- seconds of play per run; a run stops at stage 8
+-- What a buyer owns from the start (Bauplan section 4): the income and generation factors the server would pass into the
+-- env (Core/Shop.envValues, capped at multiplierCap) and the Time Skips bought on day one (one every 10 minutes of play).
+local SKIP_EVERY = 600
+local SKIP_SECONDS = 0
+for _, offer in Config.shop.offers do
+	if offer.id == "timeskip" then
+		SKIP_SECONDS = offer.seconds
+	end
+end
+local function buyer(passes: { [string]: boolean }, turbo: boolean, skips: number, sunshine: boolean?): any
+	local values = ShopCore.envValues({ passes = passes, boosters = {} }, Config.shop, sunshine == true, turbo)
+	return { income = values.income, boost = values.boost, skips = skips }
+end
+
 -- clicks: cranks per second until `crankUntil` seconds of play; every: seconds between purchases;
 -- rank: buy the shortest payback (true) or the cheapest affordable offer (false).
 Sim.BOTS = {
 	optimal = { clicks = 8, crankUntil = math.huge, every = 1, rank = true },
 	occasional = { clicks = 8, crankUntil = 60, every = 20, rank = true },
 	child = { clicks = 8, crankUntil = math.huge, every = 1, rank = false },
+	-- The optimal bot with purchases: Premium Tariff, Premium plus a permanent Turbo Feed-in, three Time Skips.
+	premium = { clicks = 8, crankUntil = math.huge, every = 1, rank = true, buy = buyer({ premium = true }, false, 0) },
+	turbo = { clicks = 8, crankUntil = math.huge, every = 1, rank = true, buy = buyer({ premium = true }, true, 0) },
+	skips = {
+		clicks = 8,
+		crankUntil = math.huge,
+		every = 1,
+		rank = true,
+		buy = buyer({}, false, Config.shop.skipsPerDay),
+	},
 }
+-- Everything that multiplies at once (Premium, Turbo, Sunshine Hour): Z11 checks that the cap holds.
+Sim.FULL_STACK = buyer({ premium = true }, true, 0, true)
 local STORAGE_NODES = { U17 = true, U18 = true, U19 = true, U20 = true, U21 = true, U22 = true }
 local STORAGE_PLAN = { "U17", "U21", "U18", "U19", "U20", "U22" }
 local STORAGE_CHAIN = { "U17", "U18", "U19", "U20" }
@@ -85,18 +113,23 @@ function Sim.fresh(): any
 	}
 end
 
-function Sim.envAt(seed: number, time: number): any
-	return {
+function Sim.envAt(seed: number, time: number, buy: any?): any
+	local env = {
 		phase = Env.phaseAt(time, Config.phases),
 		weather = Env.weatherAt(time, seed, Config.weathers, 120),
 		longMeter = false,
 		config = Config,
 		formulas = Formulas,
 	}
+	if buy ~= nil then
+		env.income = buy.income
+		env.boost = buy.boost
+	end
+	return env
 end
 
 function Sim.record(): any
-	return { clock = 0, stageAt = {}, snapshots = {}, pause = 0, pauseLongest = 0, busy = 0 }
+	return { clock = 0, stageAt = {}, snapshots = {}, pause = 0, pauseLongest = 0, busy = 0, skipped = 0 }
 end
 
 -- Coins per second now: one tick, plus the crank income of `clicks` clicks (the crank is not part of the tick).
@@ -274,6 +307,11 @@ local function decide(bot: any, state: any, env: any, record: any): any
 		record.snapshots[state.level + 1] = state
 		state = apply(state, { type = "Prestige" }, env)
 	end
+	-- Time Skip: 20 minutes of average yield at the full rate, paid out like the shop does.
+	if bot.buy ~= nil and record.skipped < bot.buy.skips and record.clock >= (record.skipped + 1) * SKIP_EVERY then
+		record.skipped += 1
+		state = GameCore.payout(state, GameCore.yield(state, SKIP_SECONDS, env))
+	end
 	if record.busy > 0 then
 		record.busy -= 1
 		return state
@@ -311,11 +349,14 @@ end
 function Sim.play(bot: any, state: any, seed: number, from: number, seconds: number, record: any): (any, number)
 	local time = from
 	for _ = 1, seconds do
-		local env = Sim.envAt(seed, time)
+		local env = Sim.envAt(seed, time, bot.buy)
 		state = decide(bot, state, env, record)
 		state = GameCore.tick(state, env, 1)
 		record.clock += 1
 		time += 1
+		if record.clock == 3600 then
+			record.earnedHour = state.lifetimeEarned
+		end
 		if state.level > 0 and record.stageAt[state.level] == nil then
 			record.stageAt[state.level] = record.clock
 		end
