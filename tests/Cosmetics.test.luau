@@ -25,6 +25,8 @@ return function(t, load)
 	t.equal(Cosmetics.crankLook(true, false), "copper", "the Founder Pack gives the copper crank")
 	t.equal(Cosmetics.crankLook(false, true), "golden", "S6 gives the golden crank")
 	t.equal(Cosmetics.crankLook(true, true), "golden", "with S6 the golden crank wins")
+	t.equal(Cosmetics.containerScale(false), 1, "no Mega Battery: the normal container")
+	t.truthy(Cosmetics.containerScale(true) > 1, "the Mega Battery shows a larger container")
 
 	local chosen = Cosmetics.flags({ neon = true, themes = true }, { [1] = "gold", [2] = "night" })
 	t.equal(chosen.neon, "gold", "the chosen glow colour is kept")
