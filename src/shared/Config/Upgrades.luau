@@ -40,7 +40,7 @@ Upgrades.permanent = {
 	{ id = "P4", sparks = 12, info = "Offline efficiency 75%" },
 	{ id = "P5", sparks = 18, info = "Storage nodes and Control Center kept on grid expansion" },
 	{ id = "P6", sparks = 25, info = "Offline cap 8 hours" },
-	{ id = "P7", sparks = 44, info = "Milestones give x2.5 instead of x2" },
+	{ id = "P7", sparks = 44, info = "10/25/50/100/150/200 units: x2 output each, x2.5 with P7" },
 	{ id = "P8", sparks = 70, info = "All three rules run at the same time" },
 }
 
