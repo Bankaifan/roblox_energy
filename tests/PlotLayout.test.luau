@@ -125,7 +125,7 @@ return function(t, load)
 	t.equal(five[4].side, Assets.TILE / 2, "and so is one with 2")
 	t.equal(#PlotLayout.packed(Assets.fields[1], {}, 5, Assets.TILE, Assets.PLOT_TILES, 4), 0, "no cell, no unit")
 
-	local order = { 7, 2, 9 }
-	t.equal(table.concat(PlotLayout.chosen(order, 2), ","), "7,2", "the first cells mown carry the units")
-	t.equal(table.concat(PlotLayout.chosen(order, 2.9), ","), "7,2", "a fractional count rounds down")
+	local mownOrder = { 7, 2, 9 }
+	t.equal(table.concat(PlotLayout.chosen(mownOrder, 2), ","), "7,2", "the first cells mown carry the units")
+	t.equal(table.concat(PlotLayout.chosen(mownOrder, 2.9), ","), "7,2", "a fractional count rounds down")
 end
