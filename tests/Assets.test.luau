@@ -9,10 +9,11 @@ return function(t, load)
 		local entry = Assets.entry(plant.id)
 		t.truthy(entry ~= nil, `plant {plant.id} has a model entry`)
 		t.truthy(type(entry.file) == "string" and entry.file ~= "", `plant {plant.id} names a file`)
-		t.truthy(entry.scale > 0 and entry.scale <= 1, `plant {plant.id} scale is in (0, 1]`)
+		t.truthy(entry.scale > 0 and entry.scale <= 1.5, `plant {plant.id} scale is in (0, 1.5]`)
 		t.equal(entry.cap, 4, `plant {plant.id} shows up to four copies`)
 	end
 	t.equal(Assets.plants[4].scale, 1, "the mini turbine hub stands at the ridge height of the houses")
+	t.equal(Assets.plants[3].scale, 1.4, "the house is scaled up so its door fits the figure")
 
 	-- Fallback: no entry or no file builds the primitive.
 	t.equal(Assets.useModel(1, { plant1_panel = true }), true, "entry and file: model")
