@@ -174,8 +174,9 @@ return function(t, load)
 
 	-- A rule is saved under its id; one that is not charge or sell is dropped.
 	local sellState = Data.toState(Data.template())
-	sellState.rules = { sell = { th = 1.5, on = true }, bogus = { th = 1, on = true } }
+	sellState.rules = { sell = { th = 1.5, on = true }, reserve = { th = 0, on = true }, bogus = { th = 1, on = true } }
 	local sellBack = Data.toState(Data.migrate(Data.fromState(sellState), Steps))
+	t.truthy(same(sellBack.rules.reserve, { th = 0, on = true }), "a reserve of 0 % is kept")
 	t.truthy(same(sellBack.rules.sell, { th = 1.5, on = true }), "the sell rule comes back exactly")
 	t.equal(sellBack.rules.bogus, nil, "an unknown rule id is dropped")
 	t.equal(sellBack.rules.charge, nil, "a rule never set stays unset")

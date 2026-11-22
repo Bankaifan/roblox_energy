@@ -111,7 +111,7 @@ local function rules(value: any): any
 				and type(item) == "table"
 				and type(item.on) == "boolean"
 				and type(item.th) == "number"
-				and item.th >= 0.3
+				and item.th >= 0
 				and item.th <= 2
 			then
 				result[id] = { th = item.th, on = item.on }
