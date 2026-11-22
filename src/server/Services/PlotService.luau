@@ -433,7 +433,8 @@ local function updateLand(record: Record, counts: { number }, land: any, paint: 
 			local started =
 				PlotLayout.started(land.cells and land.cells[index], land.sites[index] or 0, Assets.siteCount(index))
 			for _, site in PlotLayout.cellSites(field, started, Assets.TILE, Assets.PLOT_TILES) do
-				table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
+				-- A house is square and larger than its cell: its corners are cleared too, no grass inside the walls.
+				table.insert(patches, Meadow.sitePatch(site.x, site.z, if index == 3 then side * 1.9 else side))
 			end
 		end
 		PlotGround.clear(record.slot, record.facing, groundKey, patches)
