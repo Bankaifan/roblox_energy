@@ -1,0 +1,1 @@
+- Smart-Zentrale: Auto-Ausbau (P3) und Dritter Regel-Platz (P8) werden mit dem Pass nicht mehr fuer Funken angeboten, sie sind enthalten.
