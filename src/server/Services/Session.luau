@@ -211,6 +211,9 @@ function Session.stop(player: Player)
 	local state = states[player]
 	states[player] = nil
 	welcomes[player] = nil
+	if started[player] ~= nil then
+		DataService.addPlaySeconds(player, os.clock() - started[player])
+	end
 	started[player] = nil
 	handCranks[player] = nil
 	crankCarry[player] = nil
@@ -226,6 +229,9 @@ end
 function Session.close()
 	for player, state in states do
 		states[player] = nil
+		if started[player] ~= nil then
+			DataService.addPlaySeconds(player, os.clock() - started[player])
+		end
 		DataService.release(player, state)
 	end
 	DataService.flush(25)
