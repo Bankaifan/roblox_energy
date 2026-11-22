@@ -424,17 +424,35 @@ local function buyPlant(state: State, env: Env, action: { [string]: any }): bool
 	return true
 end
 
--- Smart Hub auto-build: buys one unit of the dearest plant the coins cover (the same checks as BuyPlant).
+-- Smart Hub auto-build: buys one unit of the plant with the shortest payback (price / extra noon output) among those the
+-- coins cover (the same checks as BuyPlant), if the coins left stay at or above the reserve share of the coins before.
+-- Needs the Smart Hub and the switch "autobuild" on; its threshold is the coin reserve.
 local function autoBuild(state: State, env: Env): boolean
 	if env.autoBuild ~= true then
 		return false
 	end
-	for index = #env.config.plants, 1, -1 do
-		if buyPlant(state, env, { plant = index, qty = 1 }) then
-			return true
+	local setting = ruleOf(state, env, "autobuild")
+	if not setting.on then
+		return false
+	end
+	local before = middayOutput(state, env)
+	local best, bestPayback = nil, math.huge
+	for index = 1, #env.config.plants do
+		local trial = copy(state)
+		if buyPlant(trial, env, { plant = index, qty = 1 }) and trial.coins >= state.coins * setting.th then
+			local gain = middayOutput(trial, env) - before
+			local payback = if gain > 0 then (state.coins - trial.coins) / gain else math.huge
+			if payback < bestPayback then
+				best, bestPayback = trial, payback
+			end
 		end
 	end
-	return false
+	if best == nil then
+		return false
+	end
+	state.coins = best.coins
+	state.plants = best.plants
+	return true
 end
 
 -- Run nodes cost coins and need their prerequisite; permanent nodes cost sparks and reset nothing.
@@ -473,7 +491,15 @@ end
 local function setRule(state: State, env: Env, action: { [string]: any }): boolean
 	local effects = env.config.effects
 	local id, th, on = action.rule, action.th, action.on
-	if type(id) ~= "string" or effects.rules[id] == nil or not rulesUnlocked(state, env) then
+	if type(id) ~= "string" or effects.rules[id] == nil then
+		return false
+	end
+	-- "autobuild" (switch + coin reserve) belongs to the Smart Hub, the others to the Regelzentrale.
+	if id == "autobuild" then
+		if env.autoBuild ~= true then
+			return false
+		end
+	elseif not rulesUnlocked(state, env) then
 		return false
 	end
 	if not isFinite(th) or type(on) ~= "boolean" or effects.rules[id].slot > ruleSlots(env) then
@@ -752,7 +778,8 @@ local function prestige(state: State, env: Env): boolean
 			nodes[id] = state.nodes[id]
 		end
 	else
-		state.rules = {}
+		-- The auto-build setting belongs to the pass, not to a node: it stays.
+		state.rules = { autobuild = state.rules.autobuild }
 	end
 	local plants = {}
 	for _, plant in env.config.plants do
@@ -925,16 +952,24 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 	local rules = {}
 	if unlocked then
 		for id, range in env.config.effects.rules do
-			if range.slot > ruleSlots(env) then
+			if range.slot > ruleSlots(env) or id == "autobuild" then
 				continue
 			end
 			local rule = ruleOf(state, env, id)
 			rules[id] = { th = rule.th, on = rule.on, min = range.min, max = range.max }
 		end
 	end
+	-- The Smart Hub auto-build setting (switch and coin reserve); nil without the pass.
+	local autoSetting = nil
+	if env.autoBuild == true then
+		local range = env.config.effects.rules.autobuild
+		local rule = ruleOf(state, env, "autobuild")
+		autoSetting = { th = rule.th, on = rule.on, min = range.min, max = range.max }
+	end
 	local stage = storageStage(state, env)
 	local capacity = env.formulas.storageCapacity(stage, middayOutput(state, env), env.storageFactor)
 	return {
+		autoBuild = autoSetting,
 		stage = stage,
 		mode = state.storage.mode,
 		rulesUnlocked = unlocked,
