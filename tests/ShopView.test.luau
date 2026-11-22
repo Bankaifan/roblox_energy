@@ -179,6 +179,27 @@ return function(t, load)
 	t.truthy(not sparks.S4.button.enabled, "its button is off")
 	t.equal(byId(cards("sparks", sparkState, "de")).S2.title, "S2 Werkzeug-Rabatt", "German item name")
 
+	-- A node the Smart Hub covers shows as included: no button, no price.
+	local hubEnv: any = table.clone(env)
+	hubEnv.covered = { P3 = "smart_hub", P8 = "smart_hub" }
+	local hubState = fresh()
+	hubState.sparks = 100
+	local hubCards = byId(ShopView.cards("sparks", {
+		view = GameCore.view(hubState, hubEnv),
+		coins = 0,
+		plants = config.plants,
+		upgrades = config.upgrades,
+		land = land,
+		ruleStep = config.effects.ruleStep,
+		t = function(key: string, args: any): string
+			return Locale.t(key, "en", args)
+		end,
+	}))
+	t.equal(hubCards.P3.status, "Included with Smart Hub", "P3 says it is included")
+	t.equal(hubCards.P3.button, nil, "P3 has no buy button")
+	t.equal(hubCards.P8.price, nil, "P8 has no price")
+	t.truthy(hubCards.P1.button ~= nil, "P1 is still for sale")
+
 	-- Production tab: a total card and one card per owned plant with the formula.
 	local made = fresh()
 	made.plants[1] = 3
