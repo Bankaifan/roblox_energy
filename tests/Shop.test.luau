@@ -176,6 +176,11 @@ return function(t, load)
 	t.equal(view.skipsLeft, 3, "three Time Skips left")
 	t.equal(Shop.extrasView(extrasBase, DAY, Catalogue, true, 719).shown, false, "hidden before minute 12")
 	t.equal(Shop.extrasView(extrasBase, DAY, Catalogue, false, 720).shown, false, "hidden when the shop is not allowed")
+	local earlier = Data.template()
+	earlier.tutorialDone = true
+	earlier.playSeconds = 700
+	t.equal(Shop.extrasView(earlier, DAY, Catalogue, true, 20).shown, true, "earlier sessions count: no new 12 minutes")
+	t.equal(Shop.extrasView(earlier, DAY, Catalogue, true, 19).shown, false, "but 700 + 19 s is still short")
 	local unfinished = table.clone(extrasBase)
 	unfinished.tutorialDone = false
 	t.equal(Shop.extrasView(unfinished, DAY, Catalogue, true, 720).shown, false, "hidden during the tutorial")
