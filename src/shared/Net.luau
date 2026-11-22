@@ -29,6 +29,8 @@ Net.messages = {
 	},
 	Prestige = { direction = "client", fields = {}, limit = { max = 1, per = 5 } },
 	SetCosmetic = { direction = "client", fields = { slot = "int", item = "string" }, limit = { max = 1, per = 1 } },
+	-- Grid VIP: take today's free Turbo Feed-in (once per server day, the server checks the pass).
+	FreeTurbo = { direction = "client", fields = {}, limit = { max = 1, per = 2 } },
 	BuyTool = { direction = "client", fields = { tool = "string" }, limit = { max = 4, per = 1 } },
 	-- The container is bought for coins from the market, no hold time and no site: a plain client message.
 	BuyContainer = { direction = "client", fields = {}, limit = { max = 2, per = 1 } },
