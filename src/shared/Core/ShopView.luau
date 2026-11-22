@@ -399,6 +399,9 @@ local function sparkCards(input: Input): { Card }
 		if item.owned then
 			card.state = "owned"
 			card.status = input.t("reason.bought")
+		elseif item.covered ~= nil then
+			card.state = "owned"
+			card.status = input.t(`reason.included.{item.covered}`)
 		else
 			card.state = if item.buyable then "affordable" else "short"
 			card.price = input.t("market.sparkPrice", { cost = item.sparks })
