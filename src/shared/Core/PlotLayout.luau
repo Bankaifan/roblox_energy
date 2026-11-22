@@ -142,6 +142,13 @@ function PlotLayout.started(saved: { number }?, sites: number, total: number): {
 	return PlotLayout.mown(saved, math.max(#(saved or {}), sites), total)
 end
 
+-- The cells that carry a unit when `owned` units stand on the prepared `cells`: one unit per cell, so min(owned, #cells) of
+-- them, in the order given (nothing for a count below one).
+function PlotLayout.chosen(cells: { number }, owned: number): { number }
+	local count = math.max(0, math.min(math.floor(owned), #cells))
+	return table.move(cells, 1, count, 1, {})
+end
+
 function PlotLayout.bare(cells: { number }, owned: number): { number }
 	local rest: { number } = {}
 	for i = math.max(0, math.floor(owned)) + 1, #cells do
