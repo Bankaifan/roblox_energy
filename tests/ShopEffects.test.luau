@@ -75,6 +75,7 @@ return function(t, load)
 	local function autoBuilt(profile: any): number
 		local state = run()
 		state.coins = 1e6
+		state.rules.autobuild = { th = 0.2, on = true }
 		return (GameCore.apply(state, { type = "AutoBuild" }, envOf(profile))).coins
 	end
 
