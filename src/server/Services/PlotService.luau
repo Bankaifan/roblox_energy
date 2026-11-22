@@ -103,8 +103,7 @@ end
 -- Align action with the Mounting Rails) holds its panel straight on the cell centre. Returns the sites.
 local function unitSites(record: Record, index: number, owned: number, cells: { number }, aligned: { number }): { any }
 	local field = Assets.fields[index]
-	local count = math.min(math.floor(owned), #cells)
-	local chosen = table.move(cells, 1, count, 1, {})
+	local chosen = PlotLayout.chosen(cells, owned)
 	local points = PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES)
 	if index ~= 1 then
 		table.sort(chosen)
