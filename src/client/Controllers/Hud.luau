@@ -285,11 +285,12 @@ function Hud.build(net: Instance)
 
 	-- The expansion asks first: what it gives, what is lost and what is kept, then "Expand" or "Cancel".
 	local confirm = label(frame, nextOrder())
-	local confirmYes: TextButton, confirmNo: TextButton
+	local confirmYes: TextButton, confirmNo: TextButton, expand: TextButton
 	local function askExpand(show: boolean)
 		confirm.Visible = show
 		confirmYes.Visible = show
 		confirmNo.Visible = show
+		expand.Visible = not show -- the question replaces the button, so there is only one way forward
 	end
 	confirmYes = button(frame, "", nextOrder(), function()
 		askExpand(false)
@@ -300,8 +301,7 @@ function Hud.build(net: Instance)
 	confirmNo = button(frame, "", nextOrder(), function()
 		askExpand(false)
 	end)
-	askExpand(false)
-	local expand = button(frame, "", nextOrder(), function()
+	expand = button(frame, "", nextOrder(), function()
 		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
 			askExpand(true)
 		end
@@ -323,6 +323,10 @@ function Hud.build(net: Instance)
 		TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
 		{ Transparency = 0.8 }
 	):Play()
+	confirmYes.BackgroundColor3 = Theme.colors.good -- expand: green
+	confirmNo.BackgroundColor3 = Theme.colors.bad -- cancel: red
+	confirmNo.TextColor3 = Theme.colors.text
+	askExpand(false)
 
 	-- Captions and dimming from the server's view: the grid expansion.
 	local function shop(view: any)
