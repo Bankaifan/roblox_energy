@@ -411,8 +411,8 @@ return function(t, load)
 	wired.runEarned = 10000000
 	local after, afterOk = GameCore.apply(wired, { type = "Prestige" }, gated)
 	t.truthy(
-		afterOk and after.land.container and after.land.wired and after.land.tools.pliers,
-		"prestige keeps the land"
+		afterOk and not after.land.container and not after.land.wired and after.land.tools.pliers == nil,
+		"prestige starts the land from zero: no container, no wiring, no pliers"
 	)
 
 	-- Spark items (design v2, section 9): bought with sparks like the permanent nodes, kept on prestige.
@@ -452,15 +452,33 @@ return function(t, load)
 	-- S1 Starter Kit: a new run starts with 4 Balcony Panels and 2 Water Wheels where the ground is prepared.
 	local kit = buySpark(rich5, "S1")
 	kit.runEarned = 10000000
-	local kitNoLand, kitNoLandOk = GameCore.apply(kit, { type = "Prestige" }, gated)
-	t.truthy(kitNoLandOk and kitNoLand.plants[1] == 0 and kitNoLand.plants[2] == 0, "no prepared ground, no units")
-	kit.land = { sites = { 1, 0, 0, 0, 0, 0 }, cells = { { 1 }, {}, {}, {}, {}, {} }, tools = { scythe = true } }
+	-- The expansion starts the land from zero (a copy of Land.start): nothing prepared, no container, no wiring, no rails,
+	-- only the scythe; the market flag stays. The ground of the kit units is prepared again, so they stand on it.
+	kit.land = {
+		sites = { 9, 3, 0, 0, 0, 0 },
+		cells = { { 1, 2, 3, 4, 5, 6, 7, 8, 9 }, { 1, 2, 3 }, {}, {}, {}, {} },
+		steps = { { 1, 1, 1, 1, 1, 1, 1, 1, 1 }, { 2, 2, 2 }, {}, {}, {}, {} },
+		aligned = { 1, 2 },
+		tools = { scythe = true, shovel = true, rails = true },
+		container = true,
+		wired = true,
+		market = true,
+	}
 	local kitRun = GameCore.apply(kit, { type = "Prestige" }, gated)
-	t.truthy(kitRun.plants[1] == 1 and kitRun.plants[2] == 0, "one mown cell holds one unit (unitsPerSite 1)")
-	kit.land.sites[1], kit.land.sites[2] = 6, 2
-	local kitFull = GameCore.apply(kit, { type = "Prestige" }, gated)
-	t.truthy(kitFull.plants[1] == 4 and kitFull.plants[2] == 2 and kitFull.plants[3] == 0, "4 panels and 2 wheels")
-	t.equal(kitFull.pnodes.S1, true, "S1 is kept on prestige")
+	t.truthy(kitRun.plants[1] == 4 and kitRun.plants[2] == 2 and kitRun.plants[3] == 0, "4 panels and 2 wheels")
+	t.truthy(kitRun.land.sites[1] == 4 and kitRun.land.sites[2] == 2, "one prepared cell per kit unit")
+	t.truthy(#kitRun.land.cells[1] == 4 and kitRun.land.steps[2][2] == 2, "the kit cells are finished")
+	t.truthy(kitRun.land.tools.shovel == nil and kitRun.land.tools.rails == nil, "tools are lost")
+	t.truthy(kitRun.land.tools.scythe == true, "the scythe is the start tool")
+	t.truthy(not kitRun.land.container and not kitRun.land.wired, "no container, no wiring")
+	t.equal(#kitRun.land.aligned, 0, "no aligned rows")
+	t.equal(kitRun.land.market, true, "the market flag stays")
+	t.equal(kit.land.sites[1], 9, "the input land is not changed")
+	t.equal(kitRun.pnodes.S1, true, "S1 is kept on prestige")
+	local noKit2 = buySpark(rich5, "S2")
+	noKit2.runEarned = 10000000
+	local noKitRun = GameCore.apply(noKit2, { type = "Prestige" }, gated)
+	t.truthy(noKitRun.land.sites[1] == 0 and noKitRun.land.sites[2] == 0, "without S1 or permanent plants: bare land")
 	local kitOpen = GameCore.apply(kit, { type = "Prestige" }, open)
 	t.truthy(kitOpen.plants[1] == 4 and kitOpen.plants[2] == 2, "without required land the units come anyway")
 
@@ -468,15 +486,15 @@ return function(t, load)
 	-- next unit counts them as owned.
 	local permEnv: any = table.clone(gated)
 	permEnv.permanent = { 2, 1, 0, 0, 0, 0 }
-	kit.land.sites[2] = 3
 	local permRun = GameCore.apply(kit, { type = "Prestige" }, permEnv)
 	t.truthy(permRun.plants[1] == 6 and permRun.plants[2] == 3, "permanent plants come on top of the Starter Kit")
-	kit.land.sites[1], kit.land.sites[2] = 5, 1
-	local permCapped = GameCore.apply(kit, { type = "Prestige" }, permEnv)
-	t.truthy(permCapped.plants[1] == 5 and permCapped.plants[2] == 1, "the ground limits them like the kit")
 	kit.land.sites[1], kit.land.sites[2] = 6, 3
 	local plainKit = GameCore.apply(kit, { type = "Prestige" }, gated)
 	t.truthy(plainKit.plants[1] == 4 and plainKit.plants[2] == 2, "without permanent plants the kit is as before")
+	t.truthy(
+		permRun.land.sites[1] == 6 and permRun.land.sites[2] == 3,
+		"the ground is prepared for the permanent units"
+	)
 	local noKit = table.clone(kit)
 	noKit.pnodes = {}
 	local permOnly = GameCore.apply(noKit, { type = "Prestige" }, permEnv)
@@ -487,13 +505,6 @@ return function(t, load)
 		GameCore.apply(noKit, { type = "Prestige" }, openPerm).plants[1],
 		3,
 		"without required land they come anyway"
-	)
-	local noGround = table.clone(kit)
-	noGround.land = { sites = { 0, 0, 0, 0, 0, 0 }, cells = { {}, {}, {}, {}, {}, {} }, tools = { scythe = true } }
-	t.equal(
-		GameCore.apply(noGround, { type = "Prestige" }, permEnv).plants[1],
-		0,
-		"no prepared ground, no permanent units"
 	)
 	local pricey = GameCore.view(permRun, permEnv).plants[1]
 	t.equal(pricey.cost, Formulas.cost(Config.plants[1].baseCost, 6), "the next unit is priced as the seventh")
