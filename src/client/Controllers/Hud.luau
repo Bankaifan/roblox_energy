@@ -12,6 +12,8 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local ShopView = require(
 	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript
 ) :: any
+local Digits =
+	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Digits") :: ModuleScript) :: any
 local BoostView = require(script.Parent.BoostView)
 local Clock = require(script.Parent.Clock)
 local Theme = require(script.Parent.Parent.Theme)
@@ -93,8 +95,8 @@ local function dim(control: TextButton, usable: boolean)
 	control.BackgroundTransparency = if usable then 0 else DIMMED_BACKGROUND
 end
 
-local function format(value: number): string
-	return string.format("%.1f", value)
+local function format(value: number, lang: string): string
+	return Digits.group(value, 1, lang)
 end
 
 local short = ShopView.short
@@ -355,17 +357,17 @@ function Hud.build(net: Instance)
 	-- Each server message, painted from its data. Only the handlers below pass messages to the Boost view.
 	local function storageText(charge: number)
 		local fill = if latest ~= nil then latest.storage.fill else 0
-		storage.Text = t("hud.storage", { value = format(charge), percent = math.floor(fill * 100 + 0.5) })
+		storage.Text = t("hud.storage", { value = format(charge, lang), percent = math.floor(fill * 100 + 0.5) })
 	end
 	local function applySnapshot(state: any)
-		coins.Text = t("hud.coins", { value = format(state.coins) })
+		coins.Text = t("hud.coins", { value = format(state.coins, lang) })
 		storageText(state.storage.charge)
 		grid.Text = t("hud.gridLevel", { level = state.level })
 	end
 	local function applyDelta(change: any)
 		latest = change.view
-		coins.Text = t("hud.coins", { value = format(change.coins) })
-		rate.Text = t("hud.rate", { value = format(change.rate) })
+		coins.Text = t("hud.coins", { value = format(change.coins, lang) })
+		rate.Text = t("hud.rate", { value = format(change.rate, lang) })
 		storageText(change.charge)
 		price.Text = ShopView.priceText(change.view.price, t)
 		if change.view.sparks ~= nil then
