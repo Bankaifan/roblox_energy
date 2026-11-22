@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Locale = require(Shared:WaitForChild("Config"):WaitForChild("Locale") :: ModuleScript) :: any
 local Ranking = require(Shared:WaitForChild("Core"):WaitForChild("Ranking") :: ModuleScript) :: any
 local Theme = require(script.Parent.Theme)
+local Digits = require(Shared:WaitForChild("Core"):WaitForChild("Digits") :: ModuleScript) :: any
 
 local REFRESH_SECONDS = 5
 local PANEL_MAX_WIDTH = 360
@@ -217,7 +218,7 @@ function LeaderboardScreen.build(net: Instance, language: () -> string)
 					rank = rank,
 					name = entry.name,
 					level = tostring(entry.level),
-					earned = string.format("%.0f", entry.earned),
+					earned = Digits.group(entry.earned, 0, lang),
 				})
 			end
 			addRow(text, index, index <= 3)
