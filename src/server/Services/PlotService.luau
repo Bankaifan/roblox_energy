@@ -52,6 +52,7 @@ type Record = {
 	foundations: Folder?, -- concrete steps under the anchored wind plants
 	cableKey: string, -- what the ground cables show now
 	cables: Folder?, -- cables from the farm cells to the grid box
+	cableVip: boolean, -- the cables glow (Grid VIP, Cosmetics.cableLook)
 	buildKey: string, -- what the farm fences and masts show now
 	builds: Folder?, -- post fences round the solar farm cells and guyed masts on the mini turbine cells
 	themeKey: string, -- the Plot Themes design shown now ("" = none)
@@ -524,6 +525,33 @@ local function updateFoundations(record: Record, land: any)
 	record.foundations = folder
 end
 
+-- Grid VIP: the strips of the cables turn neon with a soft light, or back to dark plastic (Cosmetics.cableLook).
+local function lookCables(folder: Folder, vip: boolean)
+	local look = Cosmetics.cableLook(vip)
+	local tint = Color3.fromRGB(look.rgb[1], look.rgb[2], look.rgb[3])
+	for _, part in folder:GetChildren() do
+		if part:IsA("BasePart") then
+			part.Material = if look.neon then Enum.Material.Neon else Enum.Material.Plastic
+			part.Color = tint
+			local light = part:FindFirstChildOfClass("PointLight")
+			if look.glow and light == nil then
+				light = Instance.new("PointLight")
+				light.Range = 6
+				light.Brightness = 0.6
+				light.Shadows = false
+				light.Parent = part
+			end
+			if light ~= nil then
+				if look.glow then
+					light.Color = tint
+				else
+					light:Destroy()
+				end
+			end
+		end
+	end
+end
+
 -- Ground cables from every cell of the solar farm and the wind turbine whose cable stage is done to the grid box: a dark strip
 -- linked field-wise to each other and to the box (Core/Cable), buried where the river runs.
 local function updateCables(record: Record, land: any)
@@ -575,6 +603,7 @@ local function updateCables(record: Record, land: any)
 			end
 		end
 	end
+	lookCables(folder, record.cableVip)
 	folder.Parent = record.model
 	record.cables = folder
 end
@@ -855,6 +884,7 @@ function PlotService.create(player: Player, plants: { any }): boolean
 		foundations = nil,
 		cableKey = "",
 		cables = nil,
+		cableVip = false,
 		buildKey = "",
 		builds = nil,
 		themeKey = "",
@@ -969,6 +999,12 @@ function PlotService.style(player: Player, flags: any)
 		return
 	end
 	PlotStyle.neon(record.origin, record.copies, record.columns, flags.neon)
+	if record.cableVip ~= flags.vip then
+		record.cableVip = flags.vip
+		if record.cables ~= nil then
+			lookCables(record.cables, flags.vip)
+		end
+	end
 	local key = if flags.themed then flags.theme else ""
 	if record.themeKey ~= key then
 		record.themeKey = key
