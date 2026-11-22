@@ -92,6 +92,40 @@ return function(t, load)
 		)
 		t.equal(#PlotLayout.chosen(cells, 0), 0, `plant {plant}: no units, no site`)
 	end
+	-- Packed units (all bought panels visible): min(owned, cap x cells) sites, each inside its own cell, none overlapping.
+	for plant, field in Assets.fields do
+		local full = field.size * Assets.TILE
+		local half = Assets.PLOT_TILES * Assets.TILE / 2
+		for _, c in { 1, 2, #field.cells } do
+			local cells = PlotLayout.mown(nil, c, #field.cells)
+			local cap = Assets.plants[plant].cap
+			for _, n in { 0, 1, c, c + 1, 3 * c, cap * c, cap * c + 5 } do
+				local sites = PlotLayout.packed(field, cells, n, Assets.TILE, Assets.PLOT_TILES, cap)
+				t.equal(#sites, math.min(n, cap * c), `plant {plant}: {n} owned on {c} cells draw min(n, cap x cells)`)
+				for i, a in sites do
+					local centre = PlotLayout.cellCentre(field, a.cell, Assets.TILE, Assets.PLOT_TILES)
+					t.truthy(a.side > 0 and a.side <= full + 1e-9, "a unit is no larger than its cell")
+					t.truthy(
+						math.abs(a.x - centre.x) + a.side / 2 <= full / 2 + 1e-9
+							and math.abs(a.z - centre.z) + a.side / 2 <= full / 2 + 1e-9,
+						"a unit lies inside its cell"
+					)
+					for j = i + 1, #sites do
+						local b = sites[j]
+						local apart = math.abs(a.x - b.x) >= (a.side + b.side) / 2 - 1e-9
+							or math.abs(a.z - b.z) >= (a.side + b.side) / 2 - 1e-9
+						t.truthy(apart, "no two units overlap")
+					end
+				end
+			end
+		end
+	end
+	local five = PlotLayout.packed(Assets.fields[1], { 1, 2 }, 5, Assets.TILE, Assets.PLOT_TILES, 4)
+	t.equal(#five, 5, "5 panels on 2 cells all show")
+	t.equal(five[1].side, Assets.TILE / 2, "a cell with 3 units is a 2 x 2 grid")
+	t.equal(five[4].side, Assets.TILE / 2, "and so is one with 2")
+	t.equal(#PlotLayout.packed(Assets.fields[1], {}, 5, Assets.TILE, Assets.PLOT_TILES, 4), 0, "no cell, no unit")
+
 	local order = { 7, 2, 9 }
 	t.equal(table.concat(PlotLayout.chosen(order, 2), ","), "7,2", "the first cells mown carry the units")
 	t.equal(table.concat(PlotLayout.chosen(order, 2.9), ","), "7,2", "a fractional count rounds down")
