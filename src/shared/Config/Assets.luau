@@ -127,7 +127,7 @@ Assets.stageBuilds = {
 } :: { [number]: { kind: string, stage: number } }
 Assets.MAST_HEIGHT = 11.9 -- the hub of the finished mini turbine above the ground: 1.05 foundation lift, then 10.9 to its hub
 Assets.FENCE_POST = 4 -- studs between the posts of a farm fence
--- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields takes the chosen one.
+-- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields and the blade tips of the big wind turbine take the chosen one (the sign follows the Plot Themes pass).
 Assets.paintColors = {
 	{ 224, 72, 64 },
 	{ 240, 150, 50 },
