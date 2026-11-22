@@ -253,8 +253,10 @@ local function autoReady(state: State, env: Env): boolean
 	if not rulesUnlocked(state, env) then
 		return false
 	end
-	for _, rule in state.rules do
-		if rule.on then
+	-- The reserve rule only limits selling: it does not count.
+	for _, id in { "charge", "sell" } do
+		local rule = state.rules[id]
+		if rule ~= nil and rule.on then
 			return true
 		end
 	end
