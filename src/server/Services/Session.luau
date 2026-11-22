@@ -55,7 +55,7 @@ local Session = {}
 -- True (and the try is noted) when the player's last auto-build try is at least AUTO_BUILD_SECONDS ago.
 local function autoBuildDue(player: Player): boolean
 	local now = os.clock()
-	if now - (lastAutoBuild[player] or -math.huge) < AUTO_BUILD_SECONDS then
+	if not GameCore.autoBuildDue(lastAutoBuild[player], now, AUTO_BUILD_SECONDS) then
 		return false
 	end
 	lastAutoBuild[player] = now

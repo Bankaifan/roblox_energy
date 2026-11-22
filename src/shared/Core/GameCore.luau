@@ -253,12 +253,19 @@ local function autoReady(state: State, env: Env): boolean
 	if not rulesUnlocked(state, env) then
 		return false
 	end
-	for _, rule in state.rules do
-		if rule.on then
+	-- Only the storage rules count: the auto-build switch and the reserve alone leave the storage idle.
+	for _, id in { "charge", "sell" } do
+		local rule = state.rules[id]
+		if rule ~= nil and rule.on then
 			return true
 		end
 	end
 	return false
+end
+
+-- True when the last auto-build try (a clock reading, nil if none) is at least `every` seconds before `now`.
+function GameCore.autoBuildDue(last: number?, now: number, every: number): boolean
+	return last == nil or now - last >= every
 end
 
 -- What the storage does this second: "charge", "sell" or "idle". In "auto" the rules decide;
