@@ -334,6 +334,8 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childNa
 	local at = Spin.centre(hub, { mean.X, mean.Y, mean.Z })
 	wheel:SetAttribute("SpinCentre", Vector3.new(at[1], at[2], at[3]))
 	wheel:SetAttribute("SpinSense", Spin.sense(axis.X, axis.Z, flowX, flowZ))
+	-- The client turns the model part by part: it must arrive whole (streaming), else it keeps a partial or stale part list.
+	wheel.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	CollectionService:AddTag(wheel, "WheelRotor")
 end
 
