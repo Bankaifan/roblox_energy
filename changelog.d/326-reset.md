@@ -1,0 +1,1 @@
+- Netz-Ausbau: Das Land beginnt wieder bei null (nur Sense, nichts vorbereitet, kein Container, keine Verkabelung, keine Schienen). Stamm-Anlagen und das Start-Set (S1) stehen auf frisch vorbereitetem Boden. Funken-Upgrades bleiben.
