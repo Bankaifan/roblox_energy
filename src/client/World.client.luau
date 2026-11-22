@@ -4,6 +4,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local DayCycle = require(Shared:WaitForChild("Core"):WaitForChild("DayCycle") :: ModuleScript) :: any
@@ -18,27 +19,75 @@ local MOOD_SECONDS = 0.25
 local ROTOR_SPEED = 0.8 -- radians per second
 local WHEEL_SPEED = 0.6 -- water wheels, radians per second
 
--- Turning models (issue 113): only those within TurnRange.RANGE studs of the camera move, all of them in one BulkMoveTo per tick.
--- Each entry keeps its parts with their offset to the base pivot, so a turn is one multiplication per part.
-type Turner = { parts: { BasePart }, offsets: { CFrame }, base: CFrame, reach: number }
+-- Turning models (issue 113, 342): all of them move in one BulkMoveTo per tick. Models on the local player's own plot always
+-- turn; the others only within TurnRange.RANGE studs of the camera. Each entry keeps its parts with their offset to the REST
+-- pivot (`base`), so a turn is one multiplication per part. Parts that stream in later get their offset from the rest pivot
+-- (they arrive at rest pose), parts that leave are dropped, and a model moved by someone else shifts the rest pivot.
+type Turner = {
+	parts: { BasePart },
+	offsets: { CFrame },
+	base: CFrame,
+	shift: CFrame,
+	reach: number,
+	dirty: boolean,
+	last: CFrame?, -- the frame we last gave parts[1], to notice a move by others
+}
 
-local function newTurner(model: Model): Turner
-	local base = model:GetPivot()
+local function rescan(model: Model, turner: Turner)
 	local parts, offsets = {}, {}
+	local oldOffset: { [BasePart]: CFrame } = {}
+	for i, part in turner.parts do
+		oldOffset[part] = turner.offsets[i]
+	end
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") then
 			table.insert(parts, part)
-			table.insert(offsets, base:ToObjectSpace(part.CFrame))
+			-- A known part keeps its rest offset; a new one is still at rest pose, so measure it against the rest pivot.
+			table.insert(offsets, oldOffset[part] or turner.base:ToObjectSpace(part.CFrame))
 		end
 	end
-	return { parts = parts, offsets = offsets, base = base, reach = model:GetExtentsSize().Magnitude / 2 }
+	turner.parts, turner.offsets, turner.dirty = parts, offsets, false
+	turner.reach = model:GetExtentsSize().Magnitude / 2
+end
+
+local function newTurner(model: Model): Turner
+	local turner: Turner = {
+		parts = {},
+		offsets = {},
+		base = model:GetPivot(),
+		shift = CFrame.identity,
+		reach = 0,
+		dirty = false,
+		last = nil,
+	}
+	rescan(model, turner)
+	return turner
+end
+
+-- True when the model sits on the local player's plot (the plot model carries OwnerId).
+local function onOwnPlot(model: Model): boolean
+	local me = Players.LocalPlayer
+	local node: Instance? = model
+	while node ~= nil and node ~= workspace do
+		if node:GetAttribute("OwnerId") == me.UserId then
+			return true
+		end
+		node = node.Parent
+	end
+	return false
 end
 
 local function track(tag: string): { [Model]: Turner }
 	local list: { [Model]: Turner } = {}
 	local function add(instance: Instance)
-		if instance:IsA("Model") then
-			list[instance] = newTurner(instance)
+		if instance:IsA("Model") and list[instance] == nil then
+			local turner = newTurner(instance)
+			list[instance] = turner
+			local function dirty()
+				turner.dirty = true
+			end
+			instance.DescendantAdded:Connect(dirty)
+			instance.DescendantRemoving:Connect(dirty)
 		end
 	end
 	CollectionService:GetInstanceAddedSignal(tag):Connect(add)
@@ -49,6 +98,20 @@ local function track(tag: string): { [Model]: Turner }
 		add(instance)
 	end
 	return list
+end
+
+-- Rebuild when the descendants changed; notice a model moved by someone else (its first part is not where we left it).
+local function refresh(model: Model, turner: Turner)
+	if turner.dirty then
+		rescan(model, turner)
+	end
+	local first, last = turner.parts[1], turner.last
+	if first ~= nil and last ~= nil and not first.CFrame:FuzzyEq(last, 0.01) then
+		local moved = first.CFrame * last:Inverse()
+		turner.base = moved * turner.base
+		turner.shift = moved * turner.shift
+	end
+	turner.last = nil
 end
 
 -- Wind turbine rotors (models tagged "Rotor") turn about their own pivot.
@@ -62,6 +125,9 @@ local function queueTurn(turner: Turner, pivot: CFrame, outParts: { BasePart }, 
 		table.insert(outParts, part)
 		table.insert(outFrames, pivot * turner.offsets[i])
 	end
+	if #turner.parts > 0 then
+		turner.last = outFrames[#outFrames - #turner.parts + 1]
+	end
 end
 
 local function turnAll(now: number, rotorAngle: number)
@@ -72,20 +138,35 @@ local function turnAll(now: number, rotorAngle: number)
 	local eye = camera.CFrame.Position
 	local range = TurnRange.RANGE
 	local parts: { BasePart }, frames: { CFrame } = {}, {}
-	for _, turner in rotors do
+	for rotor, turner in rotors do
+		refresh(rotor, turner)
 		local p = turner.base.Position
-		if TurnRange.within(p.X, p.Y, p.Z, eye.X, eye.Y, eye.Z, range + turner.reach) then
+		if TurnRange.turns(onOwnPlot(rotor), p.X, p.Y, p.Z, eye.X, eye.Y, eye.Z, range + turner.reach) then
 			local angle = (rotorAngle + p.X) % (2 * math.pi)
 			queueTurn(turner, turner.base * CFrame.Angles(0, 0, angle), parts, frames)
 		end
 	end
 	for wheel, turner in wheels do
+		refresh(wheel, turner)
 		local axis = wheel:GetAttribute("SpinAxis")
 		local centre = wheel:GetAttribute("SpinCentre")
+		if typeof(axis) == "Vector3" and typeof(centre) == "Vector3" then
+			centre = turner.shift * centre
+			axis = turner.shift:VectorToWorldSpace(axis)
+		end
 		if
 			typeof(axis) == "Vector3"
 			and typeof(centre) == "Vector3"
-			and TurnRange.within(centre.X, centre.Y, centre.Z, eye.X, eye.Y, eye.Z, range + turner.reach)
+			and TurnRange.turns(
+				onOwnPlot(wheel),
+				centre.X,
+				centre.Y,
+				centre.Z,
+				eye.X,
+				eye.Y,
+				eye.Z,
+				range + turner.reach
+			)
 		then
 			local sense = (wheel:GetAttribute("SpinSense") :: number?) or 1
 			local angle = (now * WHEEL_SPEED * sense) % (2 * math.pi)
