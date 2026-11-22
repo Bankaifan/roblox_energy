@@ -44,6 +44,7 @@ Theme.icons = {
 	["mode.charge"] = "🔋",
 	["mode.sell"] = "💰",
 	["mode.auto"] = "🤖",
+	["mode.reserve"] = "🛟",
 	["tool.scythe"] = "🌾",
 	["tool.rails"] = "📏",
 	["tool.shovel"] = "🌊",
