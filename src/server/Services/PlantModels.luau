@@ -126,7 +126,19 @@ function PlantModels.clone(plantId: number): Model?
 	if entry == nil then
 		return nil
 	end
-	return PlantModels.cloneFile(entry.file)
+	local copy = PlantModels.cloneFile(entry.file)
+	if copy ~= nil and entry.dropRgb ~= nil then
+		-- A part of this colour in the file is a modelling leftover (the yellow block on the house roof): it is not drawn.
+		for _, item in copy:GetDescendants() do
+			if
+				item:IsA("BasePart")
+				and item.Color == Color3.fromRGB(entry.dropRgb[1], entry.dropRgb[2], entry.dropRgb[3])
+			then
+				item:Destroy()
+			end
+		end
+	end
+	return copy
 end
 
 -- Whether the furniture piece is built from a model (entry and file present).
