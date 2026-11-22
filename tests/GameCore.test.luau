@@ -85,6 +85,17 @@ return function(t, load)
 	local withPerm, permOk = GameCore.apply(sparkFunds, { type = "BuyNode", node = "P1" }, env(2, 1))
 	t.truthy(permOk and withPerm.pnodes.P1 == true, "P1 is bought with sparks")
 	t.equal(withPerm.sparksSpent, 3, "P1 spends its 3 sparks")
+	-- A node a pass covers (env.covered) is not bought for sparks.
+	do
+		local coveredEnv: any = env(2, 1)
+		coveredEnv.covered = { P3 = "smart_hub" }
+		local coveredSparks = fresh()
+		coveredSparks.sparks = 20
+		local _, coveredOk = GameCore.apply(coveredSparks, { type = "BuyNode", node = "P3" }, coveredEnv)
+		t.truthy(not coveredOk, "P3 is refused with the Smart Hub")
+		local _, otherOk = GameCore.apply(coveredSparks, { type = "BuyNode", node = "P1" }, coveredEnv)
+		t.truthy(otherOk, "another node still works")
+	end
 
 	-- SetRule: the control center (U21) unlocks the two rules, addressed by id; the server rounds the threshold to a
 	-- tenth and clamps it into the range of the rule (charge 0,3 to 1,0, sell 1,0 to 2,0).
