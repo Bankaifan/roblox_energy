@@ -1027,7 +1027,13 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 	local plants = {}
 	for _, plant in env.config.plants do
 		local cost = env.formulas.cost(plant.baseCost, state.plants[plant.id])
-		plants[plant.id] = { cost = cost, affordable = cost <= state.coins }
+		local count = state.plants[plant.id]
+		plants[plant.id] = {
+			cost = cost,
+			affordable = cost <= state.coins,
+			units = count,
+			nextMilestone = env.formulas.nextMilestone(count),
+		}
 	end
 	local goal: { [string]: any }? = nil
 	local step = env.config.prestige[state.level + 1]
@@ -1054,6 +1060,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		crank = crankEnergy(state, env),
 		production = productionView(state, env),
 		goal = goal,
+		milestoneFactor = milestoneFactor(state, env),
 	}
 	if env.config.land ~= nil then
 		local land = state.land or env.config.land.start
