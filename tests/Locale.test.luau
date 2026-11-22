@@ -145,7 +145,6 @@ return function(t, load)
 		"market.hint.production",
 		"production.total",
 		"production.grid",
-		"production.row",
 		"production.output",
 		"prompt.cable",
 		"prompt.compact",
@@ -178,6 +177,12 @@ return function(t, load)
 			local text = dictionary[key] or ""
 			t.truthy(text ~= "" and (utf8.len(text) or 99) <= 60, `{key}: one line of at most 60 characters`)
 		end
+	end
+
+	-- The production row explains itself and wraps to at most two lines (card height follows the text)
+	hasBoth("production.row")
+	for _, dictionary in { en, de } do
+		t.truthy((utf8.len(dictionary["production.row"]) or 999) <= 110, "production.row: at most two lines")
 	end
 
 	-- Locale.t fills placeholders, keeps unknown ones visible, and falls back to English and to the key
