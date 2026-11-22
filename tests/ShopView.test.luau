@@ -71,7 +71,10 @@ return function(t, load)
 	t.equal(#plants, 6, "one card per plant")
 	t.equal(plants[1].state, "hint", "a plant without a site is a hint")
 	t.equal(plants[1].button.tab, "tools", "its button opens the Tools tab")
-	t.equal(plants[2].info, "Prepare the ground first: Shovel in hand", "the water wheel names the shovel")
+	t.truthy(
+		plants[2].info:find("Prepare the ground first: Shovel in hand\n", 1, true) == 1,
+		"the water wheel names the shovel"
+	)
 	state.land = table.clone(Land.start)
 	state.land.tools = { scythe = true }
 	state.land.sites = { 1, 0, 0, 0, 0, 0 }
@@ -83,7 +86,7 @@ return function(t, load)
 	state.plants[1] = 1
 	plants = cards("plants", state)
 	t.equal(plants[1].state, "hint", "every mown cell carries a unit")
-	t.equal(plants[1].info, "Mow more ground first", "the card names the reason")
+	t.truthy(plants[1].info:find("Mow more ground first\n", 1, true) == 1, "the card names the reason")
 	t.equal(plants[1].button, nil, "and offers no purchase")
 	state.plants[1] = 0
 	state.coins = 5
@@ -91,6 +94,19 @@ return function(t, load)
 	t.equal(plants[1].state, "short", "5 coins are short")
 	t.equal(plants[1].button.enabled, false, "the Buy button is off")
 	t.equal(cards("plants", state, "de")[1].title, "Balkonmodul", "German titles")
+
+	-- Milestone line: units missing, the P7 factor, and the end after 200 units.
+	state.plants[1] = 7
+	t.truthy(
+		cards("plants", state)[1].info:find("Next milestone at 10 units: x2 (3 to go)", 1, true) ~= nil,
+		"the card shows the next milestone"
+	)
+	state.pnodes.P7 = true
+	t.truthy(cards("plants", state)[1].info:find("x2.5 (3 to go)", 1, true) ~= nil, "P7 shows x2.5")
+	state.pnodes.P7 = nil
+	state.plants[1] = 200
+	t.truthy(cards("plants", state)[1].info:find("All milestones reached", 1, true) ~= nil, "after the last one")
+	state.plants[1] = 1
 
 	-- Upgrades: locked names the requirement, bought has no button, affordable buys the node.
 	state.coins = 100
@@ -184,7 +200,7 @@ return function(t, load)
 	made.plants[1] = 3
 	local output = cards("production", made)
 	t.equal(#output, 2, "a total card and one plant card")
-	t.truthy(output[2].info:find("3 x 1 x M", 1, true) ~= nil, "the plant card shows its count and base power")
+	t.truthy(output[2].info:find("3 units x 1 base x", 1, true) ~= nil, "the plant card shows its count and base power")
 	t.truthy(output[2].status ~= nil, "and its output")
 	-- The numbers: the total is the sum of the rows, the grid part follows the level, aligned panels count more than owned.
 	made.level = 2

@@ -122,6 +122,18 @@ local function permanentLines(input: Input, index: number): { Button }?
 	return if #lines > 0 then lines else nil
 end
 
+-- The milestone line of a plant card: the next threshold, its factor (2 or 2.5 with P7) and the units still missing.
+local function milestoneLine(input: Input, item: any): string
+	if item.nextMilestone == nil then
+		return input.t("milestone.done")
+	end
+	return input.t("milestone.next", {
+		next = item.nextMilestone,
+		factor = input.view.milestoneFactor or 2,
+		missing = item.nextMilestone - (item.units or 0),
+	})
+end
+
 local function plantCards(input: Input): { Card }
 	local cards: { Card } = {}
 	for index, plant in input.plants do
@@ -153,6 +165,7 @@ local function plantCards(input: Input): { Card }
 			card.price = price(input, item.cost)
 			card.button = buy(input, item.affordable, "BuyPlant", { plant = index, qty = 1 })
 		end
+		card.info ..= "\n" .. milestoneLine(input, item)
 		card.permanent = permanentLines(input, index)
 		table.insert(cards, card)
 	end
