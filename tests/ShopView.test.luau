@@ -143,6 +143,30 @@ return function(t, load)
 	t.equal(stored["rule.charge"].steps.down.enabled, false, "the charge rule stops at 0.3")
 	t.equal(stored["rule.charge"].button.payload.on, false, "the switch turns a running rule off")
 	t.equal(stored["mode.auto"].button.payload.mode, "auto", "a rule on makes Auto selectable")
+	t.equal(stored["rule.reserve"], nil, "the reserve rule needs the third slot")
+
+	-- Reserve rule (Smart Hub, slot 3): a percent stepper in tens, its own switch and status text.
+	env.ruleSlots = 3
+	stored = byId(cards("storage", state))
+	t.equal(stored["rule.reserve"].info, "Selling keeps 20 % of the storage, off", "the reserve shows its percent")
+	t.equal(stored["rule.reserve"].steps.up.payload.th, 0.3, "the stepper raises by ten percent")
+	t.equal(stored["rule.reserve"].steps.up.text, "+ 10 %", "and says percent")
+	t.equal(stored["rule.reserve"].button.payload.rule, "reserve", "the switch sets the reserve rule")
+	state.rules.reserve = { th = 0, on = true }
+	stored = byId(cards("storage", state))
+	t.equal(stored["rule.reserve"].steps.down.enabled, false, "the reserve stops at 0 %")
+	state.rules.reserve = { th = 0.9, on = false }
+	stored = byId(cards("storage", state))
+	t.equal(stored["rule.reserve"].steps.up.enabled, false, "the reserve stops at 90 %")
+	state.rules.reserve = { th = 0.2, on = true }
+	state.rules.charge = nil
+	state.rules.sell = nil
+	t.equal(
+		byId(cards("storage", state))["mode.auto"].button,
+		nil,
+		"a reserve rule alone does not make Auto selectable"
+	)
+	env.ruleSlots = nil
 
 	-- Tools: owned, not yet available, buyable; every card explains what the tool unlocks.
 	state.coins = 40

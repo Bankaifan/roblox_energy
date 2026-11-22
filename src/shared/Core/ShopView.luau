@@ -319,8 +319,11 @@ function ShopView.ruleCards(input: Input): { Card }
 			state = "idle",
 		},
 	}
-	for _, id in { "charge", "sell" } do
+	for _, id in { "charge", "sell", "reserve" } do
 		local rule = stored.rules[id]
+		if rule == nil then
+			continue -- the reserve rule is the third slot: only with the Smart Hub
+		end
 		local function message(th: number, on: boolean): Button
 			return {
 				text = "",
@@ -332,10 +335,10 @@ function ShopView.ruleCards(input: Input): { Card }
 		local toggle = message(rule.th, not rule.on)
 		toggle.text = t(if rule.on then "rule.switchOff" else "rule.switchOn")
 		local down = message(rule.th - step, rule.on)
-		down.text = t("rule.down", { step = step })
+		down.text = t("rule.down", { step = if id == "reserve" then `{math.floor(step * 100 + 0.5)} %` else step })
 		down.enabled = rule.th > rule.min + 1e-9
 		local up = message(rule.th + step, rule.on)
-		up.text = t("rule.up", { step = step })
+		up.text = t("rule.up", { step = if id == "reserve" then `{math.floor(step * 100 + 0.5)} %` else step })
 		up.enabled = rule.th < rule.max - 1e-9
 		table.insert(cards, {
 			id = `rule.{id}`,
@@ -343,6 +346,7 @@ function ShopView.ruleCards(input: Input): { Card }
 			title = t(`rule.{id}`),
 			info = t(`rule.{id}Status`, {
 				threshold = string.format("%.1f", rule.th),
+				percent = math.floor(rule.th * 100 + 0.5),
 				state = t(if rule.on then "state.on" else "state.off"),
 			}),
 			state = if rule.on then "active" else "idle",
