@@ -58,3 +58,36 @@ def test_market_permanent_plant_lines_wrap_and_the_card_grows():
     assert "permanentHeights(card)" in MARKET
     assert MARKET.count("permanentHeights(card)") >= 2
     assert "TextTruncate" not in re.search(r"Permanent\{slot\}.*?permanent\[slot\] = control", MARKET, re.DOTALL).group(0)
+
+
+CLOCK = (ROOT / "src" / "client" / "Controllers" / "Clock.luau").read_text(encoding="utf-8")
+
+
+def test_clock_card_replaces_the_weather_text_row():
+    # Step 2 of docs/weather-sky-design.md: the card is built by the Clock controller and the old text row is gone.
+    code = "\n".join(code_lines())
+    assert "Clock.build(frame, nextOrder" in code
+    assert 't("weather." .. change.weather)' not in code
+
+
+def test_clock_card_fits_360_px():
+    # The HUD panel is at most 220 px wide (328 px at 360 px is the design limit); the dial beside the text leaves room.
+    panel = int(re.search(r"local PANEL_MAX_WIDTH = (\d+)", HUD).group(1))
+    dial = int(re.search(r"local DIAL_NARROW = (\d+)", CLOCK).group(1))
+    gap = int(re.search(r"local GAP = (\d+)", CLOCK).group(1))
+    pad = int(re.search(r"local CARD_PADDING = (\d+)", CLOCK).group(1))
+    assert min(360 - 32, panel) <= 328
+    assert dial <= 72
+    # At least 100 px for the wrapped text beside the dial.
+    assert min(360 - 32, panel) - 2 * pad - dial - gap >= 100
+    assert re.search(r"local ROW_TEXT = 16\b", CLOCK)
+    assert "TextWrapped = true" in CLOCK
+    assert "AutomaticSize = Enum.AutomaticSize.Y" in CLOCK or "AutomaticSize.Y" in CLOCK
+
+
+def test_clock_card_floats_only_when_it_cannot_meet_the_tutorial_box():
+    # The tutorial box is at most half the width, centred; the floating card must start right of its right edge.
+    wide_min = int(re.search(r"local WIDE_MIN = (\d+)", CLOCK).group(1))
+    card = int(re.search(r"local WIDE_WIDTH = (\d+)", CLOCK).group(1))
+    assert wide_min >= 480
+    assert wide_min - 16 - card >= wide_min * 0.75
