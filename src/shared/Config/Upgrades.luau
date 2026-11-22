@@ -49,7 +49,7 @@ Upgrades.spark = {
 	{ id = "S2", sparks = 2, info = "Tools not yet owned cost half" },
 	{ id = "S3", sparks = 6, info = "Every hold takes half the time" },
 	{ id = "S4", sparks = 10, info = "Aligned rows give x2.5 instead of x2" },
-	{ id = "S5", sparks = 3, info = "Pick the colour of sign, rope and blade tips" },
+	{ id = "S5", sparks = 3, info = "Colour of rope and wind turbine blade tips" },
 	{ id = "S6", sparks = 5, info = "A golden crank with a faint glow" },
 }
 
