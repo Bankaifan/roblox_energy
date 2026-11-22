@@ -105,4 +105,24 @@ function Flat.turn(from: Vec, to: Vec): (Vec, number)
 	return { x = axis.x / sine, y = axis.y / sine, z = axis.z / sine }, math.atan2(sine, cosine)
 end
 
+-- The parts turned `degrees` about the world's Z axis (positions and axes), e.g. to stand a frame that was modelled on a
+-- slope upright on level ground.
+function Flat.leanZ(parts: { Part }, degrees: number): { Part }
+	local c, s = math.cos(math.rad(degrees)), math.sin(math.rad(degrees))
+	local function turn(v: Vec): Vec
+		return { x = v.x * c - v.y * s, y = v.x * s + v.y * c, z = v.z }
+	end
+	local out: { Part } = {}
+	for _, part in parts do
+		table.insert(out, {
+			pos = turn(part.pos),
+			size = part.size,
+			right = turn(part.right),
+			up = turn(part.up),
+			back = turn(part.back),
+		})
+	end
+	return out
+end
+
 return Flat
