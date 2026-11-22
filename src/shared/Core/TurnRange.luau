@@ -12,7 +12,16 @@ function TurnRange.within(x: number, y: number, z: number, ex: number, ey: numbe
 end
 
 -- Whether a turning model moves this tick: always on the local player's own plot (no cut-off), otherwise only in range.
-function TurnRange.turns(own: boolean, x: number, y: number, z: number, ex: number, ey: number, ez: number, range: number): boolean
+function TurnRange.turns(
+	own: boolean,
+	x: number,
+	y: number,
+	z: number,
+	ex: number,
+	ey: number,
+	ez: number,
+	range: number
+): boolean
 	return own or TurnRange.within(x, y, z, ex, ey, ez, range)
 end
 
