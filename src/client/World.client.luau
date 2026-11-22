@@ -104,6 +104,7 @@ end
 local function refresh(model: Model, turner: Turner)
 	if turner.dirty then
 		rescan(model, turner)
+		turner.last = nil -- the first part may be another one now; its frame is not ours
 	end
 	local first, last = turner.parts[1], turner.last
 	if first ~= nil and last ~= nil and not first.CFrame:FuzzyEq(last, 0.01) then
