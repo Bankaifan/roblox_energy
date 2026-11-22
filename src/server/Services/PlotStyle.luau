@@ -124,6 +124,11 @@ local function sign(folder: Folder, owner: string, at: Vector3, look: any)
 	end
 end
 
+-- Where the owner name sign stands, at the road side of the plot (the founder sign stands beside it).
+function PlotStyle.signPoint(origin: Vector3, facing: number): Vector3
+	return origin + Vector3.new(24, 0, facing * (Assets.PLOT_SIZE / 2 - STRIP - 2))
+end
+
 -- Plot Themes: builds the theme folder of the plot (nothing when `theme` is nil). Returns it.
 function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: string?): Folder?
 	local old = model:FindFirstChild("Theme")
@@ -228,7 +233,7 @@ function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: s
 		Enum.Material.Wood
 	)
 	-- Sign: at the road side of the plot, beside the spawn platform.
-	sign(folder, model.Name, origin + Vector3.new(24, 0, facing * (inner - 2)), look)
+	sign(folder, model.Name, PlotStyle.signPoint(origin, facing), look)
 	folder.Parent = model
 	return folder
 end
