@@ -12,6 +12,7 @@ local ShopView = require(
 	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript
 ) :: any
 local BoostView = require(script.Parent.BoostView)
+local Clock = require(script.Parent.Clock)
 local Theme = require(script.Parent.Parent.Theme)
 
 local Hud = {}
@@ -161,8 +162,11 @@ function Hud.build(net: Instance)
 	local storage = label(frame, nextOrder())
 	local storageHint = label(frame, nextOrder())
 	local grid = label(frame, nextOrder())
-	local env = label(frame, nextOrder())
-	-- The Sunshine Hour button and banner, right under the weather line.
+	-- The day clock card with the current weather (Controllers/Clock) replaces the old weather text row.
+	local clock = Clock.build(frame, nextOrder, function(): string
+		return lang
+	end)
+	-- The Sunshine Hour button and banner, right under the clock card.
 	local boost = BoostView.build(frame, nextOrder, function(): string
 		return lang
 	end)
@@ -362,7 +366,7 @@ function Hud.build(net: Instance)
 		shop(change.view)
 	end
 	local function applyEnv(change: any)
-		env.Text = t("phase." .. change.phase) .. " / " .. t("weather." .. change.weather)
+		clock.env(change)
 	end
 
 	-- Sets every caption in the current language, then paints the last server data in it. The server data is
