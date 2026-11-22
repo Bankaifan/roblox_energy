@@ -347,7 +347,10 @@ end
 -- The chosen glow colour and theme go to the owner with the extras, for the style buttons ("" = not owned).
 local function styleExtras(extras: any, flags: any): any
 	if flags ~= nil then
-		extras.style = { neon = flags.neon or "", theme = if flags.themed then flags.theme else "" }
+		extras.style = {
+			neon = flags.neon or (if flags.neonOff then "off" else ""),
+			theme = if flags.themed then flags.theme else "",
+		}
 	end
 	return extras
 end
