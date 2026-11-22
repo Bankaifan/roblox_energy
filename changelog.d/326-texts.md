@@ -1,0 +1,1 @@
+- Schildfarbe (S5): faerbt das Seil um die Felder und die Spitzen der Rotorblaetter des grossen Windrads in der gewaehlten Farbe. Das Schild gehoert dem Themen-Grundstueck.
