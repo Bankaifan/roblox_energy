@@ -7,6 +7,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Digits =
+	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Digits") :: ModuleScript) :: any
 
 local WelcomeScreen = {}
 
@@ -112,7 +114,7 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 		title.Text = Locale.t("welcome.title", lang)
 		collect.Text = Locale.t("welcome.collect", lang)
 		away.Text = Locale.t("welcome.away", lang, { duration = duration(welcome.away, lang) })
-		coins.Text = Locale.t("welcome.coins", lang, { coins = string.format("%.0f", welcome.coins) })
+		coins.Text = Locale.t("welcome.coins", lang, { coins = Digits.group(welcome.coins, 0, lang) })
 		hint.Text = Locale.t("hint.longMeter", lang)
 		hint.Visible = welcome.hint == true
 		gui.Enabled = true
