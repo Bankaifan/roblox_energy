@@ -160,6 +160,17 @@ return function(t, load)
 	t.equal(stored["rule.charge"].button.payload.on, false, "the switch turns a running rule off")
 	t.equal(stored["mode.auto"].button.payload.mode, "auto", "a rule on makes Auto selectable")
 
+	-- Auto-build (Smart Hub owners only): a switch and a coin reserve stepper in tens of percent.
+	t.equal(stored["rule.autobuild"], nil, "no auto-build card without the pass")
+	env.autoBuild = true
+	stored = byId(cards("storage", state))
+	local auto = stored["rule.autobuild"]
+	t.equal(auto.info:find("keeps 20 %", 1, true) ~= nil, true, "the reserve starts at 20 %")
+	t.equal(auto.button.payload.rule, "autobuild", "the switch sets the auto-build rule")
+	t.equal(auto.steps.down.payload.th, 0.1, "the stepper lowers by ten percent")
+	t.equal(auto.steps.up.text, "+ 10 %", "and says percent")
+	env.autoBuild = nil
+
 	-- Tools: owned, not yet available, buyable; every card explains what the tool unlocks.
 	state.coins = 40
 	local tools = byId(cards("tools", state))
