@@ -30,7 +30,8 @@ type Turner = {
 	shift: CFrame,
 	reach: number,
 	dirty: boolean,
-	last: CFrame?, -- the frame we last gave parts[1], to notice a move by others
+	last: CFrame?, -- the frame we last gave lastPart, to notice a move by others
+	lastPart: BasePart?, -- the part `last` belongs to (a rescan can put another part first)
 }
 
 local function rescan(model: Model, turner: Turner)
@@ -59,6 +60,7 @@ local function newTurner(model: Model): Turner
 		reach = 0,
 		dirty = false,
 		last = nil,
+		lastPart = nil,
 	}
 	rescan(model, turner)
 	return turner
@@ -101,18 +103,18 @@ local function track(tag: string): { [Model]: Turner }
 end
 
 -- Rebuild when the descendants changed; notice a model moved by someone else (its first part is not where we left it).
+-- The check runs before a rescan (which can reorder the parts) and only against the part `last` belongs to.
 local function refresh(model: Model, turner: Turner)
-	if turner.dirty then
-		rescan(model, turner)
-		turner.last = nil -- the first part may be another one now; its frame is not ours
-	end
-	local first, last = turner.parts[1], turner.last
-	if first ~= nil and last ~= nil and not first.CFrame:FuzzyEq(last, 0.01) then
+	local first, last = turner.lastPart, turner.last
+	if first ~= nil and last ~= nil and first == turner.parts[1] and not first.CFrame:FuzzyEq(last, 0.01) then
 		local moved = first.CFrame * last:Inverse()
 		turner.base = moved * turner.base
 		turner.shift = moved * turner.shift
+		turner.last = first.CFrame
 	end
-	turner.last = nil
+	if turner.dirty then
+		rescan(model, turner)
+	end
 end
 
 -- Wind turbine rotors (models tagged "Rotor") turn about their own pivot.
@@ -127,6 +129,7 @@ local function queueTurn(turner: Turner, pivot: CFrame, outParts: { BasePart }, 
 		table.insert(outFrames, pivot * turner.offsets[i])
 	end
 	if #turner.parts > 0 then
+		turner.lastPart = turner.parts[1]
 		turner.last = outFrames[#outFrames - #turner.parts + 1]
 	end
 end
