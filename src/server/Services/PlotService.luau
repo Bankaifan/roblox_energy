@@ -707,7 +707,7 @@ end
 local GOLD = Color3.fromRGB(255, 200, 40)
 local COPPER = Color3.fromRGB(184, 115, 51)
 
-local function updateFounderSign(record: Record, pad: BasePart, founder: boolean)
+local function updateFounderSign(record: Record, founder: boolean)
 	local sign = record.model:FindFirstChild("FounderSign")
 	if not founder then
 		if sign ~= nil then
@@ -718,26 +718,29 @@ local function updateFounderSign(record: Record, pad: BasePart, founder: boolean
 	if sign ~= nil then
 		return
 	end
-	local at = pad.Position + Vector3.new(9, 5, 0)
-	local post = block(record.model, "FounderSign", Vector3.new(0.6, 5, 0.6), COPPER, at - Vector3.new(0, 3, 0))
+	-- Beside the owner name sign (14 studs wide) at the road side: 12 studs further along x, facing the road.
+	local at = PlotStyle.signPoint(record.origin, record.facing) + Vector3.new(12, 8, 0)
+	local post = block(record.model, "FounderSign", Vector3.new(0.6, 6, 0.6), COPPER, at - Vector3.new(0, 4, 0))
 	post.CanCollide = false
 	local board = block(post, "Board", Vector3.new(7, 3, 0.4), COPPER, at)
 	board.Material = Enum.Material.Metal
 	board.CanCollide = false
-	board.Orientation = Vector3.new(0, 90, 0)
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 50
-	gui.Parent = board
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Text = "FOUNDER"
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.TextColor3 = Color3.fromRGB(255, 240, 210)
-	label.Parent = gui
+	board.Orientation = Vector3.new(0, if record.facing == 1 then 180 else 0, 0)
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
+		gui.Parent = board
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Text = "FOUNDER"
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBold
+		label.TextColor3 = Color3.fromRGB(255, 240, 210)
+		label.Parent = gui
+	end
 end
 
 local function updateCrank(record: Record, look: string, founder: boolean)
@@ -745,7 +748,7 @@ local function updateCrank(record: Record, look: string, founder: boolean)
 	if pad == nil or not pad:IsA("BasePart") then
 		return
 	end
-	updateFounderSign(record, pad, founder)
+	updateFounderSign(record, founder)
 	if record.look == look then
 		return
 	end
@@ -783,13 +786,16 @@ function PlotService.addSpawn(player: Player, record: Record)
 	end
 	local crank = Assets.furniture.crank
 	local at = PlotLayout.spawnPoint(Assets.PLOT_SIZE, crank.z, SPAWN_PAD)
-	local point = record.origin + Vector3.new(at.x, 0.5, at.z * record.facing)
+	-- Flush with the ground (its top is the ground), invisible; the figure looks along the way to the crank.
+	local point = record.origin + Vector3.new(at.x, -0.5, at.z * record.facing)
+	local toCrank = Vector3.new(0, 0, (crank.z - at.z) * record.facing).Unit
 	local pad = Instance.new("SpawnLocation")
 	pad.Name = "Spawn"
 	pad.Anchored = true
 	pad.Neutral = true
 	pad.Size = Vector3.new(SPAWN_PAD, 1, SPAWN_PAD)
-	pad.Position = point
+	pad.CFrame = CFrame.lookAt(point, point + toCrank)
+	pad.Transparency = 1
 	pad.Color = COLORS.Solar
 	pad.Material = Enum.Material.SmoothPlastic
 	pad.TopSurface = Enum.SurfaceType.Smooth
@@ -797,7 +803,7 @@ function PlotService.addSpawn(player: Player, record: Record)
 	player.RespawnLocation = pad
 	local character = player.Character
 	if character ~= nil then
-		character:PivotTo(CFrame.new(point + Vector3.new(0, 4, 0)))
+		character:PivotTo(CFrame.lookAt(point + Vector3.new(0, 5, 0), point + Vector3.new(0, 5, 0) + toCrank))
 	end
 end
 
