@@ -46,6 +46,7 @@ export type Env = {
 	income: number?, -- the bought sale multiplier (Premium Tariff, Turbo Feed-in, Core/Shop); nil or 1 = none
 	ruleSlots: number?, -- rule slots open (Config/Effects.ruleSlots without the Smart Hub, 3 with it)
 	autoBuild: boolean?, -- the Smart Hub auto-build is owned
+	covered: { [string]: string }?, -- permanent node id -> the pass that gives it (Shop.coveredNodes): not buyable
 	storageFactor: number?, -- the Mega Battery: the storage capacity times this (Core/Shop.storageFactor); nil = 1
 	permanent: { number }?, -- permanent plants per plant id (Robux): every run starts with them
 	nextWeather: Weather?, -- the weather of the next period; the view shows it only with U15
@@ -487,7 +488,10 @@ local function buyNode(state: State, env: Env, action: { [string]: any }): boole
 		return true
 	end
 	local permanent = findById(env.config.upgrades.permanent, id) or findById(env.config.upgrades.spark or {}, id)
-	if permanent == nil or permanent.sparks > state.sparks - state.sparksSpent then
+	if permanent == nil or (env.covered ~= nil and env.covered[id] ~= nil) then
+		return false
+	end
+	if permanent.sparks > state.sparks - state.sparksSpent then
 		return false
 	end
 	state.sparksSpent += permanent.sparks
@@ -1011,11 +1015,13 @@ local function sparkView(state: State, env: Env): { [string]: any }
 	for _, list in { env.config.upgrades.permanent, env.config.upgrades.spark or {} } do
 		for _, node in list do
 			local owned = state.pnodes[node.id] == true
+			local covered = if env.covered ~= nil then env.covered[node.id] else nil
 			table.insert(items, {
 				id = node.id,
 				sparks = node.sparks,
 				owned = owned,
-				buyable = not owned and node.sparks <= available,
+				covered = if owned then nil else covered, -- the pass that already gives it
+				buyable = not owned and covered == nil and node.sparks <= available,
 			})
 		end
 	end
