@@ -4,6 +4,7 @@
 -- expansion comes from Delta.view (GameCore.view). The shop is the market popup (Controllers/Market). Every label comes
 -- from the Locale tables in the current language: the player's locale at the start, switched by the Language button.
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
@@ -305,6 +306,23 @@ function Hud.build(net: Instance)
 			askExpand(true)
 		end
 	end)
+	-- Grid VIP: a glowing yellow pill right below the expansion row while today's free Turbo is waiting (Delta.extras).
+	local freeTurbo = button(frame, "", nextOrder(), function()
+		send("FreeTurbo")
+	end)
+	freeTurbo.Visible = false
+	local glow = Instance.new("UIStroke")
+	glow.Color = Theme.colors.accent
+	glow.Thickness = 3
+	glow.Transparency = 0.2
+	glow.Parent = freeTurbo
+	local pill = freeTurbo:FindFirstChildOfClass("UICorner") :: UICorner
+	pill.CornerRadius = UDim.new(0.5, 0)
+	TweenService:Create(
+		glow,
+		TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Transparency = 0.8 }
+	):Play()
 
 	-- Captions and dimming from the server's view: the grid expansion.
 	local function shop(view: any)
@@ -364,6 +382,7 @@ function Hud.build(net: Instance)
 			end
 		end
 		shop(change.view)
+		freeTurbo.Visible = change.extras ~= nil and change.extras.freeTurbo == true
 	end
 	local function applyEnv(change: any)
 		clock.env(change)
@@ -375,6 +394,7 @@ function Hud.build(net: Instance)
 		language.Text = t("hud.language", { name = t("language." .. lang) })
 		storageHint.Text = t("hud.storageHint")
 		expand.Text = t("action.expand")
+		freeTurbo.Text = t("hud.freeTurbo")
 		confirmYes.Text = t("expand.yes")
 		confirmNo.Text = t("expand.no")
 		tutorialSkip.Text = t("tutorial.skip")
