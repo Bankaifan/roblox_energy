@@ -91,3 +91,27 @@ def test_clock_card_floats_only_when_it_cannot_meet_the_tutorial_box():
     card = int(re.search(r"local WIDE_WIDTH = (\d+)", CLOCK).group(1))
     assert wide_min >= 480
     assert wide_min - 16 - card >= wide_min * 0.75
+
+
+def test_expand_question_is_green_yes_and_red_cancel():
+    code = "\n".join(code_lines())
+    assert re.search(r"confirmYes\.BackgroundColor3 = Theme\.colors\.good\b", code)
+    assert re.search(r"confirmNo\.BackgroundColor3 = Theme\.colors\.bad\b", code)
+
+
+def test_expand_button_hides_while_the_question_is_open():
+    assert "expand.Visible = not show" in HUD
+
+
+def test_ask_expand_false_runs_after_the_expand_button_exists():
+    # askExpand reads `expand`, so the top-level call (one tab deep, outside the handlers) must come after `expand = button(`.
+    expand_built = HUD.index("expand = button(frame")
+    assert HUD.find("\n\taskExpand(false)\n", expand_built) != -1
+
+
+def test_last_goal_closes_an_open_question():
+    # When the last goal is done (view.goal == nil) an open question must close, or the expand button stays hidden.
+    start = HUD.index("local function shop(view: any)")
+    end = HUD.index("-- Each server message", start)
+    body = HUD[start:end]
+    assert "askExpand(false)" in body[body.index("else"):]
