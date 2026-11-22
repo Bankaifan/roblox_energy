@@ -79,7 +79,7 @@ local function template(): Profile
 		passes = {},
 		paid = {}, -- pass yields already paid out (Founder Pack), kept across sessions: paid once per profile
 		boosters = {},
-		daily = { day = 0, skips = 0 },
+		daily = { day = 0, skips = 0, turboDay = 0 }, -- turboDay: the day of the last free Turbo (Grid VIP)
 		cosmetics = {},
 		settings = { lang = "auto", sfx = true, music = true },
 		tutorial = 1, -- the current tutorial step (Core/Tutorial): 1 for a new profile
