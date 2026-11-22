@@ -1,0 +1,1 @@
+- Grid VIP: die Stromleitungen auf dem Grundstück leuchten (Neon-Material und weiches Licht), nur für Besitzer des Passes.
