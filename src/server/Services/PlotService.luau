@@ -98,22 +98,33 @@ local function block(parent: Instance, name: string, size: Vector3, color: Color
 	return part
 end
 
--- The sites of a plant for `owned` units: min(owned, prepared sites), each with the same footprint whatever the count,
--- so a unit only ever stands on prepared ground. Panels (plant 1) lie wild on their mown cell; a cell in `aligned` (the
+-- The sites of a plant for `owned` units: min(owned, cap x prepared cells), on prepared ground only; units beyond one per
+-- cell share it in a grid and are scaled down to their grid square (PlotLayout.packed). Panels (plant 1) lie wild on their mown cell; a cell in `aligned` (the
 -- Align action with the Mounting Rails) holds its panel straight on the cell centre. Returns the sites.
 local function unitSites(record: Record, index: number, owned: number, cells: { number }, aligned: { number }): { any }
 	local field = Assets.fields[index]
 	local chosen = PlotLayout.chosen(cells, owned)
-	local points = PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES)
 	if index ~= 1 then
 		table.sort(chosen)
-		return PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES)
 	end
-	-- Panels: wild on the mown cells in the order they were mown, a cell with rails straight on its centre.
-	local sites: { any } = PlotLayout.wild(points, record.slot)
-	for i, cell in chosen do
-		if table.find(aligned, cell) ~= nil then
-			sites[i] = { x = points[i].x, z = points[i].z, angle = 0, rail = true }
+	-- More units than cells: they share the cells in a small grid (at most the entry's cap per cell), scaled to fit it.
+	local entry = Assets.entry(index)
+	local packed =
+		PlotLayout.packed(field, chosen, owned, Assets.TILE, Assets.PLOT_TILES, if entry ~= nil then entry.cap else 1)
+	if index ~= 1 then
+		return packed
+	end
+	-- Panels: wild on the mown cells in the order they were mown, a cell with rails straight on its centre. Only a panel that
+	-- has its cell to itself is turned wild; packed panels stay straight so they never touch.
+	local sites: { any } = PlotLayout.wild(packed, record.slot)
+	for i, site in packed do
+		if site.side < field.size * Assets.TILE then
+			sites[i] = { x = site.x, z = site.z, angle = 0, side = site.side }
+		else
+			sites[i].side = site.side
+			if table.find(aligned, site.cell) ~= nil then
+				sites[i] = { x = site.x, z = site.z, angle = 0, rail = true, side = site.side }
+			end
 		end
 	end
 	return sites
@@ -197,7 +208,9 @@ local function updateUnits(
 )
 	local sites = unitSites(record, index, owned, cells, aligned)
 	local tint = if index == 6 and paint >= 1 then Assets.paintColors[paint] else nil
-	local key = table.concat(cells, ",", 1, #sites)
+	local key = table.concat(cells, ",")
+		.. "#"
+		.. #sites
 		.. "|"
 		.. table.concat(aligned, ",")
 		.. (if tint ~= nil then `|p{paint}` else "")
@@ -210,8 +223,8 @@ local function updateUnits(
 		copy:Destroy()
 	end
 	table.clear(shown)
-	local cell = Assets.fields[index].size * Assets.TILE
 	for _, site in sites do
+		local cell = site.side
 		local copy = PlantModels.clone(index)
 		if copy == nil then
 			break
