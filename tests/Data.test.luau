@@ -75,6 +75,7 @@ return function(t, load)
 	t.equal(next(template.paid), nil, "no pass yield paid by default")
 	t.equal(#template.boosters, 0, "the booster queue starts empty")
 	t.equal(template.daily.skips, 0, "no Time Skip used by default")
+	t.equal(template.daily.turboDay, 0, "no free Turbo taken by default")
 	t.equal(#template.plants, 6, "six plants")
 	t.equal(template.storage.mode, "auto", "storage starts in auto")
 	t.equal(template.settings.lang, "auto", "the language follows the player")
@@ -104,7 +105,7 @@ return function(t, load)
 	run.purchases = { "receipt-1", "receipt-2" }
 	run.passes = { founder = true, premium = true }
 	run.boosters = { { kind = "turbo", left = 900 }, { kind = "sunshine", left = 600 } }
-	run.daily = { day = 20000, skips = 2 }
+	run.daily = { day = 20000, skips = 2, turboDay = 19999 }
 	run.cosmetics = { [1] = "gold" }
 	run.settings = { lang = "de", sfx = false, music = true }
 	run.tutorial = 3

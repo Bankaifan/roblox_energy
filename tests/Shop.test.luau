@@ -164,6 +164,26 @@ return function(t, load)
 	t.equal(nextReason, nil, "a Time Skip on the next day is bought")
 	t.equal(nextYield, 1200, "and pays 20 minutes")
 	t.equal(Shop.skipsLeft(nextDay, DAY + 1, Catalogue), 2, "one used on the new day")
+	-- Grid VIP: one free Turbo per server day, only with the pass.
+	local vip = Data.template()
+	t.equal(Shop.freeTurboReady(vip, DAY), false, "no free Turbo without Grid VIP")
+	local _, noPass = Shop.claimFreeTurbo(vip, DAY)
+	t.equal(noPass, "no pass", "a claim without the pass is refused")
+	vip.passes.grid_vip = true
+	t.equal(Shop.freeTurboReady(vip, DAY), true, "the pass makes the free Turbo ready")
+	t.equal(Shop.extrasView(vip, DAY, Catalogue, true, 720).freeTurbo, true, "the Extras view says so")
+	local taken, takenReason = Shop.claimFreeTurbo(vip, DAY)
+	t.equal(takenReason, nil, "the free Turbo is taken")
+	t.equal(taken.daily.turboDay, DAY, "the day is written")
+	t.equal(vip.daily.turboDay, 0, "the input profile is not changed")
+	t.equal(Shop.freeTurboReady(taken, DAY), false, "not ready again today")
+	local _, twice = Shop.claimFreeTurbo(taken, DAY)
+	t.equal(twice, "already taken", "a second claim on the same day is refused")
+	t.equal(Shop.freeTurboReady(taken, DAY + 1), true, "ready again the next day")
+	local _, badDay = Shop.claimFreeTurbo(vip, 0 / 0)
+	t.equal(badDay, "invalid day", "a NaN day is refused")
+	t.equal(taken.daily.skips, 0, "the Time Skip count is untouched")
+
 	-- Extras tab view: owned passes, booster stock, Time Skips left, and when the tab may show at all.
 	local extrasBase = Data.template()
 	extrasBase.tutorialDone = true
