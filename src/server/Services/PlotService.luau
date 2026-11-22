@@ -389,8 +389,8 @@ local function updateLand(record: Record, counts: { number }, land: any, paint: 
 		table.insert(fence, if open then "open" else "-")
 	end
 	local container = land.container == true or #record.batteries > 0
-	if record.shell ~= nil and record.shellScale ~= shellScale then
-		record.shell:Destroy() -- the Mega Battery was bought: build the larger container
+	if record.shell ~= nil and (record.shellScale ~= shellScale or not container) then
+		record.shell:Destroy() -- the Mega Battery was bought (a larger container), or the expansion removed the container
 		record.shell = nil
 	end
 	if container and record.shell == nil then
