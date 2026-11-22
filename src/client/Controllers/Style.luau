@@ -31,8 +31,8 @@ function Style.build(net: Instance, language: () -> string)
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.AnchorPoint = Vector2.new(0, 1)
-	row.Position = UDim2.new(0, 12, 1, -12)
-	row.Size = UDim2.fromOffset(190, 80)
+	row.Position = UDim2.new(0, 16, 1, -68) -- above the Leaderboard button
+	row.Size = UDim2.fromOffset(190, 100)
 	row.Parent = gui
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 6)
@@ -44,11 +44,11 @@ function Style.build(net: Instance, language: () -> string)
 	for order, entry in SLOTS do
 		local button = Instance.new("TextButton")
 		button.LayoutOrder = order
-		button.Size = UDim2.new(1, 0, 0, 36)
+		button.Size = UDim2.new(1, 0, 0, 44)
 		button.BackgroundColor3 = Theme.colors.panel
 		button.TextColor3 = Theme.colors.text
 		button.Font = Theme.fonts.bold
-		button.TextSize = 15
+		button.TextSize = 16
 		Theme.round(button)
 		button.Visible = false
 		button.Parent = row
