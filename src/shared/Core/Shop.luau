@@ -89,7 +89,8 @@ end
 
 -- What the Extras tab needs from the profile: the passes owned, the seconds in the booster queue and the Time Skips left
 -- today (nil without a daily limit). `shown`: the tab may show at all, i.e. the shop is allowed for this player, the
--- tutorial is done and `playSeconds` reached the first hint minute (Config/Shop).
+-- tutorial is done and the time played reached the first hint minute (Config/Shop). That time is `playSeconds` of this session
+-- plus what earlier sessions left in the profile, so the wait is once, not after every start.
 function Shop.extrasView(
 	profile: any,
 	day: number,
@@ -106,7 +107,9 @@ function Shop.extrasView(
 	end
 	local skipsLeft = Shop.skipsLeft(profile, day, shop)
 	return {
-		shown = allowed and profile.tutorialDone == true and playSeconds >= shop.firstHintSeconds,
+		shown = allowed
+			and profile.tutorialDone == true
+			and playSeconds + (profile.playSeconds or 0) >= shop.firstHintSeconds,
 		owned = owned,
 		stock = Shop.boosterStock(profile),
 		skipsLeft = if skipsLeft == math.huge then nil else skipsLeft,
