@@ -5,7 +5,7 @@
 local Cosmetics = {}
 
 -- The glow colours of the Neon Plants and the three plot themes, by id. The first of each is the default.
-Cosmetics.NEON_COLOURS = { "green", "cyan", "magenta", "gold" }
+Cosmetics.NEON_COLOURS = { "green", "cyan", "magenta", "gold", "off" } -- "off" switches the glow off
 Cosmetics.THEMES = { "classic", "desert", "night" }
 -- The slots of SetCosmetic: the glow colour and the theme.
 Cosmetics.SLOT_NEON = 1
@@ -19,6 +19,7 @@ export type Flags = {
 	vip: boolean, -- Grid VIP: the name tag and the glowing lines
 	fireworks: boolean, -- Upgrade Fireworks: fireworks and a server message at each upgrade
 	neon: string?, -- Neon Plants: the glow colour, nil without the pass
+	neonOff: boolean, -- Neon Plants owned but the glow chosen off
 	theme: string, -- Plot Themes: the design
 	themed: boolean, -- Plot Themes owned: the plot shows the design (ground, fence and sign)
 }
@@ -43,8 +44,13 @@ end
 -- the default shows.
 function Cosmetics.flags(passes: { [string]: any }, choice: { [any]: any }): Flags
 	local neon: string? = nil
+	local neonOff = false
 	if owns(passes, "neon") then
 		neon = chosen(choice, Cosmetics.SLOT_NEON, Cosmetics.NEON_COLOURS) or Cosmetics.NEON_COLOURS[1]
+		if neon == "off" then
+			neon = nil
+			neonOff = true
+		end
 	end
 	local theme = Cosmetics.THEMES[1]
 	if owns(passes, "themes") then
@@ -56,6 +62,7 @@ function Cosmetics.flags(passes: { [string]: any }, choice: { [any]: any }): Fla
 		vip = owns(passes, "grid_vip"),
 		fireworks = owns(passes, "fireworks"),
 		neon = neon,
+		neonOff = neonOff,
 		theme = theme,
 		themed = owns(passes, "themes"),
 	}
