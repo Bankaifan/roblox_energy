@@ -436,6 +436,9 @@ function PlantModels.place(copy: Model, plantId: number, cell: number, centre: V
 	if entry ~= nil and entry.flat then
 		lay(copy, Vector3.yAxis)
 	end
+	if entry ~= nil and entry.lean ~= nil then
+		copy:PivotTo(CFrame.Angles(0, 0, math.rad(entry.lean)) * copy:GetPivot())
+	end
 	local _, size = worldBox(copy)
 	local factor = if entry ~= nil then entry.scale else 1
 	copy:ScaleTo(copy:GetScale() * Assets.fitScale(size.X, size.Z, cell, factor))
