@@ -149,6 +149,44 @@ function PlotLayout.chosen(cells: { number }, owned: number): { number }
 	return table.move(cells, 1, count, 1, {})
 end
 
+-- Units packed into the prepared `cells`: `owned` units share the cells as evenly as possible (the first cells in the order
+-- given take the extra ones), at most `cap` per cell. A cell with k units is cut into a g x g grid, g = ceil(sqrt(k)), and
+-- each unit stands on the middle of one grid square; `side` is the square's side in studs (the cell side when g is 1), so a
+-- unit scaled to `side` never leaves its cell or touches a neighbour. Draws min(owned, cap x #cells) units.
+export type PackedSite = { x: number, z: number, side: number, cell: number }
+function PlotLayout.packed(
+	field: Field,
+	cells: { number },
+	owned: number,
+	tile: number,
+	plotTiles: number,
+	cap: number
+): { PackedSite }
+	local sites: { PackedSite } = {}
+	if #cells == 0 then
+		return sites
+	end
+	local shown = math.max(0, math.min(math.floor(owned), math.max(1, math.floor(cap)) * #cells))
+	local base, extra = shown // #cells, shown % #cells
+	local full = field.size * tile
+	for i, cell in cells do
+		local units = base + (if i <= extra then 1 else 0)
+		local grid = math.max(1, math.ceil(math.sqrt(units)))
+		local side = full / grid
+		local centre = PlotLayout.cellCentre(field, cell, tile, plotTiles)
+		for u = 0, units - 1 do
+			local column, row = u % grid, u // grid
+			table.insert(sites, {
+				x = centre.x + (column + 0.5 - grid / 2) * side,
+				z = centre.z + (row + 0.5 - grid / 2) * side,
+				side = side,
+				cell = cell,
+			})
+		end
+	end
+	return sites
+end
+
 function PlotLayout.bare(cells: { number }, owned: number): { number }
 	local rest: { number } = {}
 	for i = math.max(0, math.floor(owned)) + 1, #cells do
