@@ -348,6 +348,7 @@ function Hud.build(net: Instance)
 			goal.Text = t("goal.done")
 			expand.Text = t("goal.done")
 			dim(expand, false)
+			askExpand(false) -- the last goal is done: an open question must not hide the button for good
 		end
 	end
 
