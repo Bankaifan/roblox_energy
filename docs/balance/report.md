@@ -10,26 +10,26 @@ Tolerances are enforced by tests/test_balance_report.py in make check. Changing 
 | --- | --- | --- | --- | --- |
 | Z1 | First expansion, optimal bot | median 22-27 min, all runs 18-34 min | median 21.4 min (min 16.1, max 24.1, n=27) | in target |
 | Z2 | First expansion, occasional bot | median 26-32 min | median 46.4 min (min 43.4, max 54.9, n=27) | in target |
-| Z3 | Run time per stage 2 to 6, optimal bot | each median 12-25 min | stage 2: median 14.1 min (min 13.1, max 17.4, n=27); stage 3: median 12.3 min (min 10.5, max 15.8, n=27); stage 4: median 11.8 min (min 10.3, max 14.5, n=27); stage 5: median 12.8 min (min 11.5, max 18.5, n=27); stage 6: median 21.8 min (min 14.4, max 23.6, n=27) | in target |
-| Z4 | Run time of stages 7 and 8, optimal bot | median at most 60 and 150 min | stage 7: median 36.9 min (min 32.8, max 41.7, n=27); stage 8: median 58.3 min (min 47.9, max 65.1, n=27) | in target |
-| Z5 | Play time until stage 6 | 100-130 min | optimal: median 93.6 min (min 88.8, max 97.8, n=27); occasional: not reached | in target |
-| Z6 | Extra revenue from storage with rules, mixed park | stage 1: +8-12 %, stage 4: +40-50 % | stage 1: median 14.4 % (min 7.9, max 15.7, n=27); stage 4: median 42.6 % (min 39.5, max 52.4, n=27) | in target |
+| Z3 | Run time per stage 2 to 6, optimal bot | each median 12-25 min | stage 2: median 15.4 min (min 14.2, max 23.1, n=27); stage 3: median 14.1 min (min 12.2, max 19.4, n=27); stage 4: median 14.0 min (min 11.7, max 18.5, n=27); stage 5: median 16.2 min (min 13.0, max 21.9, n=27); stage 6: median 23.5 min (min 18.4, max 24.2, n=27) | OUT |
+| Z4 | Run time of stages 7 and 8, optimal bot | median at most 60 and 150 min | stage 7: median 39.3 min (min 34.4, max 43.5, n=27); stage 8: median 59.4 min (min 54.9, max 64.8, n=27) | in target |
+| Z5 | Play time until stage 6 | 100-130 min | optimal: median 105.5 min (min 96.9, max 109.6, n=27); occasional: not reached | OUT |
+| Z6 | Extra revenue from storage with rules, mixed park | stage 1: +8-12 %, stage 4: +40-50 % | stage 1: median 14.4 % (min 7.9, max 15.7, n=27); stage 4: median 44.0 % (min 40.4, max 52.9, n=27) | OUT |
 | Z7 | Extra revenue from storage by park type, stage 4 | solar only +60-70 %, wind and water +15-25 % | solar: median 75.1 % (min 75.1, max 75.1, n=27); wind and water: median 31.6 % (min 31.6, max 31.6, n=27) | in target |
 | Z8 | Night start: first expansion against morning start | at most +25 % | +11.4 % | in target |
 | Z9 | Longest pause without an affordable purchase, first 10 min | at most 45 s | median 2.0 s (min 1.0, max 5.0, n=27) | in target |
-| Z10 | Stage after the first day (sessions and offline) | stage 4-5 | optimal: median 5.0 (min 5.0, max 6.0, n=9); occasional: median 1.0 (min 1.0, max 1.0, n=9) | in target |
+| Z10 | Stage after the first day (sessions and offline) | stage 4-5 | optimal: median 5.0 (min 5.0, max 5.0, n=9); occasional: median 1.0 (min 1.0, max 1.0, n=9) | in target |
 | Z11 | Sum of bought multipliers | at most x3 | x3.0 (largest over the buyer runs and Premium + Turbo + Sunshine Hour together) | in target |
 
-Out of target: 0 of 11 rows.
+Out of target: 3 of 11 rows.
 
 ## Other values
 
-- Child bot (no target): first expansion median 23.1 min (min 20.0, max 25.1, n=27); stage 6 median 127.1 min (min 121.4, max 132.8, n=27).
-- Premium Tariff (no target): first expansion median 15.6 min (min 12.5, max 21.2, n=27); stage 6 median 75.8 min (min 69.6, max 84.2, n=27); income factor median 5.92x (min 1.68, max 36.08, n=27).
-- Premium plus permanent Turbo (no target): first expansion median 10.8 min (min 6.8, max 12.5, n=27); stage 6 median 54.8 min (min 48.2, max 60.1, n=27); income factor median 52.38x (min 34.63, max 296.82, n=27).
-- three Time Skips (no target): first expansion median 13.9 min (min 11.7, max 20.0, n=27); stage 6 median 82.3 min (min 74.8, max 92.8, n=27); income factor median 5.62x (min 1.01, max 20.85, n=27).
-- 10 permanent plants of every type (no target): first expansion median 21.4 min (min 16.1, max 24.1, n=27); stage 6 median 61.7 min (min 56.3, max 71.2, n=27); income factor median 35.62x (min 21.90, max 73.64, n=27).
-- Mega Battery (limit +15 %, counts toward x3): capacity x1.50, extra revenue at storage stage 4 median 2.7 % (min 2.5, max 3.7, n=27); within the limit.
+- Child bot (no target): first expansion median 23.1 min (min 20.0, max 25.1, n=27); stage 6 median 135.2 min (min 130.5, max 140.2, n=27).
+- Premium Tariff (no target): first expansion median 15.6 min (min 12.5, max 21.2, n=27); stage 6 median 84.1 min (min 77.4, max 87.5, n=27); income factor median 6.05x (min 1.17, max 14.33, n=27).
+- Premium plus permanent Turbo (no target): first expansion median 10.8 min (min 6.8, max 12.5, n=27); stage 6 median 66.9 min (min 55.2, max 78.4, n=27); income factor median 50.02x (min 8.44, max 215.93, n=27).
+- three Time Skips (no target): first expansion median 13.9 min (min 11.7, max 20.0, n=27); stage 6 median 93.8 min (min 84.4, max 105.5, n=27); income factor median 5.52x (min 1.15, max 9.60, n=27).
+- 10 permanent plants of every type (no target): first expansion median 21.4 min (min 16.1, max 24.1, n=27); stage 6 median 72.2 min (min 66.5, max 80.7, n=27); income factor median 37.46x (min 7.16, max 109.19, n=27).
+- Mega Battery (limit +15 %, counts toward x3): capacity x1.50, extra revenue at storage stage 4 median 2.8 % (min 2.6, max 3.7, n=27); within the limit.
 
 ## Assumptions of the bots
 
