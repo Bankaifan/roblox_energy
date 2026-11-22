@@ -26,6 +26,7 @@ local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
 	return require(Config:WaitForChild(name) :: ModuleScript)
 end
+local Locale = load("Locale")
 local config = {
 	plants = load("Plants"),
 	upgrades = load("Upgrades"),
@@ -282,9 +283,23 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	elseif action.type == "Prepare" or action.type == "Align" or action.type == "BuyContainer" then
 		LandService.refresh(player, nextState) -- the prompt moves to the next site at once
 	end
+	if action.type == "BuyPlant" or action.type == "AutoBuild" then
+		Session.milestones(remotes, player, state, nextState)
+	end
 	if action.type == "Prestige" then
 		remotes.Snapshot:FireClient(player, nextState)
 		Session.fireworks(remotes, player, state.level, nextState.level)
+	end
+end
+
+-- A notice to the player for each milestone a purchase just crossed (only purchases call this, never the start kit).
+function Session.milestones(remotes: { [string]: RemoteEvent }, player: Player, before: any, after: any)
+	local factor = if after.pnodes.P7 then config.effects.milestoneFactorP7 else config.effects.milestoneFactor
+	local lang = if string.sub(player.LocaleId, 1, 2) == "de" then "de" else "en"
+	for _, hit in Formulas.reachedMilestones(before.plants, after.plants) do
+		local name = Locale.t(`plant.{config.plants[hit.plant].id}`, lang)
+		local text = Locale.t("milestone.reached", lang, { plant = name, units = hit.units, factor = factor })
+		remotes.Notice:FireClient(player, { text = text })
 	end
 end
 
