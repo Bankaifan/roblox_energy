@@ -147,6 +147,20 @@ function Cosmetics.themeLook(id: string): { ground: { number }, fence: { number 
 	return THEME_LOOKS[id] or THEME_LOOKS[Cosmetics.THEMES[1]]
 end
 
+-- S5 blade tips: the tip cap of one blade (length along its local X axis, sizeX). `hubAlong` is where the hub lies on the
+-- blade's X axis, measured from the blade centre (studs, positive = towards +X). The cap sits on the end that is farther
+-- from the hub, is a fifth of the blade long and a little thicker than the blade. Returns the cap size and its offset on X.
+function Cosmetics.bladeTip(
+	sizeX: number,
+	sizeY: number,
+	sizeZ: number,
+	hubAlong: number
+): { size: { number }, offset: number }
+	local length = sizeX * 0.2
+	local sign = if hubAlong > 0 then -1 else 1
+	return { size = { length, sizeY + 0.1, sizeZ + 0.1 }, offset = sign * (sizeX / 2 - length / 2) }
+end
+
 -- Upgrade Fireworks: true when a grid expansion happened (the level went up) and the owner has the pass.
 function Cosmetics.fireworksDue(before: any, after: any, fireworks: boolean): boolean
 	return fireworks and wholeLevel(after) > wholeLevel(before)
