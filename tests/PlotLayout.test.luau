@@ -75,4 +75,24 @@ return function(t, load)
 	t.equal(#PlotLayout.bare(order, 4), 0, "one unit per cell leaves no bare cell")
 	t.equal(#PlotLayout.bare(order, 10), 0, "more units than cells leaves none")
 	t.equal(#PlotLayout.bare({}, 0), 0, "no cells, no bare cell")
+
+	-- Issue #192: n owned units on n prepared cells draw n sites, in every field and for every n.
+	for plant, field in Assets.fields do
+		local cells = PlotLayout.mown(nil, #field.cells, #field.cells)
+		for n = 1, #field.cells do
+			local prepared = PlotLayout.mown(nil, n, #field.cells)
+			local chosen = PlotLayout.chosen(prepared, n)
+			t.equal(#chosen, n, `plant {plant}: {n} owned on {n} prepared cells carry {n} units`)
+			t.equal(#PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES), n, `plant {plant}: {n} sites`)
+		end
+		t.equal(
+			#PlotLayout.chosen(cells, #cells + 3),
+			#cells,
+			`plant {plant}: units past the cells have no cell of their own`
+		)
+		t.equal(#PlotLayout.chosen(cells, 0), 0, `plant {plant}: no units, no site`)
+	end
+	local order = { 7, 2, 9 }
+	t.equal(table.concat(PlotLayout.chosen(order, 2), ","), "7,2", "the first cells mown carry the units")
+	t.equal(table.concat(PlotLayout.chosen(order, 2.9), ","), "7,2", "a fractional count rounds down")
 end
