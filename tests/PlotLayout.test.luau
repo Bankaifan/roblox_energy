@@ -95,7 +95,6 @@ return function(t, load)
 	-- Packed units (all bought panels visible): min(owned, cap x cells) sites, each inside its own cell, none overlapping.
 	for plant, field in Assets.fields do
 		local full = field.size * Assets.TILE
-		local half = Assets.PLOT_TILES * Assets.TILE / 2
 		for _, c in { 1, 2, #field.cells } do
 			local cells = PlotLayout.mown(nil, c, #field.cells)
 			local cap = Assets.plants[plant].cap
