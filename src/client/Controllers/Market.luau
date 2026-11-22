@@ -325,9 +325,9 @@ function Market.build(net: Instance, language: () -> string)
 	}
 	local pool: { CardUi } = {}
 
-	-- Permanent plant lines: small cyan text under the card, wrapped across its whole width, so nothing is cut off.
+	-- Permanent plant lines: cyan buttons (Robux) under the card, wrapped across its whole width, so nothing is cut off.
 	local PERMANENT_TEXT = 13
-	local PERMANENT_LINE_PAD = 6
+	local PERMANENT_LINE_PAD = 16 -- the pill is about 34 px high, with 4 px between two
 	local function permanentHeights(card: CardUi): { number }
 		local heights = {}
 		local lines = if card.data ~= nil and card.data.permanent ~= nil then card.data.permanent else {}
@@ -355,8 +355,8 @@ function Market.build(net: Instance, language: () -> string)
 		for index, control in card.permanent do
 			control.Visible = heights[index] ~= nil
 			if heights[index] ~= nil then
-				control.Position = UDim2.fromOffset(left, y)
-				control.Size = UDim2.new(1, -(left + GAP), 0, heights[index])
+				control.Position = UDim2.fromOffset(left, y + 2)
+				control.Size = UDim2.new(1, -(left + GAP), 0, heights[index] - 4)
 				y += heights[index]
 			end
 		end
@@ -472,13 +472,14 @@ function Market.build(net: Instance, language: () -> string)
 		for slot = 1, 2 do
 			local control = Instance.new("TextButton")
 			control.Name = `Permanent{slot}`
-			control.AutoButtonColor = false
-			control.BackgroundTransparency = 1
+			control.AutoButtonColor = true
+			control.BackgroundColor3 = COLORS.energy
 			control.BorderSizePixel = 0
 			control.Font = Theme.fonts.bold
 			control.TextSize = PERMANENT_TEXT
-			control.TextColor3 = COLORS.energy
-			control.TextXAlignment = Enum.TextXAlignment.Left
+			control.TextColor3 = COLORS.textDark
+			control.TextXAlignment = Enum.TextXAlignment.Center
+			Theme.round(control, 8)
 			control.TextWrapped = true
 			control.Text = ""
 			control.Visible = false
