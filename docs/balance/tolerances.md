@@ -16,12 +16,12 @@ The status in the report and the check in `tests/test_balance_report.py` (run by
 | Z3 | stage 3 | median 12-25 | 9 to 16 | runs 10.2-14.5 min; row out of target |
 | Z3 | stage 4 | median 12-25 | 9 to 17 | runs 10.1-15.1 min; median 11.6 below 12 |
 | Z3 | stage 5 | median 12-25 | 10 to 18 | runs 11.0-16.1 min; row out of target |
-| Z3 | stage 6 | median 12-25 | 15 to 23 | runs 16.4-22.0 min; row out of target |
+| Z3 | stage 6 | median 12-25 | 17 to 25 | runs 18.4-24.2 min with the land reset (was 16.4-22.0); row out of target |
 | Z4 | stage 7 | median at most 60 | 0 to 60 | in target, Bauplan kept |
 | Z4 | stage 8 | median at most 150 | 0 to 150 | in target, Bauplan kept |
-| Z5 | play time until stage 6, optimal bot | 100-130 | 82 to 98 | runs 83.4-96.1 min, outside Bauplan |
+| Z5 | play time until stage 6, optimal bot | 100-130 | 95 to 111 | runs 96.9-109.6 min with the land reset (was 83.4-96.1), outside Bauplan |
 | Z6 | storage gain stage 1 | +8-12 % | 10 to 20 | runs 11.0-18.7 %, outside Bauplan |
-| Z6 | storage gain stage 4 | +40-50 % | 34 to 43 | runs 35.5-41.2 %, outside Bauplan |
+| Z6 | storage gain stage 4 | +40-50 % | 39 to 54 | runs 40.4-52.9 % with the land reset (was 35.5-41.2), outside Bauplan |
 | Z7 | storage gain, solar only | +60-70 % | 74 to 77 | all runs 75.1 % with the 720 s day (was 77 to 80), outside Bauplan |
 | Z7 | storage gain, wind and water | +15-25 % | 30 to 33 | all runs 31.6 % with the 720 s day (was 27 to 30), outside Bauplan |
 | Z8 | night start against morning | at most +25 % | -100 to 25 | in target, Bauplan kept (no lower limit) |
