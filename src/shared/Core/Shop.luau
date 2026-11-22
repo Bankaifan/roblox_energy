@@ -66,6 +66,31 @@ function Shop.sparksMissing(profile: any, upgrades: any): number
 	return math.max(0, total - profile.sparks)
 end
 
+-- The pass that already gives the effect of a permanent node (shop.covers), when it is owned and really gives it:
+-- the Smart Hub counts only with smartHubImmediate. nil otherwise.
+function Shop.coveredByPass(nodeId: any, passes: { [string]: any }, shop: any): string?
+	local pass = if shop.covers ~= nil then shop.covers[nodeId] else nil
+	if pass == nil or passes[pass] ~= true then
+		return nil
+	end
+	if pass == "smart_hub" and not shop.smartHubImmediate then
+		return nil
+	end
+	return pass
+end
+
+-- The covered permanent nodes of a profile: node id -> pass id.
+function Shop.coveredNodes(passes: { [string]: any }, shop: any): { [string]: string }
+	local result = {}
+	for nodeId in shop.covers or {} do
+		local pass = Shop.coveredByPass(nodeId, passes, shop)
+		if pass ~= nil then
+			result[nodeId] = pass
+		end
+	end
+	return result
+end
+
 -- The sparks a pack gives (0 for any other offer).
 function Shop.packSparks(shop: any, offerId: any): number
 	local offer = findOffer(shop, offerId)
@@ -210,6 +235,7 @@ function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boole
 		longMeter = Shop.offlineBonusHours(profile, shop) > 0,
 		ruleSlots = if slots > 0 then slots else nil,
 		autoBuild = auto,
+		covered = Shop.coveredNodes(profile.passes, shop),
 		storageFactor = Shop.storageFactor(profile, shop),
 		permanent = if profile.permanent ~= nil then table.clone(profile.permanent) else nil,
 	}
