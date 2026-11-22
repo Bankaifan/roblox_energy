@@ -11,6 +11,7 @@ local Catalogue = require(Shared:WaitForChild("Config"):WaitForChild("Shop") :: 
 local Upgrades = require(Shared:WaitForChild("Config"):WaitForChild("Upgrades") :: ModuleScript) :: any
 local DataService = require(script.Parent.DataService) :: any
 local PolicyService = require(script.Parent.PolicyService) :: any
+local BoostService = require(script.Parent.BoostService) :: any
 
 -- Roblox hands ProcessReceipt a table with PurchaseId (a string, unique per purchase), PlayerId and ProductId; there is no ReceiptId field.
 local PurchaseGranted = Enum.ProductPurchaseDecision.PurchaseGranted
@@ -295,6 +296,21 @@ function PurchaseService.extras(player: Player, playSeconds: number): any
 		return { shown = false, owned = {}, stock = 0 }
 	end
 	return Shop.extrasView(profile.Data, today(), Catalogue, PurchaseService.shopVisible(player), playSeconds, Upgrades)
+end
+
+-- Grid VIP: today's free Turbo Feed-in. The day is written only when the same Turbo the shop sells starts (the stock
+-- is not full). False without a profile, without the pass, when it was taken today or when the stock is full.
+function PurchaseService.claimFreeTurbo(player: Player): boolean
+	local profile = DataService.profileOf(player)
+	if profile == nil then
+		return false
+	end
+	local data, reason = Shop.claimFreeTurbo(profile.Data, today())
+	if reason ~= nil or not BoostService.buyTurbo(player) then
+		return false
+	end
+	profile.Data = data
+	return true
 end
 
 -- PromptGamePassPurchaseFinished: the event also fires when a free trial starts, so only a pass Roblox confirms is granted.
