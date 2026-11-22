@@ -59,6 +59,32 @@ function Formulas.milestones(count: number): number
 	return reached
 end
 
+-- The next threshold above count, or nil after the last milestone.
+function Formulas.nextMilestone(count: number): number?
+	for _, threshold in MILESTONE_COUNTS do
+		if count < threshold then
+			return threshold
+		end
+	end
+	return nil
+end
+
+-- Milestones crossed when the plant counts go from `before` to `after` (lists indexed by plant): one entry
+-- { plant, milestone (1-based number), units (the threshold) } each, in plant order. Nothing when counts fall or stay.
+function Formulas.reachedMilestones(
+	before: { number },
+	after: { number }
+): { { plant: number, milestone: number, units: number } }
+	local reached = {}
+	for plant, count in after do
+		local old = Formulas.milestones(before[plant] or 0)
+		for number = old + 1, Formulas.milestones(count) do
+			table.insert(reached, { plant = plant, milestone = number, units = MILESTONE_COUNTS[number] })
+		end
+	end
+	return reached
+end
+
 -- Plant part of M_i: milestoneFactor^Meilensteine × Knoten (2 normally, 2.5 with P7).
 function Formulas.plantMultiplier(count: number, milestoneFactor: number, nodes: number): number
 	return milestoneFactor ^ Formulas.milestones(count) * nodes
