@@ -87,6 +87,28 @@ function Shop.skipsLeft(profile: any, day: number, shop: any): number
 	return math.max(0, shop.skipsPerDay - used)
 end
 
+-- Grid VIP: one free Turbo Feed-in per server day. True when the pass is owned and today's Turbo is not taken yet.
+function Shop.freeTurboReady(profile: any, day: number): boolean
+	return isDay(day) and profile.passes.grid_vip == true and profile.daily.turboDay ~= day
+end
+
+-- Takes today's free Turbo: the profile with the day written, and nil; or the input and the reason ("invalid day", "no
+-- pass", "already taken"). Starting the Turbo itself is up to the caller (the same booster the shop sells).
+function Shop.claimFreeTurbo(profile: any, day: any): (any, string?)
+	if not isDay(day) then
+		return profile, "invalid day"
+	end
+	if profile.passes.grid_vip ~= true then
+		return profile, "no pass"
+	end
+	if profile.daily.turboDay == day then
+		return profile, "already taken"
+	end
+	local result = copy(profile)
+	result.daily.turboDay = day
+	return result, nil
+end
+
 -- What the Extras tab needs from the profile: the passes owned, the seconds in the booster queue and the Time Skips left
 -- today (nil without a daily limit). `shown`: the tab may show at all, i.e. the shop is allowed for this player, the
 -- tutorial is done and the time played reached the first hint minute (Config/Shop). That time is `playSeconds` of this session
@@ -112,6 +134,7 @@ function Shop.extrasView(
 			and playSeconds + (profile.playSeconds or 0) >= shop.firstHintSeconds,
 		owned = owned,
 		stock = Shop.boosterStock(profile),
+		freeTurbo = Shop.freeTurboReady(profile, day), -- Grid VIP: today's free Turbo can be taken (HUD button)
 		skipsLeft = if skipsLeft == math.huge then nil else skipsLeft,
 		-- Spark packs: shown from grid stage 1 on, and only while the sparks still missing cover the pack.
 		level = profile.level,
