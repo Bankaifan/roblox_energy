@@ -47,7 +47,20 @@ local started: { [Player]: number } = {}
 -- Auto Crank: the hand cranks since the last tick (they use their share of the limit first) and the carried fraction.
 local handCranks: { [Player]: number } = {}
 local crankCarry: { [Player]: number } = {}
+-- Auto-build (Smart Hub): at most one purchase try per player in this many seconds (os.clock of the last try).
+local AUTO_BUILD_SECONDS = 2
+local lastAutoBuild: { [Player]: number } = {}
 local Session = {}
+
+-- True (and the try is noted) when the player's last auto-build try is at least AUTO_BUILD_SECONDS ago.
+local function autoBuildDue(player: Player): boolean
+	local now = os.clock()
+	if now - (lastAutoBuild[player] or -math.huge) < AUTO_BUILD_SECONDS then
+		return false
+	end
+	lastAutoBuild[player] = now
+	return true
+end
 
 -- The bought effects of the player (Core/Shop.envValues): sale multiplier, Sunshine boost, Long Meter, Smart Hub.
 -- Without a player (no profile) there are none.
@@ -218,6 +231,7 @@ function Session.stop(player: Player)
 	started[player] = nil
 	handCranks[player] = nil
 	crankCarry[player] = nil
+	lastAutoBuild[player] = nil
 	BoostService.forget(player)
 	LeaderboardService.forget(player)
 	PlotPublicService.forget(player)
@@ -265,6 +279,9 @@ end
 function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, action: { [string]: any })
 	local state = states[player]
 	if state == nil then
+		return
+	end
+	if action.type == "AutoBuild" and not autoBuildDue(player) then
 		return
 	end
 	local phase, weather = Env.update(remotes)
@@ -351,6 +368,11 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			end
 		end
 		handCranks[player] = 0
+		-- Auto-build: the core checks the pass and the switch; the timer is the server's.
+		local setting = state.rules.autobuild
+		if env.autoBuild == true and setting ~= nil and setting.on and autoBuildDue(player) then
+			state = GameCore.apply(state, { type = "AutoBuild" }, env)
+		end
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
 		DataService.sync(player, nextState)
