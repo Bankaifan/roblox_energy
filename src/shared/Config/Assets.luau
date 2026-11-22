@@ -2,7 +2,9 @@
 -- Plant models (issue #80): plant id -> model file in assets/models (ServerStorage.Models), a size factor and a cap for
 -- the visible copies. No entry or no file: the plot builds the primitive column. Pure functions, no Roblox APIs.
 -- `flat`: the model is a slab that lies on the ground with its glass side up (Core/Flat).
-export type Entry = { file: string, scale: number, cap: number, flat: boolean? }
+-- `lean`: degrees about the world's Z the model is turned before it is placed (the solar farm was modelled on a 15 degree
+-- slope: legs normal to the slope, rails along it, so turned by 15 the legs stand upright and the panels tilt with the frame).
+export type Entry = { file: string, scale: number, cap: number, flat: boolean?, lean: number? }
 
 local Assets = {}
 
@@ -142,7 +144,7 @@ Assets.plants = {
 	[2] = { file = "plant2_waterwheel", scale = 0.4, cap = 4 },
 	[3] = { file = "plant3_house", scale = 1, cap = 4 },
 	[4] = { file = "plant4_miniturbine", scale = 1, cap = 4 },
-	[5] = { file = "plant5_solarfarm", scale = 1, cap = 4 },
+	[5] = { file = "plant5_solarfarm", scale = 1, cap = 4, lean = 15 },
 	[6] = { file = "plant6_windturbine", scale = 1, cap = 4 },
 } :: { [number]: Entry }
 
