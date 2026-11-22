@@ -186,10 +186,22 @@ local function railsFor(record: Record, site: { x: number, z: number }): Model
 	return rails
 end
 
--- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count or the layout changes.
-local function updateUnits(record: Record, index: number, owned: number, cells: { number }, aligned: { number })
+-- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count, the layout or (big wind turbine)
+-- the S5 colour changes. `paint` is the chosen S5 colour (0 = none): it puts tip caps on the blades of plant 6.
+local function updateUnits(
+	record: Record,
+	index: number,
+	owned: number,
+	cells: { number },
+	aligned: { number },
+	paint: number
+)
 	local sites = unitSites(record, index, owned, cells, aligned)
-	local key = table.concat(cells, ",", 1, #sites) .. "|" .. table.concat(aligned, ",")
+	local tint = if index == 6 and paint >= 1 then Assets.paintColors[paint] else nil
+	local key = table.concat(cells, ",", 1, #sites)
+		.. "|"
+		.. table.concat(aligned, ",")
+		.. (if tint ~= nil then `|p{paint}` else "")
 	if record.keys[index] == key then
 		return
 	end
@@ -210,6 +222,9 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		local lift = if Assets.foundations[index] ~= nil then 2 * Assets.FOUNDATION_STEP - 0.15 else 0
 		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y + lift, angle)
 		PlantModels.tagRotor(copy, index)
+		if tint ~= nil then
+			PlantModels.paintTips(copy, index, Color3.fromRGB(tint[1], tint[2], tint[3]))
+		end
 		copy.Parent = record.model
 		table.insert(shown, copy)
 		if site.rail == true then
@@ -950,7 +965,8 @@ function PlotService.update(
 			if index == 2 then
 				updateWheels(record, counts[2] or 0)
 			else
-				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, ownLand.aligned or {})
+				local paint = if extras ~= nil and extras.paint ~= nil then extras.paint else 0
+				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, ownLand.aligned or {}, paint)
 				if index == 3 then
 					updateShells(record, counts[3] or 0, cells)
 				end
