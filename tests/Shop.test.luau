@@ -454,6 +454,16 @@ return function(t, load)
 	t.equal(limitReason, "permanent limit", "the reason names the limit")
 	t.equal(next(Shop.permanentOffers(ten, Catalogue)), nil, "a full type has no offer")
 
+	-- Covered nodes: the Smart Hub gives P3 and P8, so they are not offered with the pass; nothing else is covered.
+	local owned = { smart_hub = true }
+	t.equal(Shop.coveredByPass("P3", owned, Catalogue), "smart_hub", "P3 is covered by the Smart Hub")
+	t.equal(Shop.coveredByPass("P8", owned, Catalogue), "smart_hub", "P8 is covered by the Smart Hub")
+	t.equal(Shop.coveredByPass("P3", {}, Catalogue), nil, "not without the pass")
+	t.equal(Shop.coveredByPass("P2", owned, Catalogue), nil, "P2 is not the same as the Long Meter")
+	t.equal(Shop.coveredByPass("S6", { founder = true }, Catalogue), nil, "S6 is not the Founder Pack")
+	t.equal(Shop.coveredByPass("P3", owned, with({ smartHubImmediate = false })), nil, "the hub gives nothing then")
+	t.equal(Shop.envValues({ passes = owned }, Catalogue, false, false).covered.P8, "smart_hub", "env carries it")
+
 	-- The env carries the counts to the run start; the Extras facts carry the open offers.
 	t.equal(Shop.envValues(one, Catalogue, false, false).permanent[1], 1, "envValues holds the permanent plants")
 	t.truthy(
