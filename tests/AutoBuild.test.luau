@@ -75,4 +75,30 @@ return function(t, load)
 	local poor, poorOk = GameCore.apply(fresh(18, { 1, 0, 0, 0, 0, 0 }, on), { type = "AutoBuild" }, env(true))
 	t.truthy(poorOk, "18 coins buy a panel")
 	t.equal(poor.plants[2], 0, "never a plant that costs more than the coins")
+
+	-- Auto storage mode needs a storage rule: the auto-build switch alone does not count.
+	local only = fresh(0, { 0, 0, 0, 0, 0, 0 }, on)
+	only.nodes.U17 = true
+	only.nodes.U21 = true
+	only.storage.mode = "charge"
+	local _, onlyOk = GameCore.apply(only, { type = "SetStorageMode", mode = "auto" }, env(true))
+	t.equal(onlyOk, false, "auto-build on only: Auto storage is refused")
+	only.rules.charge = { th = 0.7, on = true }
+	local _, chargeOk = GameCore.apply(only, { type = "SetStorageMode", mode = "auto" }, env(true))
+	t.truthy(chargeOk, "with a charge rule on, Auto is allowed")
+
+	-- The server tries at most every 2 seconds.
+	t.truthy(GameCore.autoBuildDue(nil, 5, 2), "the first try is due")
+	t.equal(GameCore.autoBuildDue(10, 11.9, 2), false, "not before the 2 seconds")
+	t.truthy(GameCore.autoBuildDue(10, 12, 2), "due after 2 seconds")
+
+	-- An expansion without P5 drops the rules but keeps the auto-build setting; with P5 everything stays.
+	local run = fresh(5000, { 5, 0, 0, 0, 0, 0 }, { th = 0.4, on = true })
+	run.rules.charge = { th = 0.7, on = true }
+	run.runEarned = 10000000
+	run.nodes.U21 = true
+	local expanded, expandOk = GameCore.apply(run, { type = "Prestige" }, env(true))
+	t.truthy(expandOk, "the expansion works")
+	t.equal(expanded.rules.charge, nil, "without P5 the charge rule is gone")
+	t.equal(expanded.rules.autobuild.th, 0.4, "the auto-build setting stays")
 end
