@@ -11,8 +11,12 @@ function ThemeMap.scene(libs: any, seed: number): any
 	local board = Assets.furniture.control
 	for index, field in Assets.fields do
 		local size = field.size * Assets.TILE
-		local cellSites =
-			PlotLayout.cellSites(field, PlotLayout.mown(nil, #field.cells, #field.cells), Assets.TILE, Assets.PLOT_TILES)
+		local cellSites = PlotLayout.cellSites(
+			field,
+			PlotLayout.mown(nil, #field.cells, #field.cells),
+			Assets.TILE,
+			Assets.PLOT_TILES
+		)
 		for _, site in cellSites do
 			table.insert(cells, { site.x, site.z, size })
 		end
