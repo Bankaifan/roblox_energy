@@ -1178,6 +1178,8 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 				hold = tool.hold * GameCore.holdFactor(state, env.config.effects),
 				owned = owned,
 				revealed = revealed,
+				requiresPlant = if tool.node == nil and tool.plant > 1 then tool.plant - 1 else nil,
+				requiresNode = tool.node,
 				buyable = revealed and not owned and cost <= state.coins,
 				textKey = tool.textKey,
 				place = "market",
