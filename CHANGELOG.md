@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.17] - 2026-11-23
+- Netz-Ausbau: Das Land beginnt wieder bei null (nur Sense, nichts vorbereitet, kein Container, keine Verkabelung, keine Schienen, Werkzeuge müssen neu gekauft werden). Stamm-Anlagen und das Start-Set (S1) stehen auf frisch vorbereitetem Boden. Funken-Upgrades bleiben.
+- Netz-Ausbau setzt das Land zurück (GameCore.prestige, Container-Modell in PlotService)
+
 ## [0.16] - 2026-11-23
 - Grid VIP: Die Erdkabel deines Netzes leuchten jetzt neonfarben mit einem sanften Licht.
 - Die Stamm-Anlagen (Robux) auf den Pflanzenkarten sind jetzt cyan Buttons und sehen so aus, als kann man sie antippen.
