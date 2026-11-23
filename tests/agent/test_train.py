@@ -14,6 +14,7 @@ def ruleset(monkeypatch):
     """Pins the ruleset's required checks; run_train reads them from main.json."""
     monkeypatch.setattr(train.status, "required_contexts", lambda: set(REQUIRED))
     monkeypatch.setattr(train, "release_main", lambda *a, **k: "")  # run_train never touches the network
+    monkeypatch.setattr(train.branch_repair, "repair", lambda *a, **k: None)  # nor git: the API rebase is the fallback
 
 
 def pr(n, *, branch=None, merge="CLEAN", labels=(), files=("tools/x.py",), auto=True, checks=(), cross=False):
@@ -689,6 +690,85 @@ def test_what_the_train_builds_is_what_reapprove_accepts(tmp_path, monkeypatch):
     posted = []
     assert train.reapprove.run_reapprove("9", shas[9], {**ENV, "AUTHOR_BOT": "app/author"}, gh) == 0
     assert f"commit_id={shas[9]}" in posted[0] and "event=APPROVE" in posted[0]
+
+
+def named(n, subjects, **kw):
+    """An agent PR titled `V1-FOO: ...` with these commit subjects."""
+    return {**pr(n, **kw), "title": "V1-FOO: summary", "commits": [{"messageHeadline": s} for s in subjects]}
+
+
+class Repairer:
+    def __init__(self, how):
+        self.how, self.calls = how, []
+
+    def __call__(self, p, name):
+        self.calls.append((p["number"], name))
+        return self.how
+
+
+def test_a_pr_with_wrong_commit_subjects_is_repaired_by_script_and_left_alone_for_the_rest_of_the_run(capsys):
+    bad = named(2, ["V1.103-FOO: ok", "fix typo"], merge="BEHIND")
+    fine = named(3, ["V1.103-FOO: ok", "Merge branch 'main' into agent/3-x"], merge="BLOCKED")
+    parked = named(4, ["fix typo"], labels=["parked"])
+    other = {**named(5, ["fix typo"]), "title": "Template sync 1.2"}
+    assert [train.needs_repair(p) for p in (bad, fine, parked, other)] == ["FOO", None, None, None]
+    fix, run = Repairer("pushed"), Gh([bad, fine, parked, other], approved(bad))
+    assert train.run_train(ENV, run, repairer=fix) == 0
+    assert fix.calls == [(2, "FOO")] and run.mutations() == []  # its head moved: not rebased again in this run
+    assert "repair PR #2: pushed" in capsys.readouterr().out
+
+
+def test_repairs_are_capped_per_run_and_a_failed_one_changes_nothing(capsys):
+    prs = [named(n, ["fix typo"], merge="BLOCKED") for n in range(1, 7)]
+    fix, run = Repairer(None), Gh(prs)
+    assert train.run_train(ENV, run, repairer=fix) == 0
+    assert [n for n, _ in fix.calls] == [1, 2, 3] == list(range(1, train.REPAIR_MAX + 1))
+    assert run.mutations() == [] and "repair PR #1: failed" in capsys.readouterr().out
+
+
+def test_the_behind_pr_is_rebased_by_the_script_and_the_api_is_only_the_fallback():
+    p = named(2, ["V1.103-FOO: ok"], merge="BEHIND")
+    for how, api in (("pushed", False), (None, True), ("same", True), ("moved", False), ("empty", False)):
+        fix, run = Repairer(how), Gh([p], approved(p))
+        assert train.run_train(ENV, run, repairer=fix) == 0
+        assert fix.calls == [(2, "FOO")], how
+        assert (("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase") in run.calls) is api, how
+
+
+def test_a_rebase_that_stops_on_a_conflict_goes_to_the_conflict_fix_once_per_head():
+    p = named(2, ["V1.103-FOO: ok"], merge="BEHIND")
+    run = Gh([p], approved(p))
+    assert train.run_train(ENV, run, repairer=Repairer("conflict")) == 0
+    assert ("workflow", "run", "agent-fix.yml", "-f", "pr=2") in run.calls
+    assert not any(c[:3] == ("api", "-X", "PUT") for c in run.calls)
+    for kw in ({"labels": ["conflict:sha2"]}, {}):
+        p = named(2, ["V1.103-FOO: ok"], merge="BEHIND", **kw)
+        run = Gh([p], approved(p), fix_runs=[] if kw else [{"status": "in_progress"}])
+        assert train.run_train(ENV, run, repairer=Repairer("conflict")) == 0
+        assert not any(c[:2] == ("workflow", "run") for c in run.calls), kw
+
+
+def test_the_train_closes_the_issue_of_a_merged_pr_first_and_a_failure_there_stops_nothing(capsys):
+    class Merged(Gh):
+        def __call__(self, *args):
+            if args[:2] == ("pr", "list") and "merged" in args:
+                return json.dumps([{"number": 9, "headRefName": "agent/316-x", "body": "work on #316",
+                                    "baseRefName": "main", "isCrossRepository": False, "mergedAt": "2026-11-22T01:00:00Z"}])
+            if args[:2] == ("issue", "list") and "stateReason" in args[-1]:
+                return json.dumps([{"number": 316, "labels": [{"name": "agent:dev"}], "stateReason": None}])
+            return super().__call__(*args)
+
+    run = Merged([])
+    assert train.run_train(ENV, run) == 0
+    assert ("issue", "close", "316", "--reason", "completed", "--comment", "Completed by #9 (merged).") in run.calls
+    assert ("issue", "edit", "316", "--remove-label", "agent:dev") in run.calls
+    assert "closed issue #316: PR #9 is merged" in capsys.readouterr().out
+    p = pr(2, merge="BEHIND")
+    run = Merged([p], approved(p), fail=("issue", "close"))
+    assert train.run_train(ENV, run) == 0 and REBASE_2 in run.calls
+
+
+REBASE_2 = ("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase")
 
 
 def test_main_usage_error():
