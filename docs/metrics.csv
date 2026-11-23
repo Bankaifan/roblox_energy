@@ -1,2 +1,3 @@
 week,code_lines,modules,lines_by_lang,modules_by_lang,max_parallel_agent_prs,conflicts_rebuilt,avg_review_rounds,median_ci_minutes,actions_minutes
 2026-11-16,19468,178,python=19375;shell=93,python=175;shell=3,8,,1.11,3.2,
+2026-11-23,20222,180,python=20101;shell=121,python=177;shell=3,15,,1.21,11.7,
