@@ -66,6 +66,31 @@ function Shop.sparksMissing(profile: any, upgrades: any): number
 	return math.max(0, total - profile.sparks)
 end
 
+-- The pass that already gives the effect of a permanent node (shop.covers), when it is owned and really gives it:
+-- the Smart Hub counts only with smartHubImmediate. nil otherwise.
+function Shop.coveredByPass(nodeId: any, passes: { [string]: any }, shop: any): string?
+	local pass = if shop.covers ~= nil then shop.covers[nodeId] else nil
+	if pass == nil or passes[pass] ~= true then
+		return nil
+	end
+	if pass == "smart_hub" and not shop.smartHubImmediate then
+		return nil
+	end
+	return pass
+end
+
+-- The covered permanent nodes of a profile: node id -> pass id.
+function Shop.coveredNodes(passes: { [string]: any }, shop: any): { [string]: string }
+	local result = {}
+	for nodeId in shop.covers or {} do
+		local pass = Shop.coveredByPass(nodeId, passes, shop)
+		if pass ~= nil then
+			result[nodeId] = pass
+		end
+	end
+	return result
+end
+
 -- The sparks a pack gives (0 for any other offer).
 function Shop.packSparks(shop: any, offerId: any): number
 	local offer = findOffer(shop, offerId)
@@ -87,9 +112,32 @@ function Shop.skipsLeft(profile: any, day: number, shop: any): number
 	return math.max(0, shop.skipsPerDay - used)
 end
 
+-- Grid VIP: one free Turbo Feed-in per server day. True when the pass is owned and today's Turbo is not taken yet.
+function Shop.freeTurboReady(profile: any, day: number): boolean
+	return isDay(day) and profile.passes.grid_vip == true and profile.daily.turboDay ~= day
+end
+
+-- Takes today's free Turbo: the profile with the day written, and nil; or the input and the reason ("invalid day", "no
+-- pass", "already taken"). Starting the Turbo itself is up to the caller (the same booster the shop sells).
+function Shop.claimFreeTurbo(profile: any, day: any): (any, string?)
+	if not isDay(day) then
+		return profile, "invalid day"
+	end
+	if profile.passes.grid_vip ~= true then
+		return profile, "no pass"
+	end
+	if profile.daily.turboDay == day then
+		return profile, "already taken"
+	end
+	local result = copy(profile)
+	result.daily.turboDay = day
+	return result, nil
+end
+
 -- What the Extras tab needs from the profile: the passes owned, the seconds in the booster queue and the Time Skips left
 -- today (nil without a daily limit). `shown`: the tab may show at all, i.e. the shop is allowed for this player, the
--- tutorial is done and `playSeconds` reached the first hint minute (Config/Shop).
+-- tutorial is done and the time played reached the first hint minute (Config/Shop). That time is `playSeconds` of this session
+-- plus what earlier sessions left in the profile, so the wait is once, not after every start.
 function Shop.extrasView(
 	profile: any,
 	day: number,
@@ -106,9 +154,12 @@ function Shop.extrasView(
 	end
 	local skipsLeft = Shop.skipsLeft(profile, day, shop)
 	return {
-		shown = allowed and profile.tutorialDone == true and playSeconds >= shop.firstHintSeconds,
+		shown = allowed
+			and profile.tutorialDone == true
+			and playSeconds + (profile.playSeconds or 0) >= shop.firstHintSeconds,
 		owned = owned,
 		stock = Shop.boosterStock(profile),
+		freeTurbo = Shop.freeTurboReady(profile, day), -- Grid VIP: today's free Turbo can be taken (HUD button)
 		skipsLeft = if skipsLeft == math.huge then nil else skipsLeft,
 		-- Spark packs: shown from grid stage 1 on, and only while the sparks still missing cover the pack.
 		level = profile.level,
@@ -184,6 +235,7 @@ function Shop.envValues(profile: any, shop: any, sunshine: boolean, turbo: boole
 		longMeter = Shop.offlineBonusHours(profile, shop) > 0,
 		ruleSlots = if slots > 0 then slots else nil,
 		autoBuild = auto,
+		covered = Shop.coveredNodes(profile.passes, shop),
 		storageFactor = Shop.storageFactor(profile, shop),
 		permanent = if profile.permanent ~= nil then table.clone(profile.permanent) else nil,
 	}

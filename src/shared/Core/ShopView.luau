@@ -122,6 +122,18 @@ local function permanentLines(input: Input, index: number): { Button }?
 	return if #lines > 0 then lines else nil
 end
 
+-- The milestone line of a plant card: the next threshold, its factor (2 or 2.5 with P7) and the units still missing.
+local function milestoneLine(input: Input, item: any): string
+	if item.nextMilestone == nil then
+		return input.t("milestone.done")
+	end
+	return input.t("milestone.next", {
+		next = item.nextMilestone,
+		factor = input.view.milestoneFactor or 2,
+		missing = item.nextMilestone - (item.units or 0),
+	})
+end
+
 local function plantCards(input: Input): { Card }
 	local cards: { Card } = {}
 	for index, plant in input.plants do
@@ -153,6 +165,7 @@ local function plantCards(input: Input): { Card }
 			card.price = price(input, item.cost)
 			card.button = buy(input, item.affordable, "BuyPlant", { plant = index, qty = 1 })
 		end
+		card.info ..= "\n" .. milestoneLine(input, item)
 		card.permanent = permanentLines(input, index)
 		table.insert(cards, card)
 	end
@@ -251,6 +264,9 @@ local function storageCards(input: Input): { Card }
 		table.insert(cards, card)
 	end
 	for _, card in ShopView.ruleCards(input) do
+		table.insert(cards, card)
+	end
+	for _, card in ShopView.autoBuildCards(input) do
 		table.insert(cards, card)
 	end
 	if stored.stage >= 2 then
@@ -353,6 +369,46 @@ function ShopView.ruleCards(input: Input): { Card }
 	return cards
 end
 
+-- The Smart Hub auto-build card (owners only): its switch and the coin reserve stepper (0 to 90 % in tens). Sends the
+-- same SetRule message as the other rules, under the id "autobuild".
+function ShopView.autoBuildCards(input: Input): { Card }
+	local setting = input.view.storage.autoBuild
+	if setting == nil then
+		return {}
+	end
+	local t = input.t
+	local step = input.ruleStep or 0.1
+	local function message(th: number, on: boolean, text: string, enabled: boolean): Button
+		return {
+			text = text,
+			enabled = enabled,
+			remote = "SetRule",
+			payload = { rule = "autobuild", th = tenths(th), on = on },
+		}
+	end
+	local percent = `{math.floor(step * 100 + 0.5)} %`
+	local switch = t(if setting.on then "rule.switchOff" else "rule.switchOn")
+	local canDown = setting.th > setting.min + 1e-9
+	local canUp = setting.th < setting.max - 1e-9
+	return {
+		{
+			id = "rule.autobuild",
+			icon = "plant.1",
+			title = t("rule.autobuild"),
+			info = t("rule.autobuildStatus", {
+				percent = math.floor(setting.th * 100 + 0.5),
+				state = t(if setting.on then "state.on" else "state.off"),
+			}),
+			state = if setting.on then "active" else "idle",
+			button = message(setting.th, not setting.on, switch, true),
+			steps = {
+				down = message(setting.th - step, setting.on, t("rule.down", { step = percent }), canDown),
+				up = message(setting.th + step, setting.on, t("rule.up", { step = percent }), canUp),
+			},
+		},
+	}
+end
+
 -- One card per tool: the info line says what the tool unlocks, also while the tool is not for sale yet. A view without
 -- tools (the server has no land rules yet) still lists every tool of the config, as not available yet.
 local function toolCards(input: Input): { Card }
@@ -399,6 +455,9 @@ local function sparkCards(input: Input): { Card }
 		if item.owned then
 			card.state = "owned"
 			card.status = input.t("reason.bought")
+		elseif item.covered ~= nil then
+			card.state = "owned"
+			card.status = input.t(`reason.included.{item.covered}`)
 		else
 			card.state = if item.buyable then "affordable" else "short"
 			card.price = input.t("market.sparkPrice", { cost = item.sparks })

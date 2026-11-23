@@ -164,6 +164,26 @@ return function(t, load)
 	t.equal(nextReason, nil, "a Time Skip on the next day is bought")
 	t.equal(nextYield, 1200, "and pays 20 minutes")
 	t.equal(Shop.skipsLeft(nextDay, DAY + 1, Catalogue), 2, "one used on the new day")
+	-- Grid VIP: one free Turbo per server day, only with the pass.
+	local vip = Data.template()
+	t.equal(Shop.freeTurboReady(vip, DAY), false, "no free Turbo without Grid VIP")
+	local _, noPass = Shop.claimFreeTurbo(vip, DAY)
+	t.equal(noPass, "no pass", "a claim without the pass is refused")
+	vip.passes.grid_vip = true
+	t.equal(Shop.freeTurboReady(vip, DAY), true, "the pass makes the free Turbo ready")
+	t.equal(Shop.extrasView(vip, DAY, Catalogue, true, 720).freeTurbo, true, "the Extras view says so")
+	local taken, takenReason = Shop.claimFreeTurbo(vip, DAY)
+	t.equal(takenReason, nil, "the free Turbo is taken")
+	t.equal(taken.daily.turboDay, DAY, "the day is written")
+	t.equal(vip.daily.turboDay, 0, "the input profile is not changed")
+	t.equal(Shop.freeTurboReady(taken, DAY), false, "not ready again today")
+	local _, twice = Shop.claimFreeTurbo(taken, DAY)
+	t.equal(twice, "already taken", "a second claim on the same day is refused")
+	t.equal(Shop.freeTurboReady(taken, DAY + 1), true, "ready again the next day")
+	local _, badDay = Shop.claimFreeTurbo(vip, 0 / 0)
+	t.equal(badDay, "invalid day", "a NaN day is refused")
+	t.equal(taken.daily.skips, 0, "the Time Skip count is untouched")
+
 	-- Extras tab view: owned passes, booster stock, Time Skips left, and when the tab may show at all.
 	local extrasBase = Data.template()
 	extrasBase.tutorialDone = true
@@ -176,6 +196,11 @@ return function(t, load)
 	t.equal(view.skipsLeft, 3, "three Time Skips left")
 	t.equal(Shop.extrasView(extrasBase, DAY, Catalogue, true, 719).shown, false, "hidden before minute 12")
 	t.equal(Shop.extrasView(extrasBase, DAY, Catalogue, false, 720).shown, false, "hidden when the shop is not allowed")
+	local earlier = Data.template()
+	earlier.tutorialDone = true
+	earlier.playSeconds = 700
+	t.equal(Shop.extrasView(earlier, DAY, Catalogue, true, 20).shown, true, "earlier sessions count: no new 12 minutes")
+	t.equal(Shop.extrasView(earlier, DAY, Catalogue, true, 19).shown, false, "but 700 + 19 s is still short")
 	local unfinished = table.clone(extrasBase)
 	unfinished.tutorialDone = false
 	t.equal(Shop.extrasView(unfinished, DAY, Catalogue, true, 720).shown, false, "hidden during the tutorial")
@@ -428,6 +453,16 @@ return function(t, load)
 	local _, _, limitReason = Shop.purchase(pack, "perm1", DAY, Catalogue)
 	t.equal(limitReason, "permanent limit", "the reason names the limit")
 	t.equal(next(Shop.permanentOffers(ten, Catalogue)), nil, "a full type has no offer")
+
+	-- Covered nodes: the Smart Hub gives P3 and P8, so they are not offered with the pass; nothing else is covered.
+	local owned = { smart_hub = true }
+	t.equal(Shop.coveredByPass("P3", owned, Catalogue), "smart_hub", "P3 is covered by the Smart Hub")
+	t.equal(Shop.coveredByPass("P8", owned, Catalogue), "smart_hub", "P8 is covered by the Smart Hub")
+	t.equal(Shop.coveredByPass("P3", {}, Catalogue), nil, "not without the pass")
+	t.equal(Shop.coveredByPass("P2", owned, Catalogue), nil, "P2 is not the same as the Long Meter")
+	t.equal(Shop.coveredByPass("S6", { founder = true }, Catalogue), nil, "S6 is not the Founder Pack")
+	t.equal(Shop.coveredByPass("P3", owned, with({ smartHubImmediate = false })), nil, "the hub gives nothing then")
+	t.equal(Shop.envValues({ passes = owned }, Catalogue, false, false).covered.P8, "smart_hub", "env carries it")
 
 	-- The env carries the counts to the run start; the Extras facts carry the open offers.
 	t.equal(Shop.envValues(one, Catalogue, false, false).permanent[1], 1, "envValues holds the permanent plants")

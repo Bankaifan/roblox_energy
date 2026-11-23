@@ -1,0 +1,1 @@
+Neu für Smart-Hub-Besitzer: Der Auto-Bau lässt sich in der Regelautomatik ein- und ausschalten und hat eine Coin-Reserve von 0 bis 90 %. Er kauft alle 2 Sekunden die Anlage mit der kürzesten Amortisation, solange die Reserve bleibt.

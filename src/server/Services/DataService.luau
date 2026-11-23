@@ -55,6 +55,14 @@ function DataService.load(player: Player): (any?, number)
 end
 
 -- The loaded, active profile of a player (ProfileStore profile, Data holds the save), or nil when none is loaded.
+-- Adds the seconds of a finished session to the time played that the profile keeps (never negative).
+function DataService.addPlaySeconds(player: Player, seconds: number)
+	local profile = profiles[player]
+	if profile ~= nil and profile:IsActive() then
+		profile.Data.playSeconds = (profile.Data.playSeconds or 0) + math.max(0, seconds)
+	end
+end
+
 function DataService.profileOf(player: Player): any?
 	local profile = profiles[player]
 	if profile ~= nil and profile:IsActive() then

@@ -71,7 +71,10 @@ return function(t, load)
 	t.equal(#plants, 6, "one card per plant")
 	t.equal(plants[1].state, "hint", "a plant without a site is a hint")
 	t.equal(plants[1].button.tab, "tools", "its button opens the Tools tab")
-	t.equal(plants[2].info, "Prepare the ground first: Shovel in hand", "the water wheel names the shovel")
+	t.truthy(
+		plants[2].info:find("Prepare the ground first: Shovel in hand\n", 1, true) == 1,
+		"the water wheel names the shovel"
+	)
 	state.land = table.clone(Land.start)
 	state.land.tools = { scythe = true }
 	state.land.sites = { 1, 0, 0, 0, 0, 0 }
@@ -83,7 +86,7 @@ return function(t, load)
 	state.plants[1] = 1
 	plants = cards("plants", state)
 	t.equal(plants[1].state, "hint", "every mown cell carries a unit")
-	t.equal(plants[1].info, "Mow more ground first", "the card names the reason")
+	t.truthy(plants[1].info:find("Mow more ground first\n", 1, true) == 1, "the card names the reason")
 	t.equal(plants[1].button, nil, "and offers no purchase")
 	state.plants[1] = 0
 	state.coins = 5
@@ -91,6 +94,19 @@ return function(t, load)
 	t.equal(plants[1].state, "short", "5 coins are short")
 	t.equal(plants[1].button.enabled, false, "the Buy button is off")
 	t.equal(cards("plants", state, "de")[1].title, "Balkonmodul", "German titles")
+
+	-- Milestone line: units missing, the P7 factor, and the end after 200 units.
+	state.plants[1] = 7
+	t.truthy(
+		cards("plants", state)[1].info:find("Next milestone at 10 units: x2 (3 to go)", 1, true) ~= nil,
+		"the card shows the next milestone"
+	)
+	state.pnodes.P7 = true
+	t.truthy(cards("plants", state)[1].info:find("x2.5 (3 to go)", 1, true) ~= nil, "P7 shows x2.5")
+	state.pnodes.P7 = nil
+	state.plants[1] = 200
+	t.truthy(cards("plants", state)[1].info:find("All milestones reached", 1, true) ~= nil, "after the last one")
+	state.plants[1] = 1
 
 	-- Upgrades: locked names the requirement, bought has no button, affordable buys the node.
 	state.coins = 100
@@ -144,6 +160,17 @@ return function(t, load)
 	t.equal(stored["rule.charge"].button.payload.on, false, "the switch turns a running rule off")
 	t.equal(stored["mode.auto"].button.payload.mode, "auto", "a rule on makes Auto selectable")
 
+	-- Auto-build (Smart Hub owners only): a switch and a coin reserve stepper in tens of percent.
+	t.equal(stored["rule.autobuild"], nil, "no auto-build card without the pass")
+	env.autoBuild = true
+	stored = byId(cards("storage", state))
+	local auto = stored["rule.autobuild"]
+	t.equal(auto.info:find("keeps 20 %", 1, true) ~= nil, true, "the reserve starts at 20 %")
+	t.equal(auto.button.payload.rule, "autobuild", "the switch sets the auto-build rule")
+	t.equal(auto.steps.down.payload.th, 0.1, "the stepper lowers by ten percent")
+	t.equal(auto.steps.up.text, "+ 10 %", "and says percent")
+	env.autoBuild = nil
+
 	-- Tools: owned, not yet available, buyable; every card explains what the tool unlocks.
 	state.coins = 40
 	local tools = byId(cards("tools", state))
@@ -179,12 +206,33 @@ return function(t, load)
 	t.truthy(not sparks.S4.button.enabled, "its button is off")
 	t.equal(byId(cards("sparks", sparkState, "de")).S2.title, "S2 Werkzeug-Rabatt", "German item name")
 
+	-- A node the Smart Hub covers shows as included: no button, no price.
+	local hubEnv: any = table.clone(env)
+	hubEnv.covered = { P3 = "smart_hub", P8 = "smart_hub" }
+	local hubState = fresh()
+	hubState.sparks = 100
+	local hubCards = byId(ShopView.cards("sparks", {
+		view = GameCore.view(hubState, hubEnv),
+		coins = 0,
+		plants = config.plants,
+		upgrades = config.upgrades,
+		land = land,
+		ruleStep = config.effects.ruleStep,
+		t = function(key: string, args: any): string
+			return Locale.t(key, "en", args)
+		end,
+	}))
+	t.equal(hubCards.P3.status, "Included with Smart Hub", "P3 says it is included")
+	t.equal(hubCards.P3.button, nil, "P3 has no buy button")
+	t.equal(hubCards.P8.price, nil, "P8 has no price")
+	t.truthy(hubCards.P1.button ~= nil, "P1 is still for sale")
+
 	-- Production tab: a total card and one card per owned plant with the formula.
 	local made = fresh()
 	made.plants[1] = 3
 	local output = cards("production", made)
 	t.equal(#output, 2, "a total card and one plant card")
-	t.truthy(output[2].info:find("3 x 1 x M", 1, true) ~= nil, "the plant card shows its count and base power")
+	t.truthy(output[2].info:find("3 units x 1 base x", 1, true) ~= nil, "the plant card shows its count and base power")
 	t.truthy(output[2].status ~= nil, "and its output")
 	-- The numbers: the total is the sum of the rows, the grid part follows the level, aligned panels count more than owned.
 	made.level = 2

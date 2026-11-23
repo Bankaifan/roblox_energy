@@ -46,6 +46,7 @@ export type Env = {
 	income: number?, -- the bought sale multiplier (Premium Tariff, Turbo Feed-in, Core/Shop); nil or 1 = none
 	ruleSlots: number?, -- rule slots open (Config/Effects.ruleSlots without the Smart Hub, 3 with it)
 	autoBuild: boolean?, -- the Smart Hub auto-build is owned
+	covered: { [string]: string }?, -- permanent node id -> the pass that gives it (Shop.coveredNodes): not buyable
 	storageFactor: number?, -- the Mega Battery: the storage capacity times this (Core/Shop.storageFactor); nil = 1
 	permanent: { number }?, -- permanent plants per plant id (Robux): every run starts with them
 	nextWeather: Weather?, -- the weather of the next period; the view shows it only with U15
@@ -253,12 +254,19 @@ local function autoReady(state: State, env: Env): boolean
 	if not rulesUnlocked(state, env) then
 		return false
 	end
-	for _, rule in state.rules do
-		if rule.on then
+	-- Only the storage rules count: the auto-build switch and the reserve alone leave the storage idle.
+	for _, id in { "charge", "sell" } do
+		local rule = state.rules[id]
+		if rule ~= nil and rule.on then
 			return true
 		end
 	end
 	return false
+end
+
+-- True when the last auto-build try (a clock reading, nil if none) is at least `every` seconds before `now`.
+function GameCore.autoBuildDue(last: number?, now: number, every: number): boolean
+	return last == nil or now - last >= every
 end
 
 -- What the storage does this second: "charge", "sell" or "idle". In "auto" the rules decide;
@@ -424,17 +432,35 @@ local function buyPlant(state: State, env: Env, action: { [string]: any }): bool
 	return true
 end
 
--- Smart Hub auto-build: buys one unit of the dearest plant the coins cover (the same checks as BuyPlant).
+-- Smart Hub auto-build: buys one unit of the plant with the shortest payback (price / extra noon output) among those the
+-- coins cover (the same checks as BuyPlant), if the coins left stay at or above the reserve share of the coins before.
+-- Needs the Smart Hub and the switch "autobuild" on; its threshold is the coin reserve.
 local function autoBuild(state: State, env: Env): boolean
 	if env.autoBuild ~= true then
 		return false
 	end
-	for index = #env.config.plants, 1, -1 do
-		if buyPlant(state, env, { plant = index, qty = 1 }) then
-			return true
+	local setting = ruleOf(state, env, "autobuild")
+	if not setting.on then
+		return false
+	end
+	local before = middayOutput(state, env)
+	local best, bestPayback = nil, math.huge
+	for index = 1, #env.config.plants do
+		local trial = copy(state)
+		if buyPlant(trial, env, { plant = index, qty = 1 }) and trial.coins >= state.coins * setting.th then
+			local gain = middayOutput(trial, env) - before
+			local payback = if gain > 0 then (state.coins - trial.coins) / gain else math.huge
+			if payback < bestPayback then
+				best, bestPayback = trial, payback
+			end
 		end
 	end
-	return false
+	if best == nil then
+		return false
+	end
+	state.coins = best.coins
+	state.plants = best.plants
+	return true
 end
 
 -- Run nodes cost coins and need their prerequisite; permanent nodes cost sparks and reset nothing.
@@ -462,7 +488,10 @@ local function buyNode(state: State, env: Env, action: { [string]: any }): boole
 		return true
 	end
 	local permanent = findById(env.config.upgrades.permanent, id) or findById(env.config.upgrades.spark or {}, id)
-	if permanent == nil or permanent.sparks > state.sparks - state.sparksSpent then
+	if permanent == nil or (env.covered ~= nil and env.covered[id] ~= nil) then
+		return false
+	end
+	if permanent.sparks > state.sparks - state.sparksSpent then
 		return false
 	end
 	state.sparksSpent += permanent.sparks
@@ -473,7 +502,15 @@ end
 local function setRule(state: State, env: Env, action: { [string]: any }): boolean
 	local effects = env.config.effects
 	local id, th, on = action.rule, action.th, action.on
-	if type(id) ~= "string" or effects.rules[id] == nil or not rulesUnlocked(state, env) then
+	if type(id) ~= "string" or effects.rules[id] == nil then
+		return false
+	end
+	-- "autobuild" (switch + coin reserve) belongs to the Smart Hub, the others to the Regelzentrale.
+	if id == "autobuild" then
+		if env.autoBuild ~= true then
+			return false
+		end
+	elseif not rulesUnlocked(state, env) then
 		return false
 	end
 	if not isFinite(th) or type(on) ~= "boolean" or effects.rules[id].slot > ruleSlots(env) then
@@ -752,7 +789,8 @@ local function prestige(state: State, env: Env): boolean
 			nodes[id] = state.nodes[id]
 		end
 	else
-		state.rules = {}
+		-- The auto-build setting belongs to the pass, not to a node: it stays.
+		state.rules = { autobuild = state.rules.autobuild }
 	end
 	local plants = {}
 	for _, plant in env.config.plants do
@@ -925,16 +963,24 @@ local function storageView(state: State, env: Env, price: number): { [string]: a
 	local rules = {}
 	if unlocked then
 		for id, range in env.config.effects.rules do
-			if range.slot > ruleSlots(env) then
+			if range.slot > ruleSlots(env) or id == "autobuild" then
 				continue
 			end
 			local rule = ruleOf(state, env, id)
 			rules[id] = { th = rule.th, on = rule.on, min = range.min, max = range.max }
 		end
 	end
+	-- The Smart Hub auto-build setting (switch and coin reserve); nil without the pass.
+	local autoSetting = nil
+	if env.autoBuild == true then
+		local range = env.config.effects.rules.autobuild
+		local rule = ruleOf(state, env, "autobuild")
+		autoSetting = { th = rule.th, on = rule.on, min = range.min, max = range.max }
+	end
 	local stage = storageStage(state, env)
 	local capacity = env.formulas.storageCapacity(stage, middayOutput(state, env), env.storageFactor)
 	return {
+		autoBuild = autoSetting,
 		stage = stage,
 		mode = state.storage.mode,
 		rulesUnlocked = unlocked,
@@ -969,11 +1015,13 @@ local function sparkView(state: State, env: Env): { [string]: any }
 	for _, list in { env.config.upgrades.permanent, env.config.upgrades.spark or {} } do
 		for _, node in list do
 			local owned = state.pnodes[node.id] == true
+			local covered = if env.covered ~= nil then env.covered[node.id] else nil
 			table.insert(items, {
 				id = node.id,
 				sparks = node.sparks,
 				owned = owned,
-				buyable = not owned and node.sparks <= available,
+				covered = if owned then nil else covered, -- the pass that already gives it
+				buyable = not owned and covered == nil and node.sparks <= available,
 			})
 		end
 	end
@@ -1027,7 +1075,13 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 	local plants = {}
 	for _, plant in env.config.plants do
 		local cost = env.formulas.cost(plant.baseCost, state.plants[plant.id])
-		plants[plant.id] = { cost = cost, affordable = cost <= state.coins }
+		local count = state.plants[plant.id]
+		plants[plant.id] = {
+			cost = cost,
+			affordable = cost <= state.coins,
+			units = count,
+			nextMilestone = env.formulas.nextMilestone(count),
+		}
 	end
 	local goal: { [string]: any }? = nil
 	local step = env.config.prestige[state.level + 1]
@@ -1054,6 +1108,7 @@ function GameCore.view(state: State, env: Env): { [string]: any }
 		crank = crankEnergy(state, env),
 		production = productionView(state, env),
 		goal = goal,
+		milestoneFactor = milestoneFactor(state, env),
 	}
 	if env.config.land ~= nil then
 		local land = state.land or env.config.land.start

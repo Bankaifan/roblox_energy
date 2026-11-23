@@ -452,6 +452,14 @@ function Market.build(net: Instance, language: () -> string)
 		tile.TextColor3 = COLORS.accent
 		Theme.round(tile)
 		tile.Parent = frame
+		local picture = Instance.new("ImageLabel")
+		picture.Name = "Picture"
+		picture.Size = UDim2.fromScale(1, 1)
+		picture.BackgroundTransparency = 1
+		picture.ScaleType = Enum.ScaleType.Fit
+		picture.Visible = false
+		Theme.round(picture)
+		picture.Parent = tile
 		local info = text(frame, Theme.fonts.body, 13, COLORS.textMuted)
 		info.TextWrapped = true
 		info.TextYAlignment = Enum.TextYAlignment.Top
@@ -525,6 +533,15 @@ function Market.build(net: Instance, language: () -> string)
 		card.frame.BackgroundColor3 = if locked then COLORS.cardDim else COLORS.card
 		card.icon.Text = Theme.icon(data.icon)
 		card.icon.TextTransparency = if locked then 0.5 else 0
+		local storeIcon = if string.sub(data.id or "", 1, 6) == "offer."
+			then OfferPrices.icon(string.sub(data.id, 7))
+			else nil
+		local picture = card.icon:FindFirstChild("Picture") :: ImageLabel
+		picture.Image = storeIcon or ""
+		picture.Visible = storeIcon ~= nil
+		if storeIcon ~= nil then
+			card.icon.Text = ""
+		end
 		card.title.Text = data.title
 		card.title.TextColor3 = if locked then COLORS.textMuted else COLORS.text
 		card.info.Text = data.info

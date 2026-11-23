@@ -4,6 +4,7 @@
 -- expansion comes from Delta.view (GameCore.view). The shop is the market popup (Controllers/Market). Every label comes
 -- from the Locale tables in the current language: the player's locale at the start, switched by the Language button.
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
@@ -11,6 +12,8 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local ShopView = require(
 	ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("ShopView") :: ModuleScript
 ) :: any
+local Digits =
+	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Digits") :: ModuleScript) :: any
 local BoostView = require(script.Parent.BoostView)
 local Clock = require(script.Parent.Clock)
 local Theme = require(script.Parent.Parent.Theme)
@@ -92,8 +95,8 @@ local function dim(control: TextButton, usable: boolean)
 	control.BackgroundTransparency = if usable then 0 else DIMMED_BACKGROUND
 end
 
-local function format(value: number): string
-	return string.format("%.1f", value)
+local function format(value: number, lang: string): string
+	return Digits.group(value, 1, lang)
 end
 
 local short = ShopView.short
@@ -284,11 +287,12 @@ function Hud.build(net: Instance)
 
 	-- The expansion asks first: what it gives, what is lost and what is kept, then "Expand" or "Cancel".
 	local confirm = label(frame, nextOrder())
-	local confirmYes: TextButton, confirmNo: TextButton
+	local confirmYes: TextButton, confirmNo: TextButton, expand: TextButton
 	local function askExpand(show: boolean)
 		confirm.Visible = show
 		confirmYes.Visible = show
 		confirmNo.Visible = show
+		expand.Visible = not show -- the question replaces the button, so there is only one way forward
 	end
 	confirmYes = button(frame, "", nextOrder(), function()
 		askExpand(false)
@@ -299,12 +303,32 @@ function Hud.build(net: Instance)
 	confirmNo = button(frame, "", nextOrder(), function()
 		askExpand(false)
 	end)
-	askExpand(false)
-	local expand = button(frame, "", nextOrder(), function()
+	expand = button(frame, "", nextOrder(), function()
 		if latest ~= nil and latest.goal ~= nil and latest.goal.allowed then
 			askExpand(true)
 		end
 	end)
+	-- Grid VIP: a glowing yellow pill right below the expansion row while today's free Turbo is waiting (Delta.extras).
+	local freeTurbo = button(frame, "", nextOrder(), function()
+		send("FreeTurbo")
+	end)
+	freeTurbo.Visible = false
+	local glow = Instance.new("UIStroke")
+	glow.Color = Theme.colors.accent
+	glow.Thickness = 3
+	glow.Transparency = 0.2
+	glow.Parent = freeTurbo
+	local pill = freeTurbo:FindFirstChildOfClass("UICorner") :: UICorner
+	pill.CornerRadius = UDim.new(0.5, 0)
+	TweenService:Create(
+		glow,
+		TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Transparency = 0.8 }
+	):Play()
+	confirmYes.BackgroundColor3 = Theme.colors.good -- expand: green
+	confirmNo.BackgroundColor3 = Theme.colors.bad -- cancel: red
+	confirmNo.TextColor3 = Theme.colors.text
+	askExpand(false)
 
 	-- Captions and dimming from the server's view: the grid expansion.
 	local function shop(view: any)
@@ -326,23 +350,24 @@ function Hud.build(net: Instance)
 			goal.Text = t("goal.done")
 			expand.Text = t("goal.done")
 			dim(expand, false)
+			askExpand(false) -- the last goal is done: an open question must not hide the button for good
 		end
 	end
 
 	-- Each server message, painted from its data. Only the handlers below pass messages to the Boost view.
 	local function storageText(charge: number)
 		local fill = if latest ~= nil then latest.storage.fill else 0
-		storage.Text = t("hud.storage", { value = format(charge), percent = math.floor(fill * 100 + 0.5) })
+		storage.Text = t("hud.storage", { value = format(charge, lang), percent = math.floor(fill * 100 + 0.5) })
 	end
 	local function applySnapshot(state: any)
-		coins.Text = t("hud.coins", { value = format(state.coins) })
+		coins.Text = t("hud.coins", { value = format(state.coins, lang) })
 		storageText(state.storage.charge)
 		grid.Text = t("hud.gridLevel", { level = state.level })
 	end
 	local function applyDelta(change: any)
 		latest = change.view
-		coins.Text = t("hud.coins", { value = format(change.coins) })
-		rate.Text = t("hud.rate", { value = format(change.rate) })
+		coins.Text = t("hud.coins", { value = format(change.coins, lang) })
+		rate.Text = t("hud.rate", { value = format(change.rate, lang) })
 		storageText(change.charge)
 		price.Text = ShopView.priceText(change.view.price, t)
 		if change.view.sparks ~= nil then
@@ -364,6 +389,7 @@ function Hud.build(net: Instance)
 			end
 		end
 		shop(change.view)
+		freeTurbo.Visible = change.extras ~= nil and change.extras.freeTurbo == true
 	end
 	local function applyEnv(change: any)
 		clock.env(change)
@@ -375,6 +401,7 @@ function Hud.build(net: Instance)
 		language.Text = t("hud.language", { name = t("language." .. lang) })
 		storageHint.Text = t("hud.storageHint")
 		expand.Text = t("action.expand")
+		freeTurbo.Text = t("hud.freeTurbo")
 		confirmYes.Text = t("expand.yes")
 		confirmNo.Text = t("expand.no")
 		tutorialSkip.Text = t("tutorial.skip")

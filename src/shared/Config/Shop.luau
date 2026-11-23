@@ -11,6 +11,9 @@ return {
 	firstHintSeconds = 720, -- no purchase hint before minute 12 of play
 	permanentLimit = 10, -- permanent plants per type, bought with Robux
 
+	-- Permanent nodes a pass already gives (same effect): not offered for sparks while the pass is owned.
+	covers = { P3 = "smart_hub", P8 = "smart_hub" },
+
 	-- Effects
 	premiumSale = 1.5, -- Premium-Tarif: sale price ×1,5
 	booster = 2, -- Sunshine Hour (generation) and Turbo Feed-in (own income): ×2

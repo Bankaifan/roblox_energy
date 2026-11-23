@@ -40,7 +40,7 @@ Upgrades.permanent = {
 	{ id = "P4", sparks = 12, info = "Offline efficiency 75%" },
 	{ id = "P5", sparks = 18, info = "Storage nodes and Control Center kept on grid expansion" },
 	{ id = "P6", sparks = 25, info = "Offline cap 8 hours" },
-	{ id = "P7", sparks = 44, info = "Milestones give x2.5 instead of x2" },
+	{ id = "P7", sparks = 44, info = "10/25/50/100/150/200 units: x2 output each, x2.5 with P7" },
 	{ id = "P8", sparks = 70, info = "All three rules run at the same time" },
 }
 
@@ -49,7 +49,7 @@ Upgrades.spark = {
 	{ id = "S2", sparks = 2, info = "Tools not yet owned cost half" },
 	{ id = "S3", sparks = 6, info = "Every hold takes half the time" },
 	{ id = "S4", sparks = 10, info = "Aligned rows give x2.5 instead of x2" },
-	{ id = "S5", sparks = 3, info = "Pick the colour of sign, rope and blade tips" },
+	{ id = "S5", sparks = 3, info = "Colour of rope and wind turbine blade tips" },
 	{ id = "S6", sparks = 5, info = "A golden crank with a faint glow" },
 }
 

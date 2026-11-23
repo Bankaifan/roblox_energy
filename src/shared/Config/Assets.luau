@@ -4,7 +4,14 @@
 -- `flat`: the model is a slab that lies on the ground with its glass side up (Core/Flat).
 -- `lean`: degrees about the world's Z the model is turned before it is placed (the solar farm was modelled on a 15 degree
 -- slope: legs normal to the slope, rails along it, so turned by 15 the legs stand upright and the panels tilt with the frame).
-export type Entry = { file: string, scale: number, cap: number, flat: boolean?, lean: number? }
+export type Entry = {
+	file: string,
+	scale: number,
+	cap: number,
+	flat: boolean?,
+	lean: number?,
+	dropRgb: { number }?, -- parts of this colour in the file are leftovers and are not drawn
+}
 
 local Assets = {}
 
@@ -120,7 +127,7 @@ Assets.stageBuilds = {
 } :: { [number]: { kind: string, stage: number } }
 Assets.MAST_HEIGHT = 11.9 -- the hub of the finished mini turbine above the ground: 1.05 foundation lift, then 10.9 to its hub
 Assets.FENCE_POST = 4 -- studs between the posts of a farm fence
--- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields takes the chosen one.
+-- S5 Sign Paint: the six colours to choose from (Effects.paintColors says how many); the rope round the fields and the blade tips of the big wind turbine take the chosen one (the sign follows the Plot Themes pass).
 Assets.paintColors = {
 	{ 224, 72, 64 },
 	{ 240, 150, 50 },
@@ -142,7 +149,8 @@ Assets.WHEEL_MAX = 16
 Assets.plants = {
 	[1] = { file = "plant1_panel", scale = 1, cap = 4, flat = true },
 	[2] = { file = "plant2_waterwheel", scale = 0.4, cap = 4 },
-	[3] = { file = "plant3_house", scale = 1, cap = 4 },
+	-- The house is scaled up so its door fits the figure (about 1.4 x): 22 studs wide, the pads are 24 studs apart.
+	[3] = { file = "plant3_house", scale = 1.4, cap = 4, dropRgb = { 255, 255, 0 } },
 	[4] = { file = "plant4_miniturbine", scale = 1, cap = 4 },
 	[5] = { file = "plant5_solarfarm", scale = 1, cap = 4, lean = 15 },
 	[6] = { file = "plant6_windturbine", scale = 1, cap = 4 },

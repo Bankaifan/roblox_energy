@@ -79,7 +79,7 @@ local function template(): Profile
 		passes = {},
 		paid = {}, -- pass yields already paid out (Founder Pack), kept across sessions: paid once per profile
 		boosters = {},
-		daily = { day = 0, skips = 0 },
+		daily = { day = 0, skips = 0, turboDay = 0 }, -- turboDay: the day of the last free Turbo (Grid VIP)
 		cosmetics = {},
 		settings = { lang = "auto", sfx = true, music = true },
 		tutorial = 1, -- the current tutorial step (Core/Tutorial): 1 for a new profile
@@ -100,7 +100,9 @@ local function deepCopy(value: any): any
 end
 
 -- The saved rules, by rule id ("charge", "sell"). GameCore clamps the threshold into the range of its rule when it is set.
-local RULE_IDS = { charge = true, sell = true, reserve = true }
+local RULE_IDS = { charge = true, sell = true, reserve = true, autobuild = true }
+-- The threshold range of each rule (the same as Config/Effects.rules): a saved value is clamped into it on load.
+local RULE_RANGE = { charge = { 0.3, 1 }, sell = { 1, 2 }, reserve = { 0, 0.9 }, autobuild = { 0, 0.9 } }
 
 local function rules(value: any): any
 	local result = {}
@@ -111,10 +113,11 @@ local function rules(value: any): any
 				and type(item) == "table"
 				and type(item.on) == "boolean"
 				and type(item.th) == "number"
-				and item.th >= 0.3
+				and item.th >= 0
 				and item.th <= 2
 			then
-				result[id] = { th = item.th, on = item.on }
+				local range = RULE_RANGE[id]
+				result[id] = { th = math.max(range[1], math.min(range[2], item.th)), on = item.on }
 			end
 		end
 	end

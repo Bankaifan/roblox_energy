@@ -10,6 +10,7 @@ local Assets = require(Config:WaitForChild("Assets") :: ModuleScript) :: any
 local Core = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core")
 local Flat = require(Core:WaitForChild("Flat") :: ModuleScript) :: any
 local Spin = require(Core:WaitForChild("Spin") :: ModuleScript) :: any
+local Cosmetics = require(Core:WaitForChild("Cosmetics") :: ModuleScript) :: any
 
 local PlantModels = {}
 
@@ -126,7 +127,19 @@ function PlantModels.clone(plantId: number): Model?
 	if entry == nil then
 		return nil
 	end
-	return PlantModels.cloneFile(entry.file)
+	local copy = PlantModels.cloneFile(entry.file)
+	if copy ~= nil and entry.dropRgb ~= nil then
+		-- A part of this colour in the file is a modelling leftover (the yellow block on the house roof): it is not drawn.
+		for _, item in copy:GetDescendants() do
+			if
+				item:IsA("BasePart")
+				and item.Color == Color3.fromRGB(entry.dropRgb[1], entry.dropRgb[2], entry.dropRgb[3])
+			then
+				item:Destroy()
+			end
+		end
+	end
+	return copy
 end
 
 -- Whether the furniture piece is built from a model (entry and file present).
@@ -322,6 +335,8 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childNa
 	local at = Spin.centre(hub, { mean.X, mean.Y, mean.Z })
 	wheel:SetAttribute("SpinCentre", Vector3.new(at[1], at[2], at[3]))
 	wheel:SetAttribute("SpinSense", Spin.sense(axis.X, axis.Z, flowX, flowZ))
+	-- The client turns the model part by part: it must arrive whole (streaming), else it keeps a partial or stale part list.
+	wheel.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	CollectionService:AddTag(wheel, "WheelRotor")
 end
 
@@ -345,6 +360,50 @@ function PlantModels.tagRotor(copy: Model, plantId: number)
 	local rotor = copy:FindFirstChild(child)
 	if rotor ~= nil then
 		rotor:SetAttribute("SpinSense", 1)
+	end
+end
+
+-- S5 blade tips of the big wind turbine: a cap in `color` on the outer fifth of every blade, inside the rotor model so the
+-- client turns it with the blades. Call it after tagRotor and before the copy gets its parent (the client collects the
+-- turning parts when the model is added). The mini turbine (one Union rotor) is left out. Blades are the long parts of
+-- "Rotary" (not the hub "Mid"); the cap end is the one farther from "Mid" (Cosmetics.bladeTip).
+function PlantModels.paintTips(copy: Model, plantId: number, color: Color3)
+	local rotor = copy:FindFirstChild(ROTOR_CHILD[plantId] or "")
+	if plantId ~= 6 or rotor == nil then
+		return
+	end
+	local mid = rotor:FindFirstChild("Mid", true)
+	if mid == nil or not mid:IsA("BasePart") then
+		return
+	end
+	local longest = 0
+	for _, item in rotor:GetDescendants() do
+		if item:IsA("BasePart") and item ~= mid and item.Name ~= "Tip" then
+			longest = math.max(longest, item.Size.X)
+		end
+	end
+	for _, blade in rotor:GetDescendants() do
+		if
+			blade:IsA("BasePart")
+			and blade ~= mid
+			and blade.Name ~= "Tip"
+			and blade.Size.X >= longest * 0.8
+			and blade.Size.X > 2 * math.max(blade.Size.Y, blade.Size.Z)
+		then
+			local hubAlong = (mid.Position - blade.Position):Dot(blade.CFrame.RightVector)
+			local tip = Cosmetics.bladeTip(blade.Size.X, blade.Size.Y, blade.Size.Z, hubAlong)
+			local cap = Instance.new("Part")
+			cap.Name = "Tip"
+			cap.Anchored = true
+			cap.CanCollide = false
+			cap.CanQuery = false
+			cap.CastShadow = false
+			cap.Material = Enum.Material.SmoothPlastic
+			cap.Color = color
+			cap.Size = Vector3.new(tip.size[1], tip.size[2], tip.size[3])
+			cap.CFrame = blade.CFrame * CFrame.new(tip.offset, 0, 0)
+			cap.Parent = rotor
+		end
 	end
 end
 

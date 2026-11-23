@@ -98,23 +98,33 @@ local function block(parent: Instance, name: string, size: Vector3, color: Color
 	return part
 end
 
--- The sites of a plant for `owned` units: min(owned, prepared sites), each with the same footprint whatever the count,
--- so a unit only ever stands on prepared ground. Panels (plant 1) lie wild on their mown cell; a cell in `aligned` (the
+-- The sites of a plant for `owned` units: min(owned, cap x prepared cells), on prepared ground only; units beyond one per
+-- cell share it in a grid and are scaled down to their grid square (PlotLayout.packed). Panels (plant 1) lie wild on their mown cell; a cell in `aligned` (the
 -- Align action with the Mounting Rails) holds its panel straight on the cell centre. Returns the sites.
 local function unitSites(record: Record, index: number, owned: number, cells: { number }, aligned: { number }): { any }
 	local field = Assets.fields[index]
-	local count = math.min(math.floor(owned), #cells)
-	local chosen = table.move(cells, 1, count, 1, {})
-	local points = PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES)
+	local chosen = PlotLayout.chosen(cells, owned)
 	if index ~= 1 then
 		table.sort(chosen)
-		return PlotLayout.cellSites(field, chosen, Assets.TILE, Assets.PLOT_TILES)
 	end
-	-- Panels: wild on the mown cells in the order they were mown, a cell with rails straight on its centre.
-	local sites: { any } = PlotLayout.wild(points, record.slot)
-	for i, cell in chosen do
-		if table.find(aligned, cell) ~= nil then
-			sites[i] = { x = points[i].x, z = points[i].z, angle = 0, rail = true }
+	-- More units than cells: they share the cells in a small grid (at most the entry's cap per cell), scaled to fit it.
+	local entry = Assets.entry(index)
+	local packed =
+		PlotLayout.packed(field, chosen, owned, Assets.TILE, Assets.PLOT_TILES, if entry ~= nil then entry.cap else 1)
+	if index ~= 1 then
+		return packed
+	end
+	-- Panels: wild on the mown cells in the order they were mown, a cell with rails straight on its centre. Only a panel that
+	-- has its cell to itself is turned wild; packed panels stay straight so they never touch.
+	local sites: { any } = PlotLayout.wild(packed, record.slot)
+	for i, site in packed do
+		if site.side < field.size * Assets.TILE then
+			sites[i] = { x = site.x, z = site.z, angle = 0, side = site.side }
+		else
+			sites[i].side = site.side
+			if table.find(aligned, site.cell) ~= nil then
+				sites[i] = { x = site.x, z = site.z, angle = 0, rail = true, side = site.side }
+			end
 		end
 	end
 	return sites
@@ -186,10 +196,24 @@ local function railsFor(record: Record, site: { x: number, z: number }): Model
 	return rails
 end
 
--- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count or the layout changes.
-local function updateUnits(record: Record, index: number, owned: number, cells: { number }, aligned: { number })
+-- Shows min(owned, prepared sites) model units of a plant, rebuilt only when the count, the layout or (big wind turbine)
+-- the S5 colour changes. `paint` is the chosen S5 colour (0 = none): it puts tip caps on the blades of plant 6.
+local function updateUnits(
+	record: Record,
+	index: number,
+	owned: number,
+	cells: { number },
+	aligned: { number },
+	paint: number
+)
 	local sites = unitSites(record, index, owned, cells, aligned)
-	local key = table.concat(cells, ",", 1, #sites) .. "|" .. table.concat(aligned, ",")
+	local tint = if index == 6 and paint >= 1 then Assets.paintColors[paint] else nil
+	local key = table.concat(cells, ",")
+		.. "#"
+		.. #sites
+		.. "|"
+		.. table.concat(aligned, ",")
+		.. (if tint ~= nil then `|p{paint}` else "")
 	if record.keys[index] == key then
 		return
 	end
@@ -199,8 +223,8 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		copy:Destroy()
 	end
 	table.clear(shown)
-	local cell = Assets.fields[index].size * Assets.TILE
 	for _, site in sites do
+		local cell = site.side
 		local copy = PlantModels.clone(index)
 		if copy == nil then
 			break
@@ -210,6 +234,9 @@ local function updateUnits(record: Record, index: number, owned: number, cells: 
 		local lift = if Assets.foundations[index] ~= nil then 2 * Assets.FOUNDATION_STEP - 0.15 else 0
 		PlantModels.place(copy, index, cell, sitePoint(record, site), record.origin.Y + lift, angle)
 		PlantModels.tagRotor(copy, index)
+		if tint ~= nil then
+			PlantModels.paintTips(copy, index, Color3.fromRGB(tint[1], tint[2], tint[3]))
+		end
 		copy.Parent = record.model
 		table.insert(shown, copy)
 		if site.rail == true then
@@ -433,7 +460,8 @@ local function updateLand(record: Record, counts: { number }, land: any, paint: 
 			local started =
 				PlotLayout.started(land.cells and land.cells[index], land.sites[index] or 0, Assets.siteCount(index))
 			for _, site in PlotLayout.cellSites(field, started, Assets.TILE, Assets.PLOT_TILES) do
-				table.insert(patches, Meadow.sitePatch(site.x, site.z, side))
+				-- A house is square and larger than its cell: its corners are cleared too, no grass inside the walls.
+				table.insert(patches, Meadow.sitePatch(site.x, site.z, if index == 3 then side * 1.9 else side))
 			end
 		end
 		PlotGround.clear(record.slot, record.facing, groundKey, patches)
@@ -706,7 +734,7 @@ end
 local GOLD = Color3.fromRGB(255, 200, 40)
 local COPPER = Color3.fromRGB(184, 115, 51)
 
-local function updateFounderSign(record: Record, pad: BasePart, founder: boolean)
+local function updateFounderSign(record: Record, founder: boolean)
 	local sign = record.model:FindFirstChild("FounderSign")
 	if not founder then
 		if sign ~= nil then
@@ -717,26 +745,29 @@ local function updateFounderSign(record: Record, pad: BasePart, founder: boolean
 	if sign ~= nil then
 		return
 	end
-	local at = pad.Position + Vector3.new(9, 5, 0)
-	local post = block(record.model, "FounderSign", Vector3.new(0.6, 5, 0.6), COPPER, at - Vector3.new(0, 3, 0))
+	-- Beside the owner name sign (14 studs wide) at the road side: 12 studs further along x, facing the road.
+	local at = PlotStyle.signPoint(record.origin, record.facing) + Vector3.new(12, 8, 0)
+	local post = block(record.model, "FounderSign", Vector3.new(0.6, 6, 0.6), COPPER, at - Vector3.new(0, 4, 0))
 	post.CanCollide = false
 	local board = block(post, "Board", Vector3.new(7, 3, 0.4), COPPER, at)
 	board.Material = Enum.Material.Metal
 	board.CanCollide = false
-	board.Orientation = Vector3.new(0, 90, 0)
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 50
-	gui.Parent = board
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Text = "FOUNDER"
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.TextColor3 = Color3.fromRGB(255, 240, 210)
-	label.Parent = gui
+	board.Orientation = Vector3.new(0, if record.facing == 1 then 180 else 0, 0)
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
+		gui.Parent = board
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Text = "FOUNDER"
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBold
+		label.TextColor3 = Color3.fromRGB(255, 240, 210)
+		label.Parent = gui
+	end
 end
 
 local function updateCrank(record: Record, look: string, founder: boolean)
@@ -744,7 +775,7 @@ local function updateCrank(record: Record, look: string, founder: boolean)
 	if pad == nil or not pad:IsA("BasePart") then
 		return
 	end
-	updateFounderSign(record, pad, founder)
+	updateFounderSign(record, founder)
 	if record.look == look then
 		return
 	end
@@ -782,13 +813,16 @@ function PlotService.addSpawn(player: Player, record: Record)
 	end
 	local crank = Assets.furniture.crank
 	local at = PlotLayout.spawnPoint(Assets.PLOT_SIZE, crank.z, SPAWN_PAD)
-	local point = record.origin + Vector3.new(at.x, 0.5, at.z * record.facing)
+	-- Flush with the ground (its top is the ground), invisible; the figure looks along the way to the crank.
+	local point = record.origin + Vector3.new(at.x, -0.5, at.z * record.facing)
+	local toCrank = Vector3.new(0, 0, (crank.z - at.z) * record.facing).Unit
 	local pad = Instance.new("SpawnLocation")
 	pad.Name = "Spawn"
 	pad.Anchored = true
 	pad.Neutral = true
 	pad.Size = Vector3.new(SPAWN_PAD, 1, SPAWN_PAD)
-	pad.Position = point
+	pad.CFrame = CFrame.lookAt(point, point + toCrank)
+	pad.Transparency = 1
 	pad.Color = COLORS.Solar
 	pad.Material = Enum.Material.SmoothPlastic
 	pad.TopSurface = Enum.SurfaceType.Smooth
@@ -796,7 +830,7 @@ function PlotService.addSpawn(player: Player, record: Record)
 	player.RespawnLocation = pad
 	local character = player.Character
 	if character ~= nil then
-		character:PivotTo(CFrame.new(point + Vector3.new(0, 4, 0)))
+		character:PivotTo(CFrame.lookAt(point + Vector3.new(0, 5, 0), point + Vector3.new(0, 5, 0) + toCrank))
 	end
 end
 
@@ -943,7 +977,8 @@ function PlotService.update(
 			if index == 2 then
 				updateWheels(record, counts[2] or 0)
 			else
-				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, ownLand.aligned or {})
+				local paint = if extras ~= nil and extras.paint ~= nil then extras.paint else 0
+				updateUnits(record, index, math.min(counts[index] or 0, 100), cells, ownLand.aligned or {}, paint)
 				if index == 3 then
 					updateShells(record, counts[3] or 0, cells)
 				end

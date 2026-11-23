@@ -56,4 +56,52 @@ return function(t, load)
 		local a, w = Flat.turn(from, up)
 		t.truthy(near(rotate(from, a, w), up), `any side turns up ({from.x}, {from.y}, {from.z})`)
 	end
+
+	-- Issue #192: the whole plant 1 file as measured in Studio (the body plus the eight cell rows of size 0 x 0.98 x 4.98, two
+	-- of the rows are 1 stud apart on x). The body is the largest part, so it gives the normal; after the turn the panel lies
+	-- flat (0.12 high, 8.2 x 5.2 on the ground) and the cell rows sit above the body's middle.
+	local rows = {}
+	for x = 85.6, 92.6, 1 do
+		table.insert(rows, {
+			pos = vec(x, 2.6, -150.1),
+			size = vec(0, 0.98, 4.98),
+			right = vec(0, 0, -1),
+			up = vec(-1, 0, 0),
+			back = vec(0, 1, 0),
+		})
+	end
+	local file = { body }
+	for _, row in rows do
+		table.insert(file, row)
+	end
+	t.equal(#rows, 8, "the file has eight cell rows")
+	for _, toward in { up, vec(0, 0, 1), vec(0, -1, 0) } do
+		t.truthy(near(Flat.normal(file, toward), vec(0, 0, -1)), "the cell side wins over the side asked for")
+	end
+	local lay, spin = Flat.turn(Flat.normal(file, up), up)
+	local function laid(part)
+		local function turn(v)
+			return rotate(v, lay, spin)
+		end
+		return {
+			pos = turn(part.pos),
+			size = part.size,
+			right = turn(part.right),
+			up = turn(part.up),
+			back = turn(part.back),
+		}
+	end
+	local flat = {}
+	for _, part in file do
+		table.insert(flat, laid(part))
+	end
+	local lying = Flat.box(flat)
+	t.truthy(math.abs((lying.maxY - lying.minY) - 0.12) < 1e-6, "laid down the panel is 0.12 high")
+	t.truthy(math.abs((lying.maxX - lying.minX) - 8.2) < 1e-6, "8.2 long")
+	t.truthy(math.abs((lying.maxZ - lying.minZ) - 5.2) < 1e-6, "and 5.2 wide")
+	t.truthy(near(laid(body).up, vec(0, 0, -1)) == false, "the body's thin axis no longer lies along z")
+	t.truthy(math.abs(math.abs(laid(body).up.y) - 1) < 1e-6, "it stands vertical")
+	for _, row in rows do
+		t.truthy(laid(row).pos.y > laid(body).pos.y, "a cell row lies above the body: the glass side is up")
+	end
 end

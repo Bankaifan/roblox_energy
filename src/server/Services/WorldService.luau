@@ -363,6 +363,8 @@ local function turbine(parent: Instance, base: CFrame)
 		)
 	end
 	rotor.WorldPivot = hubFrame
+	-- The client turns the model part by part: it must arrive whole (streaming), else it keeps a partial or stale part list.
+	rotor.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	rotor.Parent = parent
 	CollectionService:AddTag(rotor, "Rotor")
 end

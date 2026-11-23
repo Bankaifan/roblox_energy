@@ -26,6 +26,7 @@ local Config = Shared:WaitForChild("Config")
 local function load(name: string): any
 	return require(Config:WaitForChild(name) :: ModuleScript)
 end
+local Locale = load("Locale")
 local config = {
 	plants = load("Plants"),
 	upgrades = load("Upgrades"),
@@ -46,7 +47,20 @@ local started: { [Player]: number } = {}
 -- Auto Crank: the hand cranks since the last tick (they use their share of the limit first) and the carried fraction.
 local handCranks: { [Player]: number } = {}
 local crankCarry: { [Player]: number } = {}
+-- Auto-build (Smart Hub): at most one purchase try per player in this many seconds (os.clock of the last try).
+local AUTO_BUILD_SECONDS = 2
+local lastAutoBuild: { [Player]: number } = {}
 local Session = {}
+
+-- True (and the try is noted) when the player's last auto-build try is at least AUTO_BUILD_SECONDS ago.
+local function autoBuildDue(player: Player): boolean
+	local now = os.clock()
+	if not GameCore.autoBuildDue(lastAutoBuild[player], now, AUTO_BUILD_SECONDS) then
+		return false
+	end
+	lastAutoBuild[player] = now
+	return true
+end
 
 -- The bought effects of the player (Core/Shop.envValues): sale multiplier, Sunshine boost, Long Meter, Smart Hub.
 -- Without a player (no profile) there are none.
@@ -67,6 +81,7 @@ local function envFor(phase: any, weather: any, player: Player?): any
 		income = bought.income,
 		ruleSlots = bought.ruleSlots,
 		autoBuild = bought.autoBuild,
+		covered = bought.covered,
 		storageFactor = bought.storageFactor,
 		permanent = bought.permanent,
 		nextWeather = Env.nextWeather(),
@@ -211,9 +226,13 @@ function Session.stop(player: Player)
 	local state = states[player]
 	states[player] = nil
 	welcomes[player] = nil
+	if started[player] ~= nil then
+		DataService.addPlaySeconds(player, os.clock() - started[player])
+	end
 	started[player] = nil
 	handCranks[player] = nil
 	crankCarry[player] = nil
+	lastAutoBuild[player] = nil
 	BoostService.forget(player)
 	LeaderboardService.forget(player)
 	PlotPublicService.forget(player)
@@ -226,6 +245,9 @@ end
 function Session.close()
 	for player, state in states do
 		states[player] = nil
+		if started[player] ~= nil then
+			DataService.addPlaySeconds(player, os.clock() - started[player])
+		end
 		DataService.release(player, state)
 	end
 	DataService.flush(25)
@@ -260,6 +282,9 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	if state == nil then
 		return
 	end
+	if action.type == "AutoBuild" and not autoBuildDue(player) then
+		return
+	end
 	local phase, weather = Env.update(remotes)
 	local nextState, ok = GameCore.apply(state, action, envFor(phase, weather, player))
 	if not ok then
@@ -276,9 +301,23 @@ function Session.apply(remotes: { [string]: RemoteEvent }, player: Player, actio
 	elseif action.type == "Prepare" or action.type == "Align" or action.type == "BuyContainer" then
 		LandService.refresh(player, nextState) -- the prompt moves to the next site at once
 	end
+	if action.type == "BuyPlant" or action.type == "AutoBuild" then
+		Session.milestones(remotes, player, state, nextState)
+	end
 	if action.type == "Prestige" then
 		remotes.Snapshot:FireClient(player, nextState)
 		Session.fireworks(remotes, player, state.level, nextState.level)
+	end
+end
+
+-- A notice to the player for each milestone a purchase just crossed (only purchases call this, never the start kit).
+function Session.milestones(remotes: { [string]: RemoteEvent }, player: Player, before: any, after: any)
+	local factor = if after.pnodes.P7 then config.effects.milestoneFactorP7 else config.effects.milestoneFactor
+	local lang = if string.sub(player.LocaleId, 1, 2) == "de" then "de" else "en"
+	for _, hit in Formulas.reachedMilestones(before.plants, after.plants) do
+		local name = Locale.t(`plant.{config.plants[hit.plant].id}`, lang)
+		local text = Locale.t("milestone.reached", lang, { plant = name, units = hit.units, factor = factor })
+		remotes.Notice:FireClient(player, { text = text })
 	end
 end
 
@@ -330,6 +369,11 @@ function Session.tick(remotes: { [string]: RemoteEvent }, dt: number)
 			end
 		end
 		handCranks[player] = 0
+		-- Auto-build: the core checks the pass and the switch; the timer is the server's.
+		local setting = state.rules.autobuild
+		if env.autoBuild == true and setting ~= nil and setting.on and autoBuildDue(player) then
+			state = GameCore.apply(state, { type = "AutoBuild" }, env)
+		end
 		local nextState = GameCore.tick(state, env, dt)
 		states[player] = nextState
 		DataService.sync(player, nextState)

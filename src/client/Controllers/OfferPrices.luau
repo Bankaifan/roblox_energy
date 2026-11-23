@@ -11,6 +11,7 @@ local Offers = require(Shared:WaitForChild("Core"):WaitForChild("Offers") :: Mod
 local OfferPrices = {}
 
 local prices: { [number]: number } = {}
+local icons: { [number]: string } = {}
 local pending: { [number]: boolean } = {}
 
 -- Fetches the price of every offer with an ID that has none yet. Blocks while Roblox answers; call it from a task.
@@ -26,9 +27,22 @@ function OfferPrices.fetch()
 			pending[id] = nil
 			if ok and type(info) == "table" and info.IsForSale ~= false and type(info.PriceInRobux) == "number" then
 				prices[id] = info.PriceInRobux
+				if type(info.IconImageAssetId) == "number" and info.IconImageAssetId > 0 then
+					icons[id] = "rbxassetid://" .. info.IconImageAssetId
+				end
 			end
 		end
 	end
+end
+
+-- The store icon of an offer (its Creator Hub image), or nil while unknown.
+function OfferPrices.icon(offerId: string): string?
+	for _, offer in Catalogue.offers do
+		if offer.id == offerId then
+			return icons[offer.robloxId]
+		end
+	end
+	return nil
 end
 
 -- The offers to show now, with their live price text.

@@ -97,7 +97,15 @@ end
 local function sign(folder: Folder, owner: string, at: Vector3, look: any)
 	local board =
 		part(folder, "Sign", Vector3.new(14, 5, 0.6), at + Vector3.new(0, 6, 0), colour(look.sign), Enum.Material.Wood)
-	part(folder, "SignPost", Vector3.new(1, 6, 1), at + Vector3.new(0, 3, 0), colour(look.fence), Enum.Material.Wood)
+	-- The post ends at the lower edge of the board (y 3.5), so it never stands in front of the name.
+	part(
+		folder,
+		"SignPost",
+		Vector3.new(1, 3.5, 1),
+		at + Vector3.new(0, 1.75, 0),
+		colour(look.fence),
+		Enum.Material.Wood
+	)
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = face
@@ -114,6 +122,11 @@ local function sign(folder: Folder, owner: string, at: Vector3, look: any)
 		label.TextStrokeTransparency = 0.3
 		label.Parent = gui
 	end
+end
+
+-- Where the owner name sign stands, at the road side of the plot (the founder sign stands beside it).
+function PlotStyle.signPoint(origin: Vector3, facing: number): Vector3
+	return origin + Vector3.new(24, 0, facing * (Assets.PLOT_SIZE / 2 - STRIP - 2))
 end
 
 -- Plot Themes: builds the theme folder of the plot (nothing when `theme` is nil). Returns it.
@@ -220,7 +233,7 @@ function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: s
 		Enum.Material.Wood
 	)
 	-- Sign: at the road side of the plot, beside the spawn platform.
-	sign(folder, model.Name, origin + Vector3.new(24, 0, facing * (inner - 2)), look)
+	sign(folder, model.Name, PlotStyle.signPoint(origin, facing), look)
 	folder.Parent = model
 	return folder
 end

@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net") :: ModuleScript) :: any
 local Session = require(script.Parent.Session)
+local PurchaseService = require(script.Parent.PurchaseService)
 local PlotService = require(script.Parent.PlotService)
 local LandService = require(script.Parent.LandService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
@@ -55,6 +56,8 @@ local function receive(remotes: { [string]: RemoteEvent }, player: Player, name:
 		TutorialService.skip(remotes, player)
 	elseif action.type == "SetCosmetic" then
 		Session.setCosmetic(player, action.slot, action.item)
+	elseif action.type == "FreeTurbo" then
+		PurchaseService.claimFreeTurbo(player)
 	elseif action.type == "RankRequest" then
 		LeaderboardService.send(remotes, player)
 	else

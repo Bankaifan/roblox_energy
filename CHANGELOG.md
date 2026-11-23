@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.15] - 2026-11-23
+- Alle gekauften Module sind jetzt sichtbar: gibt es mehr Einheiten als vorbereitete Zellen, teilen sie sich die Zellen in einem kleinen Raster (bis zu 4 pro Zelle, verkleinert, ohne sich zu beruehren).
+- Die PV-Module der Solaranlage sitzen jetzt passend im Gestell: das Gestell steht aufrecht und die Module neigen sich mit ihm.
+- Große Zahlen haben Tausenderpunkte (449.041.465): bei Coins, Rate, Speicher, Offline-Coins und Rangliste; auf Englisch mit Kommas.
+- Der Pfosten des Namensschilds verdeckt die Schrift nicht mehr.
+- Der Extras-Tab erscheint nur im ersten Spiel erst nach 12 Minuten, danach sofort nach dem Tutorial.
+- Die Bestenliste hat das Shop-Design: dunkles Fenster mit gelbem Rand, große Tabs, rotes Schließen. Der Bestenlisten-Knopf ist gelb und größer.
+- Windräder und Wasserräder drehen sich wieder zuverlässig, auch wenn das Grundstück erst nachgeladen wird.
+- Beim Netz-Ausbau ist "Netz ausbauen" grün und "Abbrechen" rot. Der Netz-Ausbau-Knopf ist währenddessen ausgeblendet.
+- Häuser: der gelbe Block auf dem Dach ist weg, innen wächst kein Gras mehr, und die Häuser sind größer, damit die Tür zur Spielfigur passt.
+- Die Spawn-Plattform ist unsichtbar und ebenerdig, die Figur schaut beim Spawn zur Kurbel, und das Founder-Schild steht neben dem Namensschild.
+- Meilensteine sind jetzt sichtbar: die Anlagenkarten zeigen den naechsten Meilenstein, ein Hinweis meldet erreichte Meilensteine, und P7 nennt die Schwellen.
+- Die Ertrag-Zeilen erklaeren sich selbst: Meilensteine/Upgrades und Wetter/Tageszeit statt "M" und "jetzt".
+- Smart-Zentrale: Auto-Ausbau (P3) und Dritter Regel-Platz (P8) werden mit dem Pass nicht mehr fuer Funken angeboten, sie sind enthalten.
+- Die Extras-Karten zeigen jetzt die Store-Icons der Angebote statt des Geschenk-Symbols.
+- Alle Windräder und Wasserräder auf deinem eigenen Grundstück drehen sich jetzt immer.
+
 ## [0.14] - 2026-11-21
 - Ein gebautes Haus auf dem Dach-PV-Feld steht nach dem Hammer als leeres Haus da; mit dem Kauf des Dach-PV kommen die Module dazu.
 - bare house cells (PlotLayout.bare), panel models stripped from the house clone
