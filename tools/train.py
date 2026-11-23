@@ -63,6 +63,7 @@ import restart
 import status
 import task_ids
 from branch_repair import COMMITTER, git_env  # noqa: F401 - one definition; `train.git_env` stays the name callers use
+from release_fragments import FRAGMENT_NAME
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "check"))
 import check_pr_form
@@ -178,7 +179,10 @@ def release_main(remote, token="", base="main", notes=None):
             git(tmp, "init", "-q")
             git(tmp, "fetch", "-q", remote, f"+refs/heads/{base}:refs/remotes/origin/{base}")
             git(tmp, "checkout", "-q", "--detach", f"origin/{base}")
-            if not list(Path(tmp, "changelog.d").glob("[0-9]*.md")) or not Path(tmp, "VERSION").is_file():
+            # The same name rule as tools/release_fragments.py (`<issue>.md`): a looser one took `288-weather.md` for a
+            # fragment, the script then released nothing and the run failed for ever (roblox_energy #367).
+            names = [p.name for p in Path(tmp, "changelog.d").glob("*.md")]
+            if not any(FRAGMENT_NAME.fullmatch(n) for n in names) or not Path(tmp, "VERSION").is_file():
                 return ""  # no fragments, or a project that keeps its version elsewhere: nothing to release by script
             old = Path(tmp, "VERSION").read_text(encoding="utf-8").strip()
             done = subprocess.run([sys.executable, "-I", str(RELEASE), tmp], check=False, env=env,
