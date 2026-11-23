@@ -8,6 +8,7 @@ local Debris = game:GetService("Debris")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared:WaitForChild("Config"):WaitForChild("Assets") :: ModuleScript) :: any
 local Cosmetics = require(Shared:WaitForChild("Core"):WaitForChild("Cosmetics") :: ModuleScript) :: any
+local Cable = require(Shared:WaitForChild("Core"):WaitForChild("Cable") :: ModuleScript) :: any
 
 local PlotStyle = {}
 
@@ -90,6 +91,43 @@ function PlotStyle.neon(origin: Vector3, copies: { { Instance } }, columns: { [n
 		if tint ~= nil then
 			column.Color = tint
 		end
+	end
+end
+
+-- Grid VIP: the ground cables of the plot glow neon, with one soft light over the grid box at `at` (Core/Cable.look); the
+-- cables of other players keep their dark look. The cables folder is rebuilt by PlotService when its cables change.
+function PlotStyle.cables(folder: Folder?, vip: boolean, at: Vector3)
+	if folder == nil then
+		return
+	end
+	local look = Cable.look(vip)
+	local tint = colour(look.rgb)
+	for _, piece in folder:GetChildren() do
+		if piece.Name == "Cable" and piece:IsA("BasePart") then
+			piece.Material = if look.neon then Enum.Material.Neon else Enum.Material.Plastic
+			piece.Color = tint
+		end
+	end
+	local glow = folder:FindFirstChild("CableGlow")
+	if look.range == 0 then
+		if glow ~= nil then
+			glow:Destroy()
+		end
+		return
+	end
+	if glow == nil then
+		local anchor = part(folder, "CableGlow", Vector3.one, at, tint, Enum.Material.Neon)
+		anchor.Transparency = 1
+		local light = Instance.new("PointLight")
+		light.Shadows = false
+		light.Brightness = 0.6
+		light.Parent = anchor
+		glow = anchor
+	end
+	local light = glow:FindFirstChildOfClass("PointLight")
+	if light ~= nil then
+		light.Color = tint
+		light.Range = look.range
 	end
 end
 
