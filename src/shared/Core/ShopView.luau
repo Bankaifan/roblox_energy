@@ -428,7 +428,9 @@ local function toolCards(input: Input): { Card }
 			card.state = "owned"
 			card.status = input.t("market.owned")
 		elseif not item.revealed then
-			card.status = input.t("market.notYet")
+			card.status = if item.requiresPlant ~= nil or item.requiresNode ~= nil
+				then input.t("reason.locked", { requirement = requirementOf(input, item) })
+				else input.t("market.notYet")
 		else
 			card.state = if item.buyable then "affordable" else "short"
 			card.price = price(input, item.price)
