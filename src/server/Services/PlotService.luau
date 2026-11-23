@@ -14,6 +14,7 @@ local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local ShopView = require(Core:WaitForChild("ShopView") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
 local Land = require(Config:WaitForChild("Land") :: ModuleScript) :: any
+local Themes = require(Config:WaitForChild("Themes") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
 local PlantModels = require(script.Parent.PlantModels)
 local PlotGround = require(script.Parent.PlotGround)
@@ -1015,6 +1016,7 @@ function PlotService.style(player: Player, flags: any)
 		record.themeKey = key
 		local theme = if flags.themed then flags.theme else nil
 		PlotStyle.theme(record.model, record.origin, record.facing, theme, record.slot)
+		PlotGround.meadow(record.slot, record.facing, if theme ~= nil then Themes.meadow[theme] else nil)
 	end
 end
 
