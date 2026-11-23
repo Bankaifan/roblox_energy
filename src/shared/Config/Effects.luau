@@ -16,7 +16,7 @@ return {
 	rules = {
 		charge = { min = 0.3, max = 1, default = 0.7, slot = 1 }, -- Günstig laden: charge while the price is at most this
 		sell = { min = 1, max = 2, default = 1.2, slot = 2 }, -- Teuer verkaufen: sell while the price is at least this
-		reserve = { min = 0, max = 0.9, default = 0.2, slot = 3 }, -- Smart Hub: selling keeps this share of the capacity
+		forecast = { min = 1.1, max = 1.5, default = 1.2, slot = 3 }, -- Smart Hub: charge while the next weather pays at least this times the price now
 		autobuild = { min = 0, max = 0.9, default = 0.2, slot = 0 }, -- Smart Hub auto-build: coins kept after a purchase (needs no slot)
 	},
 	ruleSlots = 2, -- rule slots without the Smart Hub pass; env.ruleSlots replaces it
