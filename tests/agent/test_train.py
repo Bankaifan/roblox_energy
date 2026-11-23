@@ -375,6 +375,18 @@ def test_release_main_without_fragments_pushes_nothing(tmp_path):
     assert g(origin, "branch", "--list", "release/next") == ""
 
 
+def test_release_main_ignores_files_that_are_not_fragments_by_name(tmp_path):
+    """roblox_energy #367: old `288-weather.md` and `61b.md` notes were left in changelog.d. They start with a digit but
+    are no `<issue>.md` fragment: nothing to release, not a failed release."""
+    origin, work = origin_repo(tmp_path)
+    for name in ("288-weather.md", "61b.md", "foam.md"):
+        merge_fragment(work, name, "old note\n")
+    assert release_main(str(origin)) == ""
+    assert g(origin, "branch", "--list", train.RELEASE_BRANCH) == ""
+    merge_fragment(work, "7.md", "Neu.\n")
+    assert release_main(str(origin)) == "1.5"
+
+
 def test_release_main_in_a_project_without_a_version_file_is_no_failure(tmp_path):
     origin, work = origin_repo(tmp_path)
     g(work, "rm", "-q", "VERSION")
