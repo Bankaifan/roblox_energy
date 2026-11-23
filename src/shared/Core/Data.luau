@@ -100,9 +100,9 @@ local function deepCopy(value: any): any
 end
 
 -- The saved rules, by rule id ("charge", "sell"). GameCore clamps the threshold into the range of its rule when it is set.
-local RULE_IDS = { charge = true, sell = true, reserve = true, autobuild = true }
+local RULE_IDS = { charge = true, sell = true, forecast = true, autobuild = true }
 -- The threshold range of each rule (the same as Config/Effects.rules): a saved value is clamped into it on load.
-local RULE_RANGE = { charge = { 0.3, 1 }, sell = { 1, 2 }, reserve = { 0, 0.9 }, autobuild = { 0, 0.9 } }
+local RULE_RANGE = { charge = { 0.3, 1 }, sell = { 1, 2 }, forecast = { 1.1, 1.5 }, autobuild = { 0, 0.9 } }
 
 local function rules(value: any): any
 	local result = {}
