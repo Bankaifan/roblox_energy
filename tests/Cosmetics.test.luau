@@ -90,10 +90,10 @@ return function(t, load)
 
 	-- S5 blade tips: the cap sits on the end of the blade that is farther from the hub.
 	local tipAway = Cosmetics.bladeTip(80, 4, 6, 40)
-	t.truthy(math.abs(tipAway.offset + 32) < 1e-9, "the hub at +X puts the tip on the -X end")
-	t.truthy(math.abs(tipAway.size[1] - 16) < 1e-9, "a fifth of the length")
-	t.truthy(math.abs(tipAway.size[2] - 4.1) < 1e-9 and math.abs(tipAway.size[3] - 6.1) < 1e-9, "a little thicker")
-	t.truthy(math.abs(Cosmetics.bladeTip(80, 4, 6, -40).offset - 32) < 1e-9, "the hub at -X puts the tip at +X")
+	t.truthy(math.abs(tipAway.offset + 36) < 1e-9, "the hub at +X puts the tip on the -X end")
+	t.truthy(math.abs(tipAway.size[1] - 8) < 1e-9, "a tenth of the length")
+	t.truthy(tipAway.size[2] < 4 and tipAway.size[3] < 6, "thinner than the bounding box, no block")
+	t.truthy(math.abs(Cosmetics.bladeTip(80, 4, 6, -40).offset - 36) < 1e-9, "the hub at -X puts the tip at +X")
 
 	-- Upgrade Fireworks: at a grid expansion of an owner of the pass only.
 	t.truthy(Cosmetics.fireworksDue(0, 1, true), "an expansion with the pass fires")
