@@ -29,6 +29,7 @@ type Entry = {
 	facing: number, -- 1, or -1 when the plot is mirrored in z
 	river: { number }?, -- the dig stage of each river segment (River.stages), nil = none
 	riverKey: string,
+	meadow: Enum.Material?, -- the material of the meadow in a theme (Snow, Mud), nil = grass
 	written: string?, -- the key the terrain shows now
 	saved: Saved?, -- the meadow as it was
 }
@@ -38,7 +39,7 @@ local worldReady = false
 local slots: { [number]: Entry } = {}
 
 local function write(slot: number, entry: Entry)
-	local fullKey = entry.key .. "|" .. entry.riverKey
+	local fullKey = entry.key .. "|" .. entry.riverKey .. "|" .. (if entry.meadow ~= nil then entry.meadow.Name else "")
 	if entry.written == fullKey then
 		return
 	end
@@ -56,6 +57,7 @@ local function write(slot: number, entry: Entry)
 	local materials = saved.materials
 	local size = materials.Size
 	local mask = Meadow.mask(entry.patches, slot, size.X, CELL)
+	local meadow = entry.meadow
 	-- The river: a trench of its dug segments, 3 studs under the meadow, and water 1 stud under it for the flooded ones.
 	-- The trench empties the top layer [-4, 0] to a quarter, the water fills the layer below and a quarter of the layer above.
 	local course = if entry.river ~= nil then River.course(Assets.river, slot) else nil
@@ -81,6 +83,9 @@ local function write(slot: number, entry: Entry)
 			for iz = 1, size.Z do
 				local old = materials[ix][iy][iz]
 				row[iz] = if old ~= Enum.Material.Air and mask[ix][iz] then Enum.Material.Ground else old
+				if old == Enum.Material.Grass and meadow ~= nil and not mask[ix][iz] then
+					row[iz] = meadow
+				end
 				if trench ~= nil then
 					local rz = if entry.facing == -1 then size.Z - iz + 1 else iz -- the course is unmirrored
 					if trench[ix][rz] then
@@ -138,6 +143,29 @@ function PlotGround.river(slot: number, facing: number, stages: { number })
 	end
 	entry.river = if string.find(riverKey, "[12]") ~= nil then stages else nil
 	entry.riverKey = riverKey
+	if worldReady then
+		write(slot, entry)
+	end
+end
+
+-- Sets the meadow material of a slot for its theme (Config/Themes.meadow: "Snow", "Mud"; nil = grass again). Snow and Mud are used
+-- nowhere else in the world, so their terrain colours are set here once: white snow, dry orange-brown for autumn.
+local meadowColours = { Snow = Color3.fromRGB(240, 245, 252), Mud = Color3.fromRGB(176, 118, 50) }
+function PlotGround.meadow(slot: number, facing: number, name: string?)
+	local entry = slots[slot]
+	if entry == nil then
+		entry = { patches = {}, key = "", facing = facing, riverKey = "" }
+		slots[slot] = entry
+	end
+	local material = if name ~= nil then Enum.Material[name] else nil
+	if entry.meadow == material and entry.written ~= nil then
+		return
+	end
+	entry.meadow = material
+	entry.facing = facing
+	if name ~= nil and meadowColours[name] ~= nil then
+		workspace.Terrain:SetMaterialColor(Enum.Material[name], meadowColours[name])
+	end
 	if worldReady then
 		write(slot, entry)
 	end
