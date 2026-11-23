@@ -202,4 +202,14 @@ return function(t, load)
 			t.truthy(#set.emitter.color == 3 and set.emitter.life > 0 and set.emitter.size > 0, `{id}: emitter data`)
 		end
 	end
+
+	-- The meadow material of a theme: only known themes, and names of terrain materials PlotGround can colour or write.
+	local meadowMaterials = { Snow = true, Mud = true, Sand = true }
+	for id, name in Themes.meadow do
+		t.truthy(Themes.sets[id] ~= nil, `meadow {id}: a known theme`)
+		t.truthy(meadowMaterials[name], `meadow {id}: {name} is a terrain material`)
+	end
+	t.equal(Themes.meadow.christmas, "Snow", "christmas lies under snow")
+	t.equal(Themes.meadow.desert, "Sand", "desert is sand")
+	t.equal(Themes.meadow.classic, nil, "classic keeps the grass")
 end
