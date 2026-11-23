@@ -181,12 +181,17 @@ return function(t, load)
 	t.equal(sellBack.rules.bogus, nil, "an unknown rule id is dropped")
 	t.equal(sellBack.rules.charge, nil, "a rule never set stays unset")
 	local autoState = Data.toState(Data.template())
-	autoState.rules =
-		{ autobuild = { th = 0, on = true }, charge = { th = 0.1, on = true }, reserve = { th = 1.5, on = true } }
+	autoState.rules = {
+		autobuild = { th = 0, on = true },
+		charge = { th = 0.1, on = true },
+		forecast = { th = 2, on = true },
+		reserve = { th = 0.5, on = true },
+	}
 	local autoBack = Data.toState(Data.migrate(Data.fromState(autoState), Steps))
 	t.equal(autoBack.rules.autobuild.th, 0, "an auto-build reserve of 0 comes back")
 	t.equal(autoBack.rules.charge.th, 0.3, "a saved value below the range is clamped up on load")
-	t.equal(autoBack.rules.reserve.th, 0.9, "a saved value above the range is clamped down on load")
+	t.equal(autoBack.rules.forecast.th, 1.5, "a saved value above the range is clamped down on load")
+	t.equal(autoBack.rules.reserve, nil, "the retired reserve rule is dropped on load")
 
 	-- Version 3 -> 4: the slots become one rule per id, thresholds clamped into the range of their rule.
 	local slotted = {
