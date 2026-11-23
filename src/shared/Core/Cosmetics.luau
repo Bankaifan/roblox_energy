@@ -136,15 +136,6 @@ function Cosmetics.neonRgb(id: string): { number }
 	return NEON_RGB[id] or NEON_RGB[Cosmetics.NEON_COLOURS[1]]
 end
 
--- The look of the ground cables (Grid VIP): the pass makes them neon with a soft light of the same colour; everyone else
--- keeps the dark plastic strips. RGB 0 to 255; `glow` is false when the cables carry no light.
-local CABLE_PLAIN = { neon = false, rgb = { 30, 30, 34 }, glow = false }
-local CABLE_VIP = { neon = true, rgb = { 70, 200, 255 }, glow = true }
-
-function Cosmetics.cableLook(vip: boolean): { neon: boolean, rgb: { number }, glow: boolean }
-	return if vip then CABLE_VIP else CABLE_PLAIN
-end
-
 -- The three designs of Plot Themes: ground (the border strip), fence (posts and rails) and sign (the name board), RGB.
 local THEME_LOOKS = {
 	classic = { ground = { 96, 150, 70 }, fence = { 150, 110, 70 }, sign = { 190, 150, 100 } },
