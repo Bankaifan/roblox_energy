@@ -1,6 +1,6 @@
 # Changelog fragments
 
-A PR that changes a managed path (`.agents/managed.json`) adds `changelog.d/<issue>.md` and does not touch `VERSION` or `CHANGELOG.md`.
+Every user-visible change adds `changelog.d/<issue>.md` (AGENTS.md). A PR that changes a managed path (`.agents/managed.json`) must add one: `tools/check/check_version_bump.py` enforces that for managed paths only. No PR touches `VERSION` or `CHANGELOG.md`.
 
 - One or more lines, one per changelog entry (a leading `- ` is added when missing).
 - Optional `step: x` or `step: y` line: `x` for a `sync:must` issue (breaking for downstream syncs), `y` otherwise (default).
