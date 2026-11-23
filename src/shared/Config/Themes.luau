@@ -27,6 +27,10 @@ Themes.MAX_RATE = 10
 -- The fence line (plot-relative studs) that decoration stays inside.
 Themes.FENCE = 93
 
+-- The material the meadow of the plot takes in a theme (terrain material name); a theme not listed keeps the grass.
+-- Snow for Christmas, Mud (coloured dry orange-brown by PlotGround) for Autumn, Sand for Desert.
+Themes.meadow = { christmas = "Snow", autumn = "Mud", desert = "Sand" } :: { [string]: string }
+
 -- Walk lanes kept free (plot-relative studs { minX, maxX, minZ, maxZ }): the yard, the lane between F4 and F3, the back lane.
 Themes.lanes = {
 	{ -36, 60, 72, 90 },
