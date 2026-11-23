@@ -148,8 +148,8 @@ function PlotGround.river(slot: number, facing: number, stages: { number })
 	end
 end
 
--- Sets the meadow material of a slot for its theme (Config/Themes.meadow: "Snow", "Mud"; nil = grass again). Snow and Mud are used
--- nowhere else in the world, so their terrain colours are set here once: white snow, dry orange-brown for autumn.
+-- Sets the meadow material of a slot for its theme (Config/Themes.meadow: "Snow", "Mud"; nil = grass again). Snow and Mud terrain are used
+-- nowhere else in the world (prop parts do not count), so their terrain colours are set here once: white snow, dry orange-brown for autumn.
 local meadowColours = { Snow = Color3.fromRGB(240, 245, 252), Mud = Color3.fromRGB(176, 118, 50) }
 function PlotGround.meadow(slot: number, facing: number, name: string?)
 	local entry = slots[slot]
