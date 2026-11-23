@@ -67,7 +67,8 @@ return function(t, load)
 
 	-- Rule slots: whether the third rule can be set.
 	local function thirdRule(profile: any): boolean
-		local _, ok = GameCore.apply(run(), { type = "SetRule", rule = "reserve", th = 0.5, on = true }, envOf(profile))
+		local _, ok =
+			GameCore.apply(run(), { type = "SetRule", rule = "forecast", th = 1.2, on = true }, envOf(profile))
 		return ok
 	end
 
@@ -223,23 +224,21 @@ return function(t, load)
 	t.equal(autoBuilt(base), 1e6, "without the Smart Hub the auto-build does nothing")
 	t.truthy(autoBuilt(owned("smart_hub")) < 1e6, "Smart Hub: the auto-build pays for a plant")
 
-	-- The reserve rule keeps charge: selling stops at its share of the capacity.
+	-- Forecast charging: when the next weather pays 1.5 times, the storage charges although the price sells now.
 	local hub = envOf(owned("smart_hub"))
 	hub.phase = Config.phases[3] -- evening: the price factor passes the sell threshold
-	local stocked = run()
-	stocked.storage = { charge = 1e9, mode = "auto" }
-	stocked.rules = { sell = { th = 1, on = true } }
-	local reserved = run()
-	reserved.storage = { charge = 1e9, mode = "auto" }
-	reserved.rules = { sell = { th = 1, on = true }, reserve = { th = 0.9, on = true } }
-	local sold, kept = stocked, reserved
-	for _ = 1, 120 do
-		sold, kept = GameCore.tick(sold, hub, 1), GameCore.tick(kept, hub, 1)
+	hub.weather = Config.weathers[1] -- Sunny, price 1.0
+	local function forecastRun(nextWeather: any, on: boolean): any
+		hub.nextWeather = nextWeather
+		local state = run()
+		state.storage = { charge = 0, mode = "auto" }
+		state.rules = { sell = { th = 1, on = true }, forecast = { th = 1.5, on = on } }
+		return GameCore.tick(state, hub, 10)
 	end
-	t.truthy(
-		sold.storage.charge < 1e-6 and kept.storage.charge > 1,
-		"the reserve rule keeps charge that selling alone empties"
-	)
+	t.truthy(forecastRun(Config.weathers[5], true).storage.charge > 0, "a clearly higher next price charges")
+	t.equal(forecastRun(Config.weathers[5], false).storage.charge, 0, "switched off it does nothing")
+	t.equal(forecastRun(Config.weathers[4], true).storage.charge, 0, "a rise of only 1.2 stays below 1.5")
+	hub.nextWeather = nil
 
 	-- Mega Battery: the capacity of every stage is 1.5 times as large, and the sold-out charge scales with it.
 	near(storageCapacity(owned("mega_battery")), 1.5 * storageCapacity(base), "Mega Battery: capacity x1.5")
