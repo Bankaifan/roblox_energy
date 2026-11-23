@@ -19,4 +19,12 @@ return function(t, load)
 		1,
 		"a dry cable stays whole"
 	)
+
+	local plain = Cable.look(false)
+	t.equal(plain.neon, false, "a cable of a player without Grid VIP is not neon")
+	t.equal(plain.range, 0, "no light without Grid VIP")
+	local vip = Cable.look(true)
+	t.equal(vip.neon, true, "a Grid VIP cable glows")
+	t.equal(#vip.rgb, 3, "the glow has red, green and blue")
+	t.truthy(vip.range > 0, "a Grid VIP cable has a soft light")
 end
