@@ -16,14 +16,5 @@
     "Makefile",
     "docs/design/README.md"
   ],
-  "overrides": [
-    {
-      "path": "tools/prefilter.py",
-      "reason": "ORCH-SILENT: startable stays false when the dispatcher is on and no issue lacks a slip"
-    },
-    {
-      "path": "tests/agent/test_prefilter.py",
-      "reason": "ORCH-SILENT: test for the startable change in tools/prefilter.py"
-    }
-  ]
+  "overrides": []
 }
