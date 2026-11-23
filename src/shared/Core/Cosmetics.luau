@@ -162,16 +162,23 @@ end
 
 -- S5 blade tips: the tip cap of one blade (length along its local X axis, sizeX). `hubAlong` is where the hub lies on the
 -- blade's X axis, measured from the blade centre (studs, positive = towards +X). The cap sits on the end that is farther
--- from the hub, is a fifth of the blade long and a little thicker than the blade. Returns the cap size and its offset on X.
+-- from the hub and is a tenth of the blade long. The blade mesh tapers to a thin wing that sits off the centre of its
+-- bounding box (measured on the wind turbine blade: thickness 0.33 and chord 0.36 of the box, centre at -0.15 / +0.30 of
+-- it), so the cap hugs that tip instead of filling the box. Returns the cap size and its offset on X, Y and Z.
 function Cosmetics.bladeTip(
 	sizeX: number,
 	sizeY: number,
 	sizeZ: number,
 	hubAlong: number
-): { size: { number }, offset: number }
-	local length = sizeX * 0.2
+): { size: { number }, offset: number, offsetY: number, offsetZ: number }
+	local length = sizeX * 0.1
 	local sign = if hubAlong > 0 then -1 else 1
-	return { size = { length, sizeY + 0.1, sizeZ + 0.1 }, offset = sign * (sizeX / 2 - length / 2) }
+	return {
+		size = { length, sizeY * 0.33, sizeZ * 0.36 },
+		offset = sign * (sizeX / 2 - length / 2),
+		offsetY = -0.15 * sizeY,
+		offsetZ = 0.3 * sizeZ,
+	}
 end
 
 -- Upgrade Fireworks: true when a grid expansion happened (the level went up) and the owner has the pass.
