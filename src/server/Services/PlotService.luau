@@ -1013,7 +1013,8 @@ function PlotService.style(player: Player, flags: any)
 	local key = if flags.themed then flags.theme else ""
 	if record.themeKey ~= key then
 		record.themeKey = key
-		PlotStyle.theme(record.model, record.origin, record.facing, if flags.themed then flags.theme else nil)
+		local theme = if flags.themed then flags.theme else nil
+		PlotStyle.theme(record.model, record.origin, record.facing, theme, record.slot)
 	end
 end
 
