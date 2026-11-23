@@ -347,7 +347,8 @@ def main(mode) -> int:
         with open(out, "a") as f:
             f.write(f"work={str(work).lower()}\n")
             if mode == "orchestrator":
-                f.write(f"startable={str(bool(cands)).lower()}\nstart={','.join(map(str, cands))}\nreason={reason}\n")
+                # dispatcher on: a script starts the issues that hold a slip, the model only writes missing slips
+                f.write(f"startable={str(bool(cands if slipless is None else slipless)).lower()}\nstart={','.join(map(str, cands))}\nreason={reason}\n")
                 f.write(f"needs_slip={','.join(map(str, slipless or []))}\nhandover_due={str(handover_due).lower()}\n")
                 f.write(f"free_dev={free_dev}\nfree_prs={free_prs}\nwaiting_prs={w_prs}\n")
     return 0
