@@ -92,16 +92,19 @@ end
 -- Gives every top-level control of `gui` a UIScale that follows the viewport. A UIScale only scales the size (positions
 -- and anchors stay), so a size that is relative to the screen (scale part) is divided by the factor and keeps its screen
 -- share: a full-screen backdrop still covers the screen. Do not use it on a gui that scales itself (Market).
--- `base` is the size the control had before this function changed it. When something else sets the Size later (a card
--- that grows, an animated panel), the control no longer shows the value written last: that size is the new base.
+-- `base` is the unscaled Size the owner set, `written` the Size `apply` last wrote. The owner may set Size after the control
+-- has its Parent, or resize it later, so a Size that is not `written` is taken as the new base (see `track`) at once,
+-- not only at the next viewport change; otherwise that change would reset the control to its older Size.
+type Entry = { control: GuiObject, base: UDim2, written: UDim2, scale: UIScale }
+
+-- Gives every top-level control of `gui` a UIScale that follows the viewport. A UIScale only scales the size (positions
+-- and anchors stay), so a size that is relative to the screen (scale part) is divided by the factor and keeps its screen
+-- share: a full-screen backdrop still covers the screen. Do not use it on a gui that scales itself (Market).
 function Theme.fitScreen(gui: ScreenGui)
 	local camera = workspace.CurrentCamera :: Camera
-	local tracked: { { control: GuiObject, base: UDim2, scale: UIScale, written: UDim2? } } = {}
-	local function apply(entry: { control: GuiObject, base: UDim2, scale: UIScale, written: UDim2? })
+	local tracked: { Entry } = {}
+	local function apply(entry: Entry)
 		local factor = Theme.fitFactor(camera.ViewportSize)
-		if entry.written == nil or entry.control.Size ~= entry.written then
-			entry.base = entry.control.Size
-		end
 		local base = entry.base
 		local function axis(part: UDim): UDim
 			if part.Scale == 0 then
@@ -111,11 +114,21 @@ function Theme.fitScreen(gui: ScreenGui)
 		end
 		entry.scale.Scale = factor
 		if base.X.Scale ~= 0 or base.Y.Scale ~= 0 then
-			entry.control.Size = UDim2.new(axis(base.X), axis(base.Y))
-			entry.written = entry.control.Size
+			local size = UDim2.new(axis(base.X), axis(base.Y))
+			-- Stored before the write: the Size signal fires on it and must see it as our own write.
+			entry.written = size
+			entry.control.Size = size
 		else
-			entry.written = nil
+			entry.written = base
 		end
+	end
+	local function track(entry: Entry)
+		entry.control:GetPropertyChangedSignal("Size"):Connect(function()
+			if entry.control.Size ~= entry.written then
+				entry.base = entry.control.Size
+				apply(entry)
+			end
+		end)
 	end
 	local function attach(child: Instance)
 		if not child:IsA("GuiObject") or child:FindFirstChildOfClass("UIScale") ~= nil then
@@ -124,9 +137,10 @@ function Theme.fitScreen(gui: ScreenGui)
 		local scale = Instance.new("UIScale")
 		scale.Name = "FitScale"
 		scale.Parent = child
-		local entry = { control = child, base = child.Size, scale = scale }
+		local entry: Entry = { control = child, base = child.Size, written = child.Size, scale = scale }
 		table.insert(tracked, entry)
 		apply(entry)
+		track(entry)
 	end
 	for _, child in gui:GetChildren() do
 		attach(child)
