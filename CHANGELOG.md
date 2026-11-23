@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.16] - 2026-11-23
+- Grid VIP: Die Erdkabel deines Netzes leuchten jetzt neonfarben mit einem sanften Licht.
+- Die Stamm-Anlagen (Robux) auf den Pflanzenkarten sind jetzt cyan Buttons und sehen so aus, als kann man sie antippen.
+- Beim Leuchten gibt es jetzt die Option "Aus".
+- Plot Themes: fünf neue Designs (Frühling, Sommer, Herbst, Halloween, Weihnachten) mit eigenem Bodenmaterial.
+- Neu für Smart-Hub-Besitzer: Die dritte Regel "Vorausschau laden" ersetzt die Reserve-Regel und lädt den Speicher, wenn das nächste Wetter deutlich mehr zahlt als der Preis jetzt.
+
 ## [0.15] - 2026-11-23
 - Alle gekauften Module sind jetzt sichtbar: gibt es mehr Einheiten als vorbereitete Zellen, teilen sie sich die Zellen in einem kleinen Raster (bis zu 4 pro Zelle, verkleinert, ohne sich zu beruehren).
 - Die PV-Module der Solaranlage sitzen jetzt passend im Gestell: das Gestell steht aufrecht und die Module neigen sich mit ihm.
