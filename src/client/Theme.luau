@@ -81,23 +81,27 @@ function Theme.outline(control: GuiObject, color: Color3, thickness: number?): U
 	return stroke
 end
 
--- Shrinks the UI to a small screen (phone): the factor is 1 from DESIGN_WIDTH x DESIGN_HEIGHT up and falls to MIN_FIT below.
-local DESIGN_WIDTH = 800
-local DESIGN_HEIGHT = 500
-local MIN_FIT = 0.5
+local ScreenFit = require(
+	game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("ScreenFit") :: ModuleScript
+) :: any
 
 function Theme.fitFactor(viewport: Vector2): number
-	return math.clamp(math.min(viewport.X / DESIGN_WIDTH, viewport.Y / DESIGN_HEIGHT), MIN_FIT, 1)
+	return ScreenFit.factor(viewport.X, viewport.Y)
 end
 
 -- Gives every top-level control of `gui` a UIScale that follows the viewport. A UIScale only scales the size (positions
 -- and anchors stay), so a size that is relative to the screen (scale part) is divided by the factor and keeps its screen
 -- share: a full-screen backdrop still covers the screen. Do not use it on a gui that scales itself (Market).
+-- `base` is the size the control had before this function changed it. When something else sets the Size later (a card
+-- that grows, an animated panel), the control no longer shows the value written last: that size is the new base.
 function Theme.fitScreen(gui: ScreenGui)
 	local camera = workspace.CurrentCamera :: Camera
-	local tracked: { { control: GuiObject, base: UDim2, scale: UIScale } } = {}
-	local function apply(entry: { control: GuiObject, base: UDim2, scale: UIScale })
+	local tracked: { { control: GuiObject, base: UDim2, scale: UIScale, written: UDim2? } } = {}
+	local function apply(entry: { control: GuiObject, base: UDim2, scale: UIScale, written: UDim2? })
 		local factor = Theme.fitFactor(camera.ViewportSize)
+		if entry.written == nil or entry.control.Size ~= entry.written then
+			entry.base = entry.control.Size
+		end
 		local base = entry.base
 		local function axis(part: UDim): UDim
 			if part.Scale == 0 then
@@ -108,6 +112,9 @@ function Theme.fitScreen(gui: ScreenGui)
 		entry.scale.Scale = factor
 		if base.X.Scale ~= 0 or base.Y.Scale ~= 0 then
 			entry.control.Size = UDim2.new(axis(base.X), axis(base.Y))
+			entry.written = entry.control.Size
+		else
+			entry.written = nil
 		end
 	end
 	local function attach(child: Instance)
