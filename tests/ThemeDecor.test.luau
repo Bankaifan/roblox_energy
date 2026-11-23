@@ -65,7 +65,10 @@ return function(t, load)
 					`{label}: off the river`
 				)
 				for _, line in scene.cables do
-					t.truthy(Cable.distanceToLine(line.points, site.x, site.z) >= 2 + size / 2, `{label}: off the cables`)
+					t.truthy(
+						Cable.distanceToLine(line.points, site.x, site.z) >= 2 + size / 2,
+						`{label}: off the cables`
+					)
 				end
 				t.truthy(
 					River.gap(course, { site.x - size / 2, site.x + size / 2, site.z - size / 2, site.z + size / 2 })
