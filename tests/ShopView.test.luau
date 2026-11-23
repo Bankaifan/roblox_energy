@@ -181,6 +181,7 @@ return function(t, load)
 	t.equal(tools["tool.rails"].state, "short", "300 coins are not there for the rails")
 	t.equal(tools["tool.wrench"].state, "locked", "the wrench is not available yet")
 	t.truthy(tools["tool.wrench"].info ~= "", "a locked tool still explains itself")
+	t.equal(tools["tool.wrench"].status, "Locked: needs Rooftop Solar", "a locked tool names the plant that reveals it")
 
 	local noLand = ShopView.cards("tools", { view = {}, coins = 0, land = land, t = Locale.t } :: any)
 	t.equal(#noLand, #Land.tools, "without land rules every tool is still listed")
