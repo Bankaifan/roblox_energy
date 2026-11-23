@@ -24,6 +24,19 @@ function ClockView.chip(weatherId: string): { number }?
 	return CHIPS[weatherId]
 end
 
+-- The forecast arrow: the text and chip colour of the next weather, or nil. `nextId` is view.price.nextWeather, which the
+-- server sets only for a player with U15, so no extension means no arrow.
+function ClockView.forecast(nextId: string?, t: Translate): { text: string, color: { number } }?
+	if nextId == nil then
+		return nil
+	end
+	local color = CHIPS[nextId]
+	if color == nil then
+		return nil
+	end
+	return { text = t("clock.next", { weather = t("weather." .. nextId) }), color = color }
+end
+
 -- Rotation in degrees of the dial container at clock hour `hour`: the current time sits under the fixed pointer at the top.
 -- Noon is 0 degrees, midnight 180.
 function ClockView.angle(hour: number): number
