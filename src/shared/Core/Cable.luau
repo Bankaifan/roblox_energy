@@ -73,4 +73,13 @@ function Cable.dryPieces(link: Link, river: { { number } }, margin: number, step
 	return pieces
 end
 
+-- The look of the ground cables: a dark plastic strip for everyone; Grid VIP owners get a glowing neon strip with a soft
+-- light (range in studs, 0 = no light) over the grid.
+function Cable.look(vip: boolean): { neon: boolean, rgb: { number }, range: number }
+	if vip then
+		return { neon = true, rgb = { 90, 220, 255 }, range = 12 }
+	end
+	return { neon = false, rgb = { 30, 30, 34 }, range = 0 }
+end
+
 return Cable
