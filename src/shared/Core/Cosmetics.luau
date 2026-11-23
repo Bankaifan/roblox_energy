@@ -4,9 +4,9 @@
 -- Roblox. This module only knows ids; the client draws the colours, and the server sends PlotPublic built here.
 local Cosmetics = {}
 
--- The glow colours of the Neon Plants and the three plot themes, by id. The first of each is the default.
+-- The glow colours of the Neon Plants and the eight plot themes, by id. The first of each is the default.
 Cosmetics.NEON_COLOURS = { "green", "cyan", "magenta", "gold", "off" } -- "off" switches the glow off
-Cosmetics.THEMES = { "classic", "desert", "night" }
+Cosmetics.THEMES = { "classic", "desert", "night", "spring", "summer", "autumn", "halloween", "christmas" }
 -- The slots of SetCosmetic: the glow colour and the theme.
 Cosmetics.SLOT_NEON = 1
 Cosmetics.SLOT_THEME = 2
@@ -143,14 +143,20 @@ function Cosmetics.neonRgb(id: string): { number }
 	return NEON_RGB[id] or NEON_RGB[Cosmetics.NEON_COLOURS[1]]
 end
 
--- The three designs of Plot Themes: ground (the border strip), fence (posts and rails) and sign (the name board), RGB.
+-- The designs of Plot Themes: ground (the border strip, with the name of its Roblox material), fence (posts and rails) and
+-- sign (the name board), RGB.
 local THEME_LOOKS = {
-	classic = { ground = { 96, 150, 70 }, fence = { 150, 110, 70 }, sign = { 190, 150, 100 } },
-	desert = { ground = { 214, 180, 120 }, fence = { 170, 100, 60 }, sign = { 232, 120, 70 } },
-	night = { ground = { 40, 56, 96 }, fence = { 70, 80, 120 }, sign = { 20, 28, 56 } },
+	classic = { material = "Grass", ground = { 96, 150, 70 }, fence = { 150, 110, 70 }, sign = { 190, 150, 100 } },
+	desert = { material = "Sand", ground = { 214, 180, 120 }, fence = { 170, 100, 60 }, sign = { 232, 120, 70 } },
+	night = { material = "Grass", ground = { 40, 56, 96 }, fence = { 70, 80, 120 }, sign = { 20, 28, 56 } },
+	spring = { material = "LeafyGrass", ground = { 110, 190, 80 }, fence = { 240, 240, 235 }, sign = { 230, 150, 180 } },
+	summer = { material = "Sand", ground = { 230, 210, 150 }, fence = { 240, 240, 240 }, sign = { 40, 170, 190 } },
+	autumn = { material = "Grass", ground = { 150, 120, 50 }, fence = { 120, 80, 50 }, sign = { 200, 110, 40 } },
+	halloween = { material = "Ground", ground = { 70, 52, 40 }, fence = { 40, 36, 44 }, sign = { 90, 40, 120 } },
+	christmas = { material = "Snow", ground = { 240, 244, 250 }, fence = { 235, 235, 240 }, sign = { 180, 30, 40 } },
 }
 
-function Cosmetics.themeLook(id: string): { ground: { number }, fence: { number }, sign: { number } }
+function Cosmetics.themeLook(id: string): { material: string, ground: { number }, fence: { number }, sign: { number } }
 	return THEME_LOOKS[id] or THEME_LOOKS[Cosmetics.THEMES[1]]
 end
 
