@@ -11,6 +11,7 @@ Project: "Power Grid Incremental", a Roblox incremental game (Luau). Plan: `Baup
 - Tools are pinned in `rokit.toml` (Rojo, Lune, Selene, StyLua). `make check` runs `scripts/ci/luau-check.sh`:
   StyLua, Selene, Lune tests (`scripts/run-tests.luau`), Rojo build. Run `stylua src tests scripts` to format.
 - A test is `tests/<Name>.test.luau`, returns `function(t, load)`, and loads code with `load("Core/<Module>")`. No other require.
+  Exceptions: `Balance.test.luau` (returns `function(t)`, requires the bot sim `../sim/Sim`) and `Models.test.luau` (Lune only, reads `assets/models`).
 - Keep it lean: no test a reviewer would call unnecessary.
 
 ## Tests in Studio
