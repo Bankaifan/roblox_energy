@@ -1,0 +1,2 @@
+- Die Plot-Themen Wüste und Nacht bringen ihre Deko auf das Grundstück: Kakteen und Felsen bzw. Laternenpfähle und Bänke.
+- internal: ThemeProps-Builder für Schritt 5 von docs/themes-design.md.
