@@ -249,15 +249,20 @@ local function ruleOf(state: State, env: Env, id: string): Rule
 	return { th = env.config.effects.rules[id].default, on = false }
 end
 
+-- Rule slots open for this run: env.ruleSlots, else the base of Config/Effects.
+local function ruleSlots(env: Env): number
+	return env.ruleSlots or env.config.effects.ruleSlots
+end
+
 -- Auto does something only with the Regelzentrale and at least one rule switched on.
 local function autoReady(state: State, env: Env): boolean
 	if not rulesUnlocked(state, env) then
 		return false
 	end
-	-- Only the storage rules count: the auto-build switch and the reserve alone leave the storage idle.
-	for _, id in { "charge", "sell" } do
+	-- Only the storage rules count: the auto-build switch alone leaves the storage idle.
+	for _, id in { "charge", "sell", "forecast" } do
 		local rule = state.rules[id]
-		if rule ~= nil and rule.on then
+		if rule ~= nil and rule.on and env.config.effects.rules[id].slot <= ruleSlots(env) then
 			return true
 		end
 	end
@@ -270,7 +275,8 @@ function GameCore.autoBuildDue(last: number?, now: number, every: number): boole
 end
 
 -- What the storage does this second: "charge", "sell" or "idle". In "auto" the rules decide;
--- if both rules fire, "sell" wins.
+-- if charge and sell both fire, "sell" wins. Forecast charging (Smart Hub) beats both: it charges while the next
+-- weather period pays at least `th` times the price now.
 local function storageAction(state: State, env: Env): string
 	local mode = state.storage.mode
 	if mode == "charge" or mode == "sell" then
@@ -278,6 +284,17 @@ local function storageAction(state: State, env: Env): string
 	end
 	if mode ~= "auto" then
 		return "idle"
+	end
+	local forecastRule = state.rules.forecast
+	local nextWeather = env.nextWeather
+	if
+		forecastRule ~= nil
+		and forecastRule.on
+		and nextWeather ~= nil
+		and ruleSlots(env) >= env.config.effects.rules.forecast.slot
+		and nextWeather.price >= forecastRule.th * env.weather.price
+	then
+		return "charge"
 	end
 	local priceFactor = env.phase.price * env.weather.price
 	local chargeRule, sellRule = state.rules.charge, state.rules.sell
@@ -290,11 +307,6 @@ local function storageAction(state: State, env: Env): string
 		return "charge"
 	end
 	return "idle"
-end
-
--- Rule slots open for this run: env.ruleSlots, else the base of Config/Effects.
-local function ruleSlots(env: Env): number
-	return env.ruleSlots or env.config.effects.ruleSlots
 end
 
 local function credit(state: State, amount: number)
@@ -323,10 +335,6 @@ local function storageStep(
 		charge = math.min(capacity, charge + input * efficiency)
 	elseif action == "sell" then
 		output = math.min(rate, charge)
-		local reserve = state.rules.reserve
-		if reserve ~= nil and reserve.on and state.storage.mode == "auto" and ruleSlots(env) >= 3 then
-			output = math.max(0, math.min(output, charge - reserve.th * capacity))
-		end
 		charge -= output
 	end
 	return input, output, charge, capacity, action
