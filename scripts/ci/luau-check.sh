@@ -29,8 +29,19 @@ stylua --check src tests scripts sim
 selene src tests scripts sim
 lune run scripts/run-tests
 # Balance report (Bauplan section 2): regenerated here, and the committed docs/balance must match it.
-lune run scripts/balance
-git diff --exit-code -- docs/balance
+# The campaign takes about 14 minutes, close to the time limit of the validate job. On a pull request (PR_BASE_REF,
+# set by validate.yml) it runs only when the PR changes what the campaign reads or writes; a push to main and a
+# local run always run it, and so does a PR whose changed files cannot be listed.
+balance=1
+if [ -n "${PR_BASE_REF:-}" ] && changed="$(git diff --name-only "origin/$PR_BASE_REF...HEAD" 2>/dev/null)"; then
+  if ! grep -Eq '^(src/shared/|sim/|scripts/balance\.luau$|docs/balance/|rokit\.toml$)' <<<"$changed"; then balance=0; fi
+fi
+if [ "$balance" = 1 ]; then
+  lune run scripts/balance
+  git diff --exit-code -- docs/balance
+else
+  echo "luau-check: balance campaign skipped (no change under src/shared, sim, scripts/balance.luau, docs/balance)"
+fi
 rojo build default.project.json -o "$(mktemp -d)/PowerGrid.rbxl"
 # The test project (adds the tests and the Studio TestRunner) must build too, so it does not rot.
 rojo build test.project.json -o "$(mktemp -d)/PowerGridTests.rbxl"
