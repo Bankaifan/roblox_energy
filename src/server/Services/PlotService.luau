@@ -98,8 +98,7 @@ local function block(parent: Instance, name: string, size: Vector3, color: Color
 	return part
 end
 
--- The sites of a plant for `owned` units: min(owned, cap x prepared cells), on prepared ground only; units beyond one per
--- cell share it in a grid and are scaled down to their grid square (PlotLayout.packed). Panels (plant 1) lie wild on their mown cell; a cell in `aligned` (the
+-- The sites of a plant for `owned` units: min(owned, prepared cells), one per cell, on prepared ground only. Panels (plant 1) lie wild on their mown cell; a cell in `aligned` (the
 -- Align action with the Mounting Rails) holds its panel straight on the cell centre. Returns the sites.
 local function unitSites(record: Record, index: number, owned: number, cells: { number }, aligned: { number }): { any }
 	local field = Assets.fields[index]
@@ -107,10 +106,8 @@ local function unitSites(record: Record, index: number, owned: number, cells: { 
 	if index ~= 1 then
 		table.sort(chosen)
 	end
-	-- More units than cells: they share the cells in a small grid (at most the entry's cap per cell), scaled to fit it.
-	local entry = Assets.entry(index)
-	local packed =
-		PlotLayout.packed(field, chosen, owned, Assets.TILE, Assets.PLOT_TILES, if entry ~= nil then entry.cap else 1)
+	-- One unit per prepared cell: owning more units than cells does not draw more models (a quartered cell looked cluttered).
+	local packed = PlotLayout.packed(field, chosen, owned, Assets.TILE, Assets.PLOT_TILES, 1)
 	if index ~= 1 then
 		return packed
 	end
