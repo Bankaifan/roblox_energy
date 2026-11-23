@@ -997,13 +997,15 @@ function PlotService.update(
 	end
 end
 
--- Cosmetics (Core/Cosmetics flags): the glow of Neon Plants on every unit; the design of Plot Themes is rebuilt when it changes.
+-- Cosmetics (Core/Cosmetics flags): the glow of Neon Plants on every unit, the neon cables of Grid VIP; the design of Plot
+-- Themes is rebuilt when it changes.
 function PlotService.style(player: Player, flags: any)
 	local record = plots[player]
 	if record == nil then
 		return
 	end
 	PlotStyle.neon(record.origin, record.copies, record.columns, flags.neon)
+	PlotStyle.cables(record.cables, flags.vip == true, sitePoint(record, Assets.furniture.control) + Vector3.new(0, 1, 0))
 	local key = if flags.themed then flags.theme else ""
 	if record.themeKey ~= key then
 		record.themeKey = key
