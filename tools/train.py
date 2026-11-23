@@ -9,7 +9,7 @@ Model-free. The workflow (a later PR) runs it on push to main, on a schedule and
    The run does nothing; the push of that merge starts the next run.
 3. The oldest BEHIND candidate with auto-merge enabled is rebased by tools/branch_repair.py: a straight line on
    main (a merge of main into the branch disappears), every subject `V<VERSION>-<NAME>: ` with main's VERSION, one
-   `--force-with-lease` push. If that script cannot do it, the update-branch API rebases as before; a rebase that
+   `--force-with-lease` push. If that script cannot do it, `gh pr update-branch --rebase` does; a rebase that
    stops on a conflict goes to the conflict fix (step 4).
 4. The oldest DIRTY candidate gets status.handle_conflict at once, unless an agent-fix run is queued or running.
    PRs no longer edit VERSION or CHANGELOG.md, so those never conflict (issue #468).
@@ -467,8 +467,9 @@ def run_train(env, run=status.gh, releaser=None, now=None, builder=None, repaire
                 print(f"PR #{rebase['number']} not rebased: {how}")
             else:
                 if how != "pushed":  # the script could not: GitHub rebases, subjects stay as they are
-                    run("api", "-X", "PUT", f"repos/{repo}/pulls/{rebase['number']}/update-branch", "-f",
-                        "update_method=rebase")
+                    # `gh pr update-branch --rebase`: the REST update-branch call knows no rebase and always merged
+                    # main into the branch, which is where the `Merge branch 'main' into agent/...` commits came from
+                    run("pr", "update-branch", str(rebase["number"]), "--rebase")
                 print(f"rebased PR #{rebase['number']} onto main")
         if conflict:
             print(f"conflict PR #{conflict['number']}: {status.handle_conflict(conflict, owner, run)}")

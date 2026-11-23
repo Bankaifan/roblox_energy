@@ -61,7 +61,7 @@ class Gh:
         return ""
 
     def mutations(self):
-        return [c for c in self.calls if c[:2] in (("api", "-X"), ("workflow", "run"), ("pr", "edit"))]
+        return [c for c in self.calls if c[:2] in (("api", "-X"), ("workflow", "run"), ("pr", "edit"), ("pr", "update-branch"))]
 
 
 def test_design_pr_is_only_docs_design_files():
@@ -121,8 +121,8 @@ def test_oldest_behind_with_auto_merge_is_rebased_only():
     prs = [pr(4, merge="BEHIND"), pr(2, merge="BEHIND"), pr(3, merge="BEHIND", auto=False)]
     run = Gh(prs, approved(*prs))
     assert train.run_train(ENV, run) == 0
-    updates = [c for c in run.calls if c[:2] == ("api", "-X")]
-    assert updates == [("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase")]
+    updates = [c for c in run.calls if c[:2] == ("pr", "update-branch")]
+    assert updates == [("pr", "update-branch", "2", "--rebase")]
 
 
 def test_behind_without_auto_merge_is_left_alone():
@@ -158,7 +158,7 @@ def test_rebase_and_conflict_in_one_run():
     prs = [pr(2, merge="BEHIND"), pr(3, merge="DIRTY")]
     run = Gh(prs, approved(*prs))
     assert train.run_train(ENV, run) == 0
-    assert ("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase") in run.calls
+    assert ("pr", "update-branch", "2", "--rebase") in run.calls
     assert ("workflow", "run", "agent-fix.yml", "-f", "pr=3") in run.calls
 
 
@@ -183,7 +183,7 @@ def test_non_required_red_does_not_stop_the_next_pr():
     prs = [pr(1, merge="BLOCKED", checks=checks), pr(2, merge="BEHIND")]
     run = Gh(prs, approved(*prs))
     assert train.run_train(ENV, run) == 0
-    assert ("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase") in run.calls
+    assert ("pr", "update-branch", "2", "--rebase") in run.calls
 
 
 def test_waiting_for_owner_needs_everything_but_owner_approval():
@@ -201,7 +201,7 @@ def test_train_skips_waiting_pr_and_next_ready_pr_lands():
     prs = [sec(1, merge="BLOCKED"), pr(2, merge="BEHIND")]
     run = Gh(prs, approved(*prs))
     assert train.run_train(ENV, run) == 0
-    assert ("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase") in run.calls
+    assert ("pr", "update-branch", "2", "--rebase") in run.calls
 
 
 def test_waiting_pr_never_counts_as_in_flight():
@@ -214,7 +214,7 @@ def test_waiting_pr_is_rebased_without_auto_merge_when_main_moves():
     prs = [sec(1, merge="BEHIND", auto=False)]
     run = Gh(prs, approved(*prs))
     assert train.run_train(ENV, run) == 0
-    assert ("api", "-X", "PUT", "repos/o/r/pulls/1/update-branch", "-f", "update_method=rebase") in run.calls
+    assert ("pr", "update-branch", "1", "--rebase") in run.calls
 
 
 def test_waiting_pr_with_conflict_goes_to_fix():
@@ -230,7 +230,7 @@ def test_waiting_bound_is_five():
 
 def test_failed_rebase_is_reported_and_no_label_changes():
     prs = [pr(2, merge="BEHIND"), pr(3, merge="DIRTY")]
-    run = Gh(prs, approved(*prs), fail=("api", "-X", "PUT"))
+    run = Gh(prs, approved(*prs), fail=("pr", "update-branch"))
     assert train.run_train(ENV, run) == 1
     assert not any(c[:2] == ("pr", "edit") or "--add-label" in c for c in run.calls)
     assert not any(c[:2] == ("workflow", "run") for c in run.calls)
@@ -493,10 +493,10 @@ class BatchGh(Gh):
 
     def go(self, env=ENV, builder=None):
         assert train.run_train(env, self, now=NOW, builder=builder or self.builder) == 0
-        return [c for c in self.calls if c[:2] in (("pr", "create"), ("pr", "close"), ("pr", "edit"), ("api", "-X"))]
+        return [c for c in self.calls if c[:2] in (("pr", "create"), ("pr", "close"), ("pr", "edit"), ("api", "-X"), ("pr", "update-branch"))]
 
 
-REBASE_1 = ("api", "-X", "PUT", "repos/o/r/pulls/1/update-branch", "-f", "update_method=rebase")
+REBASE_1 = ("pr", "update-branch", "1", "--rebase")
 
 
 def test_batch_members_are_green_riskless_disjoint_and_at_most_eight():
@@ -546,7 +546,7 @@ def test_members_are_closed_once_their_batch_is_merged():
     run = BatchGh(prs, [batch_pr([ready(1), ready(2), ready(3)], state="MERGED")])
     assert run.go() == [("pr", "close", "1", "--comment", "Merged with #50."),
                         ("pr", "close", "3", "--comment", "Merged with #50."),
-                        ("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase")]
+                        ("pr", "update-branch", "2", "--rebase")]
 
 
 def test_a_merged_batch_closes_only_what_the_approval_of_its_body_vouches_for():
@@ -744,7 +744,7 @@ def test_the_behind_pr_is_rebased_by_the_script_and_the_api_is_only_the_fallback
         fix, run = Repairer(how), Gh([p], approved(p))
         assert train.run_train(ENV, run, repairer=fix) == 0
         assert fix.calls == [(2, "FOO")], how
-        assert (("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase") in run.calls) is api, how
+        assert (("pr", "update-branch", "2", "--rebase") in run.calls) is api, how
 
 
 def test_a_rebase_that_stops_on_a_conflict_goes_to_the_conflict_fix_once_per_head():
@@ -752,7 +752,7 @@ def test_a_rebase_that_stops_on_a_conflict_goes_to_the_conflict_fix_once_per_hea
     run = Gh([p], approved(p))
     assert train.run_train(ENV, run, repairer=Repairer("conflict")) == 0
     assert ("workflow", "run", "agent-fix.yml", "-f", "pr=2") in run.calls
-    assert not any(c[:3] == ("api", "-X", "PUT") for c in run.calls)
+    assert not any(c[:2] == ("pr", "update-branch") for c in run.calls)
     for kw in ({"labels": ["conflict:sha2"]}, {}):
         p = named(2, ["V1.103-FOO: ok"], merge="BEHIND", **kw)
         run = Gh([p], approved(p), fix_runs=[] if kw else [{"status": "in_progress"}])
@@ -780,7 +780,7 @@ def test_the_train_closes_the_issue_of_a_merged_pr_first_and_a_failure_there_sto
     assert train.run_train(ENV, run) == 0 and REBASE_2 in run.calls
 
 
-REBASE_2 = ("api", "-X", "PUT", "repos/o/r/pulls/2/update-branch", "-f", "update_method=rebase")
+REBASE_2 = ("pr", "update-branch", "2", "--rebase")
 
 
 def test_main_usage_error():
