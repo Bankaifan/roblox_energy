@@ -174,7 +174,7 @@ return function(t, load)
 		night = 76,
 		classic = 58,
 	}
-	local decoration = { autumn = 61, summer = 70, spring = 61 }
+	local decoration = { autumn = 61, summer = 70, spring = 61, desert = 21, night = 18 }
 	for id, parts in decoration do
 		t.equal(Themes.budget(Themes.sets[id]).parts - Themes.BASE_PARTS, parts, `{id}: parts of the decoration alone`)
 	end
