@@ -284,7 +284,7 @@ end
 -- never turn). The axle is the thin direction of the biggest disc, the centre the middle of the biggest parts. The client
 -- (World.client) turns the tagged model about that axle; attribute SpinSense (+1/-1) makes the bottom move with the water
 -- flowing along (flowX, flowZ) in the world. Nothing happens for a model without a "Wheel" child.
-function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childName: string?)
+function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childName: string?, capPart: BasePart?)
 	local wheel = copy:FindFirstChild(childName or "Wheel")
 	if wheel == nil or not wheel:IsA("Model") then
 		return
@@ -331,7 +331,8 @@ function PlantModels.tagWheel(copy: Model, flowX: number, flowZ: number, childNa
 	-- one blade is a little shorter than the others.
 	local mid = wheel:FindFirstChild("Mid", true)
 	local mean = sum / count
-	local hub = if mid ~= nil and mid:IsA("BasePart") then { mid.Position.X, mid.Position.Y, mid.Position.Z } else nil
+	local hubAt: BasePart? = if mid ~= nil and mid:IsA("BasePart") then mid else capPart
+	local hub = if hubAt ~= nil then { hubAt.Position.X, hubAt.Position.Y, hubAt.Position.Z } else nil
 	local at = Spin.centre(hub, { mean.X, mean.Y, mean.Z })
 	wheel:SetAttribute("SpinCentre", Vector3.new(at[1], at[2], at[3]))
 	wheel:SetAttribute("SpinSense", Spin.sense(axis.X, axis.Z, flowX, flowZ))
@@ -356,8 +357,23 @@ function PlantModels.tagRotor(copy: Model, plantId: number)
 	if child == nil then
 		return
 	end
-	PlantModels.tagWheel(copy, 0, 0, child)
 	local rotor = copy:FindFirstChild(child)
+	-- The mini turbine's rotor is one Union whose bounding box is not centred on the hub: it turns about the hub cap, the
+	-- highest part outside the rotor.
+	local cap: BasePart? = nil
+	if plantId == 4 and rotor ~= nil then
+		for _, item in copy:GetDescendants() do
+			if
+				item:IsA("BasePart")
+				and not item:IsDescendantOf(rotor)
+				and item.Name ~= "NeonGlow"
+				and (cap == nil or item.Position.Y > cap.Position.Y)
+			then
+				cap = item
+			end
+		end
+	end
+	PlantModels.tagWheel(copy, 0, 0, child, cap)
 	if rotor ~= nil then
 		rotor:SetAttribute("SpinSense", 1)
 	end
