@@ -10,6 +10,7 @@ return function(t, load)
 	local River = load("Core/River")
 	local Cable = load("Core/Cable")
 	local ThemeDecor = load("Core/ThemeDecor")
+	local ThemeMap = load("Core/ThemeMap")
 
 	local materials = { Grass = true, LeafyGrass = true, Sand = true, Ground = true, Snow = true }
 	for _, id in Cosmetics.THEMES do
@@ -22,41 +23,16 @@ return function(t, load)
 	t.equal(Cosmetics.THEMES[1], "classic", "classic stays the default")
 	t.equal(#Themes.sets.classic.pieces, 0, "classic has no decoration")
 
-	-- The real site map.
-	local cells, furniture, board = {}, {}, Assets.furniture.control
-	local cableLines: { ThemeDecor.Line } = {}
-	for index, field in Assets.fields do
-		local size = field.size * Assets.TILE
-		local cellSites = PlotLayout.cellSites(
-			field,
-			PlotLayout.mown(nil, #field.cells, #field.cells),
-			Assets.TILE,
-			Assets.PLOT_TILES
-		)
-		for _, site in cellSites do
-			table.insert(cells, { site.x, site.z, size })
-		end
-		if Assets.cables[index] then
-			for _, link in Cable.links(cellSites, { x = board.x, z = board.z }) do
-				table.insert(cableLines, { points = { { link.a.x, link.a.z }, { link.b.x, link.b.z } }, distance = 2 })
-			end
-		end
-	end
-	for name, spot in Assets.furniture do
-		local w, d = spot.size, spot.depth or spot.size
-		if name == "battery" then
-			w, d =
-				Assets.container.size * Cosmetics.MEGA_CONTAINER_SCALE,
-				Assets.container.depth * Cosmetics.MEGA_CONTAINER_SCALE
-		end
-		table.insert(furniture, { spot.x, spot.z, w, d })
-	end
-	table.insert(furniture, { 9, 72, 3, 3 }) -- founder sign
-	table.insert(furniture, { 0, 88, 12, 12 }) -- spawn pad
-	table.insert(furniture, { 24, 91, 14, 3 }) -- name sign
-	local input = { cells = cells, furniture = furniture, lanes = Themes.lanes, furnitureGap = Assets.CLEARANCE }
-	local keep = { low = ThemeDecor.keepOut(input, 1.5), tall = ThemeDecor.keepOut(input, Assets.CLEARANCE) }
-	t.equal(#keep.low, #cells + #furniture + #Themes.lanes, "a box for every cell, furniture piece and lane")
+	-- The real site map, one scene per plot slot.
+	local libs = {
+		Assets = Assets,
+		Themes = Themes,
+		Cosmetics = Cosmetics,
+		PlotLayout = PlotLayout,
+		River = River,
+		Cable = Cable,
+		ThemeDecor = ThemeDecor,
+	}
 
 	local function overlaps(box: { number }, x: number, z: number, size: number): boolean
 		local h = size / 2
@@ -65,15 +41,8 @@ return function(t, load)
 
 	local layouts = {}
 	for seed = 1, 8 do
-		local course = River.course(Assets.river, seed)
-		local centre = {}
-		for _, sample in course.samples do
-			table.insert(centre, { sample.x, sample.z })
-		end
-		local lines = { { points = centre, distance = Assets.river.band + Assets.CLEARANCE } }
-		for _, line in cableLines do
-			table.insert(lines, line)
-		end
+		local scene = ThemeMap.scene(libs, seed)
+		local keep, lines, centre, course = scene.keep, scene.lines, scene.centre, scene.course
 		for id, set in Themes.sets do
 			local sites = ThemeDecor.sites(set, keep, lines, seed, Themes.FENCE)
 			layouts[`{id}:{seed}`] = sites
@@ -95,11 +64,8 @@ return function(t, load)
 					Cable.distanceToLine(centre, site.x, site.z) >= lines[1].distance + size / 2,
 					`{label}: off the river`
 				)
-				for _, line in cableLines do
-					t.truthy(
-						Cable.distanceToLine(line.points, site.x, site.z) >= 2 + size / 2,
-						`{label}: off the cables`
-					)
+				for _, line in scene.cables do
+					t.truthy(Cable.distanceToLine(line.points, site.x, site.z) >= 2 + size / 2, `{label}: off the cables`)
 				end
 				t.truthy(
 					River.gap(course, { site.x - size / 2, site.x + size / 2, site.z - size / 2, site.z + size / 2 })
@@ -144,6 +110,7 @@ return function(t, load)
 	end
 
 	-- The same (theme, seed) gives the same list, another slot another layout.
+	local keep = ThemeMap.scene(libs, 3).keep
 	local again = ThemeDecor.sites(Themes.sets.christmas, keep, {}, 3, Themes.FENCE)
 	local base = ThemeDecor.sites(Themes.sets.christmas, keep, {}, 3, Themes.FENCE)
 	t.equal(#again, #base, "same site count")
