@@ -8,7 +8,7 @@
 -- chains[plant id]: the stages of one cell, each { tool, hold } (docs/land-development-design-v2.md, section 2). A cell is
 --   worked stage by stage and each stage needs its tool; the cell is prepared when its last stage is done.
 -- downstream[plant id]: true when cell k can be worked only after cell k - 1 is done (the river, dug from the spring).
--- tools: id, the plant it serves (plant) or the node it needs (node), price in coins (run-1 cost, kept after a prestige),
+-- tools: id, the plant it serves (plant) or the node it needs (node), price in coins (run-1 cost; a grid expansion takes the tools back),
 --   hold seconds per prepared site, textKey for the one-line market text.
 -- container: the storage container (coins, Speicher tab); U17 needs it.
 -- sites[field]: how many cells are prepared; cells[field]: the started cells (PlotLayout numbers), the prepared ones first in
