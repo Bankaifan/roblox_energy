@@ -43,6 +43,7 @@ Theme.icons = {
 	["plant.6"] = "💨",
 	["mode.charge"] = "🔋",
 	["mode.sell"] = "💰",
+	["mode.forecast"] = "🔮",
 	["mode.auto"] = "🤖",
 	["tool.scythe"] = "🌾",
 	["tool.rails"] = "📏",
