@@ -108,23 +108,23 @@ function PlotStyle.cables(folder: Folder?, vip: boolean, at: Vector3)
 			piece.Color = tint
 		end
 	end
-	local glow = folder:FindFirstChild("CableGlow")
+	local cableGlow = folder:FindFirstChild("CableGlow")
 	if look.range == 0 then
-		if glow ~= nil then
-			glow:Destroy()
+		if cableGlow ~= nil then
+			cableGlow:Destroy()
 		end
 		return
 	end
-	if glow == nil then
+	if cableGlow == nil then
 		local anchor = part(folder, "CableGlow", Vector3.one, at, tint, Enum.Material.Neon)
 		anchor.Transparency = 1
 		local light = Instance.new("PointLight")
 		light.Shadows = false
 		light.Brightness = 0.6
 		light.Parent = anchor
-		glow = anchor
+		cableGlow = anchor
 	end
-	local light = glow:FindFirstChildOfClass("PointLight")
+	local light = cableGlow:FindFirstChildOfClass("PointLight")
 	if light ~= nil then
 		light.Color = tint
 		light.Range = look.range
