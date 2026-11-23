@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared:WaitForChild("Config"):WaitForChild("Assets") :: ModuleScript) :: any
 local Cosmetics = require(Shared:WaitForChild("Core"):WaitForChild("Cosmetics") :: ModuleScript) :: any
 local Cable = require(Shared:WaitForChild("Core"):WaitForChild("Cable") :: ModuleScript) :: any
+local ThemeProps = require(script.Parent.ThemeProps)
 
 local PlotStyle = {}
 
@@ -167,8 +168,9 @@ function PlotStyle.signPoint(origin: Vector3, facing: number): Vector3
 	return origin + Vector3.new(24, 0, facing * (Assets.PLOT_SIZE / 2 - STRIP - 2))
 end
 
--- Plot Themes: builds the theme folder of the plot (nothing when `theme` is nil). Returns it.
-function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: string?): Folder?
+-- Plot Themes: builds the theme folder of the plot (nothing when `theme` is nil): colours, fence, sign and the decoration of
+-- the theme (ThemeProps, laid out for the plot slot `seed`). Returns it.
+function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: string?, seed: number): Folder?
 	local old = model:FindFirstChild("Theme")
 	if old ~= nil then
 		old:Destroy()
@@ -273,6 +275,7 @@ function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: s
 	)
 	-- Sign: at the road side of the plot, beside the spawn platform.
 	sign(folder, model.Name, PlotStyle.signPoint(origin, facing), look)
+	ThemeProps.add(folder, theme, origin, facing, seed)
 	folder.Parent = model
 	return folder
 end
