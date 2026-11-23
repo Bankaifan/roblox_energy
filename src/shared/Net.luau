@@ -19,7 +19,7 @@ Net.messages = {
 	Crank = { direction = "client", fields = {}, limit = { max = 8, per = 1 } },
 	SetRule = {
 		direction = "client",
-		fields = { rule = { "charge", "sell", "reserve", "autobuild" }, th = "number", on = "boolean" },
+		fields = { rule = { "charge", "sell", "forecast", "autobuild" }, th = "number", on = "boolean" },
 		limit = { max = 2, per = 1 },
 	},
 	SetStorageMode = {
