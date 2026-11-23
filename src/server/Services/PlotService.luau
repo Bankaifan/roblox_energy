@@ -1005,7 +1005,11 @@ function PlotService.style(player: Player, flags: any)
 		return
 	end
 	PlotStyle.neon(record.origin, record.copies, record.columns, flags.neon)
-	PlotStyle.cables(record.cables, flags.vip == true, sitePoint(record, Assets.furniture.control) + Vector3.new(0, 1, 0))
+	PlotStyle.cables(
+		record.cables,
+		flags.vip == true,
+		sitePoint(record, Assets.furniture.control) + Vector3.new(0, 1, 0)
+	)
 	local key = if flags.themed then flags.theme else ""
 	if record.themeKey ~= key then
 		record.themeKey = key
