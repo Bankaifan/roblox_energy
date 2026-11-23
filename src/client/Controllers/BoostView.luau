@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Boost = require(Config:WaitForChild("Boost") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Theme = require(script.Parent.Parent.Theme)
 
 local BoostView = {}
 
@@ -38,6 +39,7 @@ function BoostView.build(frame: GuiObject, nextOrder: () -> number, lang: () -> 
 	gui.Name = "Boost"
 	gui.ResetOnSpawn = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 	local banner = Instance.new("TextLabel")
 	banner.AnchorPoint = Vector2.new(0.5, 0)
 	banner.Position = UDim2.new(0.5, 0, 0, 8)

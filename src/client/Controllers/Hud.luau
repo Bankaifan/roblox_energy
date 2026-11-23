@@ -108,6 +108,7 @@ function Hud.build(net: Instance)
 	gui.Name = "Hud"
 	gui.ResetOnSpawn = false
 	gui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 	-- The language of every label: the player's locale at the start, then whatever the Language button chose.
 	local lang: string = Locale.resolve((Players.LocalPlayer :: Player).LocaleId)
 	local function t(key: string, args: { [string]: any }?): string

@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Theme = require(script.Parent.Theme)
 local Digits =
 	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Digits") :: ModuleScript) :: any
 
@@ -68,6 +69,7 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 	gui.DisplayOrder = 10
 	gui.Enabled = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)

@@ -67,6 +67,7 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 	gui.Name = "Clock"
 	gui.ResetOnSpawn = false
 	gui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 
 	local card = Instance.new("Frame")
 	card.Name = "ClockCard"

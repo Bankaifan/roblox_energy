@@ -61,6 +61,7 @@ function LeaderboardScreen.build(net: Instance, language: () -> string)
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = 9
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 
 	-- The opener is a yellow button, so nobody misses it; the Style buttons stand above it (Controllers/Style).
 	local opener = Instance.new("TextButton")

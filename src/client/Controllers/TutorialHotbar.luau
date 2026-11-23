@@ -24,6 +24,7 @@ function TutorialHotbar.build(): (string?, string) -> ()
 	gui.DisplayOrder = 5
 	gui.Enabled = false
 	gui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 
 	local frame = Instance.new("Frame")
 	frame.BackgroundTransparency = 1
