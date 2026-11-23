@@ -185,4 +185,14 @@ return function(t, load)
 		t.truthy(budget.lights <= Themes.MAX_LIGHTS, `{id}: at most {Themes.MAX_LIGHTS} lights`)
 		t.truthy(budget.rate <= Themes.MAX_RATE, `{id}: particle rate`)
 	end
+
+	-- The meadow material of a theme: only known themes, and names of terrain materials PlotGround can colour or write.
+	local meadowMaterials = { Snow = true, Mud = true, Sand = true }
+	for id, name in Themes.meadow do
+		t.truthy(Themes.sets[id] ~= nil, `meadow {id}: a known theme`)
+		t.truthy(meadowMaterials[name], `meadow {id}: {name} is a terrain material`)
+	end
+	t.equal(Themes.meadow.christmas, "Snow", "christmas lies under snow")
+	t.equal(Themes.meadow.desert, "Sand", "desert is sand")
+	t.equal(Themes.meadow.classic, nil, "classic keeps the grass")
 end
