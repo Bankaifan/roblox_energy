@@ -563,7 +563,7 @@ local function toolPrice(state: State, env: Env, tool: any): number
 	return tool.price
 end
 
--- BuyTool { tool }: revealed, not owned, coins cover the price. Tools are kept on prestige.
+-- BuyTool { tool }: revealed, not owned, coins cover the price. A grid expansion takes the tools back.
 local function buyTool(state: State, env: Env, action: { [string]: any }): boolean
 	if env.config.land == nil or type(action.tool) ~= "string" then
 		return false
@@ -783,7 +783,43 @@ function GameCore.grantPlants(state: State, env: Env, id: number, count: number)
 	return result
 end
 
--- Netz-Ausbau: needs the run revenue of the next level. Plants, run nodes and coins go back to the start;
+-- A grid expansion starts the land from zero: a copy of config.land.start (the scythe only, nothing prepared, no
+-- container, no wiring, no rails). The market flag stays. The units of the Starter Kit (S1) and the permanent plants stand
+-- on prepared ground again: one cell per unitsPerSite units, or one cell per plant without unitsPerSite.
+local function resetLand(state: State, env: Env)
+	local config = env.config.land
+	local land = copy(config.start)
+	land.market = state.land ~= nil and state.land.market == true
+	state.land = land
+	local wanted: { [number]: number } = {}
+	if state.pnodes.S1 then
+		for id, count in env.config.effects.starterKit do
+			wanted[id] = (wanted[id] or 0) + count
+		end
+	end
+	for id, count in env.permanent or {} do
+		if isCount(count) then
+			wanted[id] = (wanted[id] or 0) + count
+		end
+	end
+	for id, count in wanted do
+		local chain, total = config.chains[id], config.fields[id]
+		if chain == nil or total == nil or count < 1 then
+			continue
+		end
+		local perSite = config.unitsPerSite
+		local cells = math.min(total, if perSite ~= nil then math.ceil(count / perSite) else 1)
+		land.sites[id] = cells
+		land.cells[id] = {}
+		land.steps[id] = {}
+		for cell = 1, cells do
+			land.cells[id][cell] = cell
+			land.steps[id][cell] = #chain
+		end
+	end
+end
+
+-- Netz-Ausbau: needs the run revenue of the next level. Plants, run nodes, coins and the land go back to the start;
 -- P1 gives start coins, P5 keeps the storage, the control center and the rules.
 local function prestige(state: State, env: Env): boolean
 	local step = env.config.prestige[state.level + 1]
@@ -811,6 +847,9 @@ local function prestige(state: State, env: Env): boolean
 	state.coins = 0
 	if state.pnodes.P1 then
 		state.coins = effects.startCoins
+	end
+	if env.config.land ~= nil then
+		resetLand(state, env)
 	end
 	if state.pnodes.S1 then
 		starterKit(state, env)
