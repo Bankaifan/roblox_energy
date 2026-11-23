@@ -60,7 +60,17 @@ function BUILD.tree(_n: number): { Part }
 		local angle = math.rad(45 * i)
 		table.insert(
 			parts,
-			part("Ball", 0.9, 0.9, 0.9, r * math.cos(angle), 4 + 3 * tier, r * math.sin(angle), baubles[i % 3 + 1], "Neon")
+			part(
+				"Ball",
+				0.9,
+				0.9,
+				0.9,
+				r * math.cos(angle),
+				4 + 3 * tier,
+				r * math.sin(angle),
+				baubles[i % 3 + 1],
+				"Neon"
+			)
 		)
 	end
 	return parts
