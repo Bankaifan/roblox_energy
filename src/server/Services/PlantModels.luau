@@ -401,7 +401,7 @@ function PlantModels.paintTips(copy: Model, plantId: number, color: Color3)
 			cap.Material = Enum.Material.SmoothPlastic
 			cap.Color = color
 			cap.Size = Vector3.new(tip.size[1], tip.size[2], tip.size[3])
-			cap.CFrame = blade.CFrame * CFrame.new(tip.offset, 0, 0)
+			cap.CFrame = blade.CFrame * CFrame.new(tip.offset, tip.offsetY, tip.offsetZ)
 			cap.Parent = rotor
 		end
 	end
