@@ -183,13 +183,14 @@ function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: s
 	local y = origin.Y
 	-- Ground: a flat strip along every edge.
 	local ground = colour(look.ground)
+	local material = Enum.Material[look.material]
 	part(
 		folder,
 		"GroundN",
 		Vector3.new(2 * half, 0.2, STRIP),
 		origin + Vector3.new(0, 0.1, -half + STRIP / 2),
 		ground,
-		Enum.Material.Grass
+		material
 	)
 	part(
 		folder,
@@ -197,7 +198,7 @@ function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: s
 		Vector3.new(2 * half, 0.2, STRIP),
 		origin + Vector3.new(0, 0.1, half - STRIP / 2),
 		ground,
-		Enum.Material.Grass
+		material
 	)
 	part(
 		folder,
@@ -205,7 +206,7 @@ function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: s
 		Vector3.new(STRIP, 0.2, 2 * half - 2 * STRIP),
 		origin + Vector3.new(-half + STRIP / 2, 0.1, 0),
 		ground,
-		Enum.Material.Grass
+		material
 	)
 	part(
 		folder,
@@ -213,7 +214,7 @@ function PlotStyle.theme(model: Model, origin: Vector3, facing: number, theme: s
 		Vector3.new(STRIP, 0.2, 2 * half - 2 * STRIP),
 		origin + Vector3.new(half - STRIP / 2, 0.1, 0),
 		ground,
-		Enum.Material.Grass
+		material
 	)
 	-- Fence: posts every POST_EVERY studs on the inner side of the strip and one rail per edge.
 	local fence = colour(look.fence)
