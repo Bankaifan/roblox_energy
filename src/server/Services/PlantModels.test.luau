@@ -61,4 +61,42 @@ return function(t)
 		return scale
 	end
 	t.equal(placed(12), placed(nil), "a turned copy keeps its size")
+
+	-- The mini turbine (plant 4) spins about its hub cap, the highest part outside the rotor ("NeonGlow" does not count);
+	-- a part named Mid inside the rotor wins; without any hub the middle of the rotor is used.
+	local function mini(withCap: boolean, withMid: boolean): Model
+		local copy = Instance.new("Model")
+		local rotor = Instance.new("Model")
+		rotor.Name = "Model"
+		rotor.Parent = copy
+		local blades = Instance.new("Part")
+		blades.Size = Vector3.new(1, 12, 12)
+		blades.Position = Vector3.new(10, 0, 0)
+		blades.Parent = rotor
+		if withMid then
+			local mid = Instance.new("Part")
+			mid.Name = "Mid"
+			mid.Size = Vector3.one
+			mid.Position = Vector3.new(0, 7, 0)
+			mid.Parent = rotor
+		end
+		if withCap then
+			local cap = Instance.new("Part")
+			cap.Name = "Cap"
+			cap.Position = Vector3.new(0, 5, 0)
+			cap.Parent = copy
+		end
+		local glow = Instance.new("Part")
+		glow.Name = "NeonGlow"
+		glow.Position = Vector3.new(0, 20, 0)
+		glow.Parent = copy
+		PlantModels.tagRotor(copy, 4)
+		return copy
+	end
+	local function centreOf(copy: Model): Vector3
+		return (copy:FindFirstChild("Model") :: Model):GetAttribute("SpinCentre") :: Vector3
+	end
+	t.equal(centreOf(mini(true, false)), Vector3.new(0, 5, 0), "the mini rotor turns about the hub cap, not the glow")
+	t.equal(centreOf(mini(true, true)), Vector3.new(0, 7, 0), "a Mid part wins over the cap")
+	t.equal(centreOf(mini(false, false)), Vector3.new(10, 0, 0), "without a cap the middle of the rotor is the centre")
 end
