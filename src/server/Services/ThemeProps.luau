@@ -33,6 +33,19 @@ local BROWN = Color3.fromRGB(110, 75, 40)
 local DARK = Color3.fromRGB(60, 46, 40)
 local ORANGE = Color3.fromRGB(240, 130, 30)
 local SLATE = Color3.fromRGB(110, 110, 120)
+local HAY = Color3.fromRGB(215, 180, 90)
+local SAND = Color3.fromRGB(230, 210, 150)
+local WOOD = Color3.fromRGB(150, 110, 70)
+local PINK = Color3.fromRGB(240, 160, 190)
+local LIGHTPINK = Color3.fromRGB(250, 205, 220)
+local TULIPS = { RED, YELLOW, PINK, ORANGE }
+local EGGS = {
+	Color3.fromRGB(250, 200, 215),
+	Color3.fromRGB(200, 230, 250),
+	Color3.fromRGB(255, 240, 170),
+	Color3.fromRGB(205, 240, 200),
+}
+local BLOOMS = { RED, YELLOW, WHITE, PINK, BLUE }
 local GIFTS = { RED, GREEN, GOLD }
 local LIGHTS = { RED, GREEN, GOLD, BLUE }
 
@@ -249,7 +262,188 @@ local function lantern(ctx: Ctx)
 	make(ctx, "Part", "Lantern", Vector3.one * 0.8, Vector3.new(0, 2.8, 0), ORANGE, Enum.Material.Neon)
 end
 
+local MAPLES = { ORANGE, RED, YELLOW }
+
+local function maple(ctx: Ctx)
+	upright(ctx, "Trunk", 4, 1.4, Vector3.new(0, 2, 0), BROWN, Enum.Material.Wood)
+	ball(ctx, "Crown", Vector3.one * 5, Vector3.new(0, 6.5, 0), MAPLES[ctx.n % 3 + 1], Enum.Material.LeafyGrass)
+	ball(ctx, "Crown", Vector3.one * 4, Vector3.new(1.8, 5.5, 1), MAPLES[(ctx.n + 1) % 3 + 1], Enum.Material.LeafyGrass)
+	ball(
+		ctx,
+		"Crown",
+		Vector3.one * 4,
+		Vector3.new(-1.8, 5.5, -1),
+		MAPLES[(ctx.n + 2) % 3 + 1],
+		Enum.Material.LeafyGrass
+	)
+end
+
+local function leaves(ctx: Ctx)
+	ball(ctx, "Pile", Vector3.new(3.2, 0.7, 3.2), Vector3.new(0, 0.3, 0), ORANGE, Enum.Material.Grass)
+	ball(ctx, "Pile", Vector3.new(2.2, 0.6, 2.2), Vector3.new(0.6, 0.6, 0.4), RED, Enum.Material.Grass)
+end
+
+local function hay(ctx: Ctx)
+	local bale = make(ctx, "Part", "Bale", Vector3.new(3, 2.4, 2.4), Vector3.new(0, 1.2, 0), HAY, Enum.Material.Grass)
+	bale.Shape = Enum.PartType.Cylinder
+end
+
+local function scarecrow(ctx: Ctx)
+	make(ctx, "Part", "Post", Vector3.new(0.5, 5, 0.5), Vector3.new(0, 2.5, 0), BROWN, Enum.Material.Wood)
+	make(ctx, "Part", "Arms", Vector3.new(4, 0.4, 0.4), Vector3.new(0, 4, 0), BROWN, Enum.Material.Wood)
+	ball(ctx, "Head", Vector3.one * 1.1, Vector3.new(0, 5.5, 0), HAY, Enum.Material.Fabric)
+	make(ctx, "Part", "Shirt", Vector3.new(1.6, 1.8, 0.9), Vector3.new(0, 3.5, 0), BLUE, Enum.Material.Fabric)
+	upright(ctx, "Brim", 0.15, 1.8, Vector3.new(0, 6.0, 0), DARK, Enum.Material.Fabric)
+	upright(ctx, "Crown", 0.7, 1, Vector3.new(0, 6.4, 0), DARK, Enum.Material.Fabric)
+	make(ctx, "Part", "Straw", Vector3.new(0.8, 0.5, 0.3), Vector3.new(0, 2.5, -0.5), HAY, Enum.Material.Grass)
+end
+
+local function crate(ctx: Ctx)
+	make(ctx, "Part", "Box", Vector3.new(2.4, 1.6, 2.4), Vector3.new(0, 0.8, 0), BROWN, Enum.Material.Wood)
+	ball(ctx, "Apple", Vector3.one * 0.7, Vector3.new(0.3, 1.8, 0.2), RED, Enum.Material.SmoothPlastic)
+end
+
+local function blossom(ctx: Ctx)
+	upright(ctx, "Trunk", 3.5, 1.2, Vector3.new(0, 1.75, 0), BROWN, Enum.Material.Wood)
+	ball(ctx, "Bloom", Vector3.one * 5, Vector3.new(0, 5.5, 0), PINK, Enum.Material.LeafyGrass)
+	ball(ctx, "Bloom", Vector3.one * 3.5, Vector3.new(2, 4.5, 1), LIGHTPINK, Enum.Material.LeafyGrass)
+	ball(ctx, "Bloom", Vector3.one * 3.5, Vector3.new(-2, 4.5, -1), LIGHTPINK, Enum.Material.LeafyGrass)
+end
+
+local function tulips(ctx: Ctx)
+	make(ctx, "Part", "Soil", Vector3.new(5, 0.4, 2), Vector3.new(0, 0.2, 0), DARK, Enum.Material.Ground)
+	for i = 0, 4 do
+		local x = -2 + i
+		make(ctx, "Part", "Stem", Vector3.new(0.12, 1.2, 0.12), Vector3.new(x, 1, 0), GREEN, Enum.Material.Grass)
+		ball(
+			ctx,
+			"Bloom",
+			Vector3.new(0.5, 0.6, 0.5),
+			Vector3.new(x, 1.7, 0),
+			TULIPS[(i + ctx.n) % 4 + 1],
+			Enum.Material.SmoothPlastic
+		)
+	end
+end
+
+local function egg(ctx: Ctx)
+	ball(ctx, "Egg", Vector3.new(1, 1.3, 1), Vector3.new(0, 0.65, 0), EGGS[ctx.n % 4 + 1], Enum.Material.SmoothPlastic)
+end
+
+local function birdhouse(ctx: Ctx)
+	make(ctx, "Part", "Post", Vector3.new(0.3, 2.2, 0.3), Vector3.new(0, 1.1, 0), BROWN, Enum.Material.Wood)
+	make(ctx, "Part", "House", Vector3.new(1.2, 1, 1.2), Vector3.new(0, 2.7, 0), PINK, Enum.Material.Wood)
+	make(
+		ctx,
+		"WedgePart",
+		"Roof",
+		Vector3.new(1.4, 0.6, 1.4),
+		Vector3.new(0, 3.5, 0),
+		RED,
+		Enum.Material.Wood,
+		CFrame.Angles(0, math.rad(90), 0)
+	)
+end
+
+local function umbrella(ctx: Ctx, x: number, z: number, tint: Color3)
+	make(ctx, "Part", "Pole", Vector3.new(0.2, 5, 0.2), Vector3.new(x, 2.5, z), WHITE, Enum.Material.SmoothPlastic)
+	upright(ctx, "Canopy", 0.3, 5, Vector3.new(x, 5, z), tint, Enum.Material.Fabric)
+	ball(ctx, "Top", Vector3.one * 0.5, Vector3.new(x, 5.3, z), WHITE, Enum.Material.SmoothPlastic)
+end
+
+local function deckchair(ctx: Ctx, x: number, z: number, tint: Color3)
+	make(ctx, "Part", "Seat", Vector3.new(1.4, 0.2, 2.2), Vector3.new(x, 0.7, z), tint, Enum.Material.Fabric)
+	make(
+		ctx,
+		"Part",
+		"Back",
+		Vector3.new(1.4, 0.2, 1.8),
+		Vector3.new(x, 1.5, z + 1.3),
+		tint,
+		Enum.Material.Fabric,
+		CFrame.Angles(math.rad(-55), 0, 0)
+	)
+	make(ctx, "WedgePart", "Leg", Vector3.new(1.2, 0.7, 1.2), Vector3.new(x, 0.35, z - 0.4), WOOD, Enum.Material.Wood)
+end
+
+local function beach(ctx: Ctx)
+	upright(ctx, "Sand", 0.2, 18, Vector3.new(0, 0.1, 0), SAND, Enum.Material.Sand)
+	umbrella(ctx, -4, 2, RED)
+	umbrella(ctx, 4, 3, BLUE)
+	deckchair(ctx, -4, -1, BLUE)
+	deckchair(ctx, 4, 0, YELLOW)
+	make(ctx, "Part", "Towel", Vector3.new(2, 0.1, 3.4), Vector3.new(0, 0.3, -4), RED, Enum.Material.Fabric)
+	make(ctx, "Part", "Stripe", Vector3.new(2.05, 0.12, 0.8), Vector3.new(0, 0.32, -4), WHITE, Enum.Material.Fabric)
+	ball(ctx, "Ball", Vector3.one * 1.2, Vector3.new(-1, 0.8, 5), YELLOW, Enum.Material.SmoothPlastic)
+end
+
+local function palm(ctx: Ctx)
+	make(
+		ctx,
+		"Part",
+		"Trunk",
+		Vector3.new(0.8, 3.6, 0.8),
+		Vector3.new(0.3, 1.7, 0),
+		BROWN,
+		Enum.Material.Wood,
+		CFrame.Angles(0, 0, math.rad(-8))
+	)
+	make(
+		ctx,
+		"Part",
+		"Trunk",
+		Vector3.new(0.7, 3.6, 0.7),
+		Vector3.new(1.0, 5, 0),
+		BROWN,
+		Enum.Material.Wood,
+		CFrame.Angles(0, 0, math.rad(-12))
+	)
+	for k = 0, 3 do
+		make(
+			ctx,
+			"WedgePart",
+			"Frond",
+			Vector3.new(0.3, 0.5, 3.4),
+			Vector3.new(1.4, 7.2, 0),
+			GREEN,
+			Enum.Material.Grass,
+			CFrame.Angles(0, math.rad(90 * k), 0) * CFrame.Angles(math.rad(-20), 0, 0)
+		)
+	end
+end
+
+local function flower(ctx: Ctx)
+	make(ctx, "Part", "Stem", Vector3.new(0.12, 1.1, 0.12), Vector3.new(0, 0.55, 0), GREEN, Enum.Material.Grass)
+	ball(ctx, "Bloom", Vector3.one * 0.6, Vector3.new(0, 1.2, 0), BLOOMS[ctx.n % 5 + 1], Enum.Material.SmoothPlastic)
+end
+
+local function sandcastle(ctx: Ctx)
+	make(ctx, "Part", "Base", Vector3.new(3, 1, 3), Vector3.new(0, 0.5, 0), SAND, Enum.Material.Sand)
+	upright(ctx, "Tower", 1.6, 0.9, Vector3.new(-1.1, 1.8, -1.1), SAND, Enum.Material.Sand)
+	upright(ctx, "Tower", 1.6, 0.9, Vector3.new(1.1, 1.8, 1.1), SAND, Enum.Material.Sand)
+	make(ctx, "WedgePart", "Flag", Vector3.new(0.1, 0.6, 0.8), Vector3.new(1.1, 3.0, 1.1), RED, Enum.Material.Fabric)
+end
+
+local function tiki(ctx: Ctx)
+	make(ctx, "Part", "Pole", Vector3.new(0.3, 3.6, 0.3), Vector3.new(0, 1.8, 0), BROWN, Enum.Material.Wood)
+	make(ctx, "Part", "Flame", Vector3.new(0.5, 0.7, 0.5), Vector3.new(0, 4, 0), ORANGE, Enum.Material.Neon)
+end
+
 local BUILDERS: { [string]: (Ctx) -> () } = {
+	maple = maple,
+	leaves = leaves,
+	hay = hay,
+	scarecrow = scarecrow,
+	crate = crate,
+	blossom = blossom,
+	tulips = tulips,
+	egg = egg,
+	birdhouse = birdhouse,
+	beach = beach,
+	palm = palm,
+	flower = flower,
+	sandcastle = sandcastle,
+	tiki = tiki,
 	tree = tree,
 	snowman = snowman,
 	gift = gift,
