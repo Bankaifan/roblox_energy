@@ -127,7 +127,7 @@ def test_non_numeric_cap_falls_back_with_warning(monkeypatch, capsys):
     assert "MAX_DEV" in err and "MAX_PRS" in err
 
 
-def run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged=(), waiting=(), max_dev="2"):
+def run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged=(), waiting=(), max_dev="2", slipless=None):
     """Run main('orchestrator') with a fake gh. DEV: {number: labels} of open agent:dev issues, BODIES: {number: body}
     of all open issues, MERGED: issue numbers a merged PR refers to. Returns the GITHUB_OUTPUT lines as a dict."""
     fresh = load_with_env(monkeypatch, MAX_DEV=max_dev)
@@ -147,6 +147,9 @@ def run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged=(), waiting=(),
     monkeypatch.setattr(fresh, "gh", gh)
     monkeypatch.setattr(fresh, "waiting_for_owner", lambda owner, approver: (set(waiting), len(waiting)))
     monkeypatch.setattr(fresh, "handover_state", lambda: (0, 0))
+    if slipless is not None:  # dispatcher on: which of the start list still lack a slip
+        monkeypatch.setattr(fresh, "needs_slip", lambda cands: slipless)
+        monkeypatch.setattr(fresh, "handover_done_today", lambda: True)
     monkeypatch.setenv("TRUSTED", json.dumps(trusted))
     monkeypatch.setenv("GITHUB_OUTPUT", str(out))
     monkeypatch.delenv("EVENT", raising=False)
@@ -162,6 +165,13 @@ def test_main_parked_and_done_issues_free_slots_for_prio3(monkeypatch, tmp_path)
     assert (out["free_dev"], out["start"], out["startable"], out["work"]) == ("1", "20", "true", "true")
     out = run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged={11}, waiting={10})
     assert out["free_dev"] == "1"
+
+
+def test_main_dispatcher_on_is_startable_only_for_issues_without_a_slip(monkeypatch, tmp_path):
+    monkeypatch.setenv("DISPATCH", "on")
+    for slipless, want in (([], "false"), ([20], "true")):
+        out = run_main(monkeypatch, tmp_path, {}, {20: ""}, [item(20)], slipless=slipless)
+        assert (out["start"], out["startable"]) == ("20", want)
 
 
 def test_main_no_free_slot_writes_empty_start(monkeypatch, tmp_path):
