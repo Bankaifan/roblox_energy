@@ -1,0 +1,2 @@
+- Die Plot-Themen Herbst, Sommer und Frühling bringen ihre Deko auf das Grundstück: Ahornbäume, Laubhaufen und Vogelscheuche bzw. Strandecke, Palmen und Tikifackeln bzw. Blütenbäume, Tulpenbeete und Ostereier.
+- internal: ThemeProps-Builder für Schritt 4 von docs/themes-design.md.
