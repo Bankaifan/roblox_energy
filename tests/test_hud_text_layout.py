@@ -60,6 +60,14 @@ def test_market_permanent_plant_lines_wrap_and_the_card_grows():
     assert "TextTruncate" not in re.search(r"Permanent\{slot\}.*?permanent\[slot\] = control", MARKET, re.DOTALL).group(0)
 
 
+def test_market_permanent_plant_lines_are_cyan_pill_buttons():
+    block = re.search(r"Permanent\{slot\}.*?permanent\[slot\] = control", MARKET, re.DOTALL).group(0)
+    assert "control.BackgroundColor3 = COLORS.energy" in block
+    assert "BackgroundTransparency = 1" not in block
+    assert 'Instance.new("UICorner")' in block and "UDim.new(0.5, 0)" in block
+    assert 'Instance.new("UIPadding")' in block
+
+
 CLOCK = (ROOT / "src" / "client" / "Controllers" / "Clock.luau").read_text(encoding="utf-8")
 
 
