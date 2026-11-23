@@ -64,7 +64,7 @@ local function build(folder: Folder, origin: Vector3, facing: number, site: any,
 end
 
 -- Snow on the four rails of the fence (the fixed piece `railsnow`): a thin white block on top of each rail.
-local RAILS = { { 0, -1, true }, { 0, 1, true }, { -1, 0, false }, { 1, 0, false } }
+local RAILS: { { any } } = { { 0, -1, true }, { 0, 1, true }, { -1, 0, false }, { 1, 0, false } }
 local SNOW = { 248, 250, 255 }
 
 local function rails(folder: Folder, origin: Vector3, facing: number, fence: number)
@@ -80,7 +80,7 @@ end
 -- Kinds without parts yet place nothing; the sites are still kept free for them.
 function ThemeProps.decorate(folder: Folder, origin: Vector3, facing: number, theme: string, slot: number)
 	local set = Themes.sets[theme]
-	if set == nil then
+	if set == nil or #set.pieces == 0 then
 		return
 	end
 	local libs = {
