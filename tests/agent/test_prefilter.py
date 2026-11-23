@@ -127,7 +127,7 @@ def test_non_numeric_cap_falls_back_with_warning(monkeypatch, capsys):
     assert "MAX_DEV" in err and "MAX_PRS" in err
 
 
-def run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged=(), waiting=(), max_dev="2", slipless=None):
+def run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged=(), waiting=(), max_dev="2", patches=None):
     """Run main('orchestrator') with a fake gh. DEV: {number: labels} of open agent:dev issues, BODIES: {number: body}
     of all open issues, MERGED: issue numbers a merged PR refers to. Returns the GITHUB_OUTPUT lines as a dict."""
     fresh = load_with_env(monkeypatch, MAX_DEV=max_dev)
@@ -147,9 +147,8 @@ def run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged=(), waiting=(),
     monkeypatch.setattr(fresh, "gh", gh)
     monkeypatch.setattr(fresh, "waiting_for_owner", lambda owner, approver: (set(waiting), len(waiting)))
     monkeypatch.setattr(fresh, "handover_state", lambda: (0, 0))
-    if slipless is not None:  # dispatcher on: which of the start list still lack a slip
-        monkeypatch.setattr(fresh, "needs_slip", lambda cands: slipless)
-        monkeypatch.setattr(fresh, "handover_done_today", lambda: True)
+    for name, value in (patches or {}).items():
+        monkeypatch.setattr(fresh, name, value)
     monkeypatch.setenv("TRUSTED", json.dumps(trusted))
     monkeypatch.setenv("GITHUB_OUTPUT", str(out))
     monkeypatch.delenv("EVENT", raising=False)
@@ -165,13 +164,6 @@ def test_main_parked_and_done_issues_free_slots_for_prio3(monkeypatch, tmp_path)
     assert (out["free_dev"], out["start"], out["startable"], out["work"]) == ("1", "20", "true", "true")
     out = run_main(monkeypatch, tmp_path, dev, bodies, trusted, merged={11}, waiting={10})
     assert out["free_dev"] == "1"
-
-
-def test_main_dispatcher_on_is_startable_only_for_issues_without_a_slip(monkeypatch, tmp_path):
-    monkeypatch.setenv("DISPATCH", "on")
-    for slipless, want in (([], "false"), ([20], "true")):
-        out = run_main(monkeypatch, tmp_path, {}, {20: ""}, [item(20)], slipless=slipless)
-        assert (out["start"], out["startable"]) == ("20", want)
 
 
 def test_main_no_free_slot_writes_empty_start(monkeypatch, tmp_path):
@@ -306,8 +298,37 @@ def test_needs_slip_counts_issues_without_a_trusted_slip(monkeypatch):
         2: {"body": "do it", "author": {"login": "Bankaifan"}, "comments": []},
         3: {"body": "Files: b.py", "author": {"login": "stranger"}, "comments": []},
     }
-    monkeypatch.setattr(mod, "gh", lambda *a: json.dumps(issues[int(a[2])]))
+    monkeypatch.setattr(mod, "gh", lambda *a: "[]" if a[:2] == ("pr", "list") else json.dumps(issues[int(a[2])]))
     assert mod.needs_slip([1, 2, 3]) == [2, 3]
+
+
+def test_needs_slip_counts_an_issue_whose_slip_step_is_merged_and_that_is_still_open(monkeypatch):
+    """agent-template #741/#743: the slip said `Refs`, its PR merged, the issue stayed open. The dispatcher passes it
+    over (step landed); without a new slip it stayed in the start list and every orchestrator run ended silently."""
+    slip_comment = {"body": "Task slip\nFiles: a.py", "author": {"login": "Bankaifan"}, "createdAt": "2026-11-23T13:32:05Z"}
+    issue = {"body": "overdue", "author": {"login": "Bankaifan"}, "comments": [slip_comment], "createdAt": "2026-11-23T13:29:38Z"}
+    merged = {"body": "Refs #741", "headRefName": "agent/741-x", "isCrossRepository": False, "mergedAt": "2026-11-23T13:36:52Z"}
+
+    def gh(*a):
+        return json.dumps([merged]) if a[:2] == ("pr", "list") else json.dumps(issue)
+
+    monkeypatch.setattr(mod, "gh", gh)
+    assert mod.needs_slip([741]) == [741]
+    merged["mergedAt"] = "2026-11-23T13:00:00Z"  # merged before the slip: the slip is the next step, the dispatcher starts it
+    assert mod.needs_slip([741]) == []
+
+
+def test_with_the_dispatcher_on_only_an_issue_the_model_must_write_a_slip_for_is_startable(monkeypatch, tmp_path):
+    """The silent-run guard reads `startable`: an issue the dispatcher starts by itself needs no action of the model."""
+    bodies = dict.fromkeys((11, 20), "")
+    monkeypatch.setenv("DISPATCH", "on")
+    for slipless, want in (([], "false"), ([20], "true")):
+        patches = {"needs_slip": lambda start, s=slipless: s, "handover_done_today": lambda: True}
+        out = run_main(monkeypatch, tmp_path, {11: ["agent:dev"]}, bodies, [item(20)], max_dev="4", patches=patches)
+        assert (out["start"], out["startable"], out["needs_slip"]) == ("20", want, ",".join(map(str, slipless)))
+    monkeypatch.delenv("DISPATCH")
+    out = run_main(monkeypatch, tmp_path, {11: ["agent:dev"]}, bodies, [item(20)], max_dev="4")
+    assert (out["start"], out["startable"]) == ("20", "true")  # dispatcher off: the model starts it
 
 
 def test_handover_done_today(monkeypatch):
