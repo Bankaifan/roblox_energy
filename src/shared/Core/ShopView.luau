@@ -20,7 +20,7 @@ export type Card = {
 	-- Two small buttons for a value the player sets in steps (the rule thresholds): lower and higher.
 	steps: { down: Button, up: Button }?,
 	extra: boolean?, -- a Robux offer: the card has the cyan outline
-	-- Permanent plants (Robux): up to two small cyan lines under a plant card, each a tap that opens the offer's purchase prompt.
+	-- Permanent plants (Robux): up to two small cyan pill buttons under a plant card, each a tap that opens the offer's purchase prompt.
 	permanent: { Button }?,
 }
 export type Input = {
