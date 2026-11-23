@@ -81,6 +81,22 @@ return function(t, load)
 	end
 	t.equal(ClockView.chip("Nebel"), nil, "unknown weather has no chip")
 
+	-- Forecast arrow: hidden without the extension (no next weather in the quote), the next weather and its colour with it.
+	t.equal(ClockView.forecast(nil, key), nil, "no forecast without the extension")
+	t.equal(ClockView.forecast("Nebel", key), nil, "unknown weather has no forecast")
+	for _, weather in Weather do
+		local shown = ClockView.forecast(weather.id, key)
+		t.truthy(shown ~= nil, `{weather.id}: forecast shown`)
+		if shown ~= nil then
+			t.equal(
+				shown.text,
+				key("clock.next", { weather = key("weather." .. weather.id) }),
+				`{weather.id}: forecast text`
+			)
+			t.equal(shown.color, ClockView.chip(weather.id), `{weather.id}: forecast colour`)
+		end
+	end
+
 	-- Texts: every clock.* key in both languages with the same placeholders.
 	local function placeholders(text: string): string
 		local names = {}
@@ -90,7 +106,7 @@ return function(t, load)
 		table.sort(names)
 		return table.concat(names, ",")
 	end
-	for _, name in { "time", "nightIn", "dayIn", "lengths" } do
+	for _, name in { "time", "nightIn", "dayIn", "lengths", "next" } do
 		local en, de = Locale.tables.en["clock." .. name], Locale.tables.de["clock." .. name]
 		t.truthy(en ~= nil and de ~= nil, `clock.{name}: both languages`)
 		if en ~= nil and de ~= nil then
