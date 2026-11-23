@@ -165,6 +165,12 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 	chipPadding.Parent = chip
 	chip.Parent = card
 
+	local forecastChip = chip:Clone()
+	forecastChip.Name = "ForecastChip"
+	forecastChip.LayoutOrder = 3
+	forecastChip.Visible = false
+	forecastChip.Parent = card
+
 	-- Narrow: a row of the HUD list, dial beside the text. Wide: floating at the top right, dial above the text.
 	local wide: boolean? = nil
 	local function layoutFor(width: number)
@@ -207,6 +213,7 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 	end
 
 	local env: any = nil
+	local nextWeather: string? = nil
 	local shownSecond = -1
 	local function paintTexts(now: number, hour: number)
 		local function t(key: string, args: { [string]: any }?): string
@@ -221,6 +228,12 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 		if rgb ~= nil then
 			chip.BackgroundColor3 = color(rgb)
 			chip.Text = t("weather." .. env.weather)
+		end
+		local forecast = ClockView.forecast(nextWeather, t)
+		forecastChip.Visible = forecast ~= nil
+		if forecast ~= nil then
+			forecastChip.BackgroundColor3 = color(forecast.color)
+			forecastChip.Text = forecast.text
 		end
 	end
 
@@ -244,6 +257,12 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 		env = function(change: any)
 			env = change
 			update(true)
+		end,
+		forecast = function(nextId: string?)
+			if nextId ~= nextWeather then
+				nextWeather = nextId
+				update(true)
+			end
 		end,
 		relabel = function()
 			update(true)
