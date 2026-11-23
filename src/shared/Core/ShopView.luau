@@ -335,8 +335,11 @@ function ShopView.ruleCards(input: Input): { Card }
 			state = "idle",
 		},
 	}
-	for _, id in { "charge", "sell" } do
+	for _, id in { "charge", "sell", "forecast" } do
 		local rule = stored.rules[id]
+		if rule == nil then
+			continue
+		end
 		local function message(th: number, on: boolean): Button
 			return {
 				text = "",
