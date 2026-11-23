@@ -370,6 +370,7 @@ function Hud.build(net: Instance)
 		rate.Text = t("hud.rate", { value = format(change.rate, lang) })
 		storageText(change.charge)
 		price.Text = ShopView.priceText(change.view.price, t)
+		clock.forecast(change.view.price.nextWeather)
 		if change.view.sparks ~= nil then
 			grid.Text = t("hud.gridChip", {
 				level = change.view.sparks.gridLevel,
