@@ -429,7 +429,35 @@ local function tiki(ctx: Ctx)
 	make(ctx, "Part", "Flame", Vector3.new(0.5, 0.7, 0.5), Vector3.new(0, 4, 0), ORANGE, Enum.Material.Neon)
 end
 
+local function cactus(ctx: Ctx)
+	local cactusGreen = Color3.fromRGB(70, 130, 70)
+	upright(ctx, "Body", 4.5, 1.1, Vector3.new(0, 2.25, 0), cactusGreen, Enum.Material.Grass)
+	upright(ctx, "Arm", 1.8, 0.7, Vector3.new(0.9, 3, 0), cactusGreen, Enum.Material.Grass)
+	upright(ctx, "Arm", 1.4, 0.7, Vector3.new(-0.9, 2.4, 0), cactusGreen, Enum.Material.Grass)
+end
+
+local function rock(ctx: Ctx)
+	local tilt = CFrame.Angles(math.rad(8), math.rad(25), math.rad(-6))
+	make(ctx, "Part", "Rock", Vector3.new(2.2, 1.4, 1.8), Vector3.new(0, 0.6, 0), SLATE, Enum.Material.Slate, tilt)
+end
+
+local function lamp(ctx: Ctx)
+	make(ctx, "Part", "Base", Vector3.new(0.9, 0.4, 0.9), Vector3.new(0, 0.2, 0), DARK, Enum.Material.Metal)
+	make(ctx, "Part", "Pole", Vector3.new(0.3, 4.6, 0.3), Vector3.new(0, 2.5, 0), DARK, Enum.Material.Metal)
+	ball(ctx, "Head", Vector3.one * 0.9, Vector3.new(0, 5.1, 0), YELLOW, Enum.Material.Neon)
+end
+
+local function bench(ctx: Ctx)
+	make(ctx, "Part", "Seat", Vector3.new(3.6, 0.3, 1.2), Vector3.new(0, 1, 0), WOOD, Enum.Material.Wood)
+	make(ctx, "Part", "Back", Vector3.new(3.6, 1, 0.25), Vector3.new(0, 1.7, 0.5), WOOD, Enum.Material.Wood)
+	make(ctx, "Part", "Legs", Vector3.new(3.2, 0.9, 0.9), Vector3.new(0, 0.45, 0), DARK, Enum.Material.Metal)
+end
+
 local BUILDERS: { [string]: (Ctx) -> () } = {
+	cactus = cactus,
+	rock = rock,
+	lamp = lamp,
+	bench = bench,
 	maple = maple,
 	leaves = leaves,
 	hay = hay,
