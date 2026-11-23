@@ -325,16 +325,18 @@ function Market.build(net: Instance, language: () -> string)
 	}
 	local pool: { CardUi } = {}
 
-	-- Permanent plant lines: small cyan text under the card, wrapped across its whole width, so nothing is cut off.
+	-- Permanent plant lines: small cyan pill buttons under the card, the text wrapped inside the pill, so nothing is cut off.
 	local PERMANENT_TEXT = 13
-	local PERMANENT_LINE_PAD = 6
+	local PERMANENT_PAD_X = 8
+	local PERMANENT_PAD_Y = 3
+	local PERMANENT_GAP = 4
 	local function permanentHeights(card: CardUi): { number }
 		local heights = {}
 		local lines = if card.data ~= nil and card.data.permanent ~= nil then card.data.permanent else {}
-		local width = cellWidth - (ICON + 2 * GAP + 2) - GAP
+		local width = cellWidth - (ICON + 2 * GAP + 2) - GAP - 2 * PERMANENT_PAD_X
 		for index, entry in lines do
 			local size = TextService:GetTextSize(entry.text, PERMANENT_TEXT, Theme.fonts.bold, Vector2.new(width, 1000))
-			heights[index] = math.ceil(size.Y) + PERMANENT_LINE_PAD
+			heights[index] = math.ceil(size.Y) + 2 * PERMANENT_PAD_Y + PERMANENT_GAP
 		end
 		return heights
 	end
@@ -356,7 +358,7 @@ function Market.build(net: Instance, language: () -> string)
 			control.Visible = heights[index] ~= nil
 			if heights[index] ~= nil then
 				control.Position = UDim2.fromOffset(left, y)
-				control.Size = UDim2.new(1, -(left + GAP), 0, heights[index])
+				control.Size = UDim2.new(1, -(left + GAP), 0, heights[index] - PERMANENT_GAP)
 				y += heights[index]
 			end
 		end
@@ -480,16 +482,25 @@ function Market.build(net: Instance, language: () -> string)
 		for slot = 1, 2 do
 			local control = Instance.new("TextButton")
 			control.Name = `Permanent{slot}`
-			control.AutoButtonColor = false
-			control.BackgroundTransparency = 1
+			control.AutoButtonColor = true
+			control.BackgroundColor3 = COLORS.energy
 			control.BorderSizePixel = 0
 			control.Font = Theme.fonts.bold
 			control.TextSize = PERMANENT_TEXT
-			control.TextColor3 = COLORS.energy
-			control.TextXAlignment = Enum.TextXAlignment.Left
+			control.TextColor3 = COLORS.textDark
+			control.TextXAlignment = Enum.TextXAlignment.Center
 			control.TextWrapped = true
 			control.Text = ""
 			control.Visible = false
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0.5, 0)
+			corner.Parent = control
+			local padding = Instance.new("UIPadding")
+			padding.PaddingLeft = UDim.new(0, PERMANENT_PAD_X)
+			padding.PaddingRight = UDim.new(0, PERMANENT_PAD_X)
+			padding.PaddingTop = UDim.new(0, PERMANENT_PAD_Y)
+			padding.PaddingBottom = UDim.new(0, PERMANENT_PAD_Y)
+			padding.Parent = control
 			control.Parent = frame
 			permanent[slot] = control
 		end
