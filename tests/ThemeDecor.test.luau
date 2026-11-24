@@ -165,16 +165,18 @@ return function(t, load)
 
 	-- Budget: parts, lights and particles stay inside the plot budget.
 	local totals = {
-		christmas = 179,
-		halloween = 162,
-		autumn = 119,
+		christmas = 180,
+		halloween = 163,
+		autumn = 120,
 		summer = 128,
-		spring = 119,
+		spring = 120,
 		desert = 79,
-		night = 76,
+		night = 77,
 		classic = 58,
 	}
-	local decoration = { autumn = 61, summer = 70, spring = 61, desert = 21, night = 18 }
+	local decoration = { autumn = 62, summer = 70, spring = 62, desert = 21, night = 19 }
+	local emitters = { christmas = 8, halloween = 2, autumn = 4, spring = 3, night = 3 }
+	local lights = { christmas = 1, halloween = 6, summer = 2, night = 4 }
 	for id, parts in decoration do
 		t.equal(Themes.budget(Themes.sets[id]).parts - Themes.BASE_PARTS, parts, `{id}: parts of the decoration alone`)
 	end
@@ -184,5 +186,20 @@ return function(t, load)
 		t.truthy(budget.parts <= Themes.THEME_PARTS, `{id}: at most {Themes.THEME_PARTS} parts`)
 		t.truthy(budget.lights <= Themes.MAX_LIGHTS, `{id}: at most {Themes.MAX_LIGHTS} lights`)
 		t.truthy(budget.rate <= Themes.MAX_RATE, `{id}: particle rate`)
+		t.equal(budget.rate, emitters[id] or 0, `{id}: emitter rate`)
+		t.equal(budget.lights, lights[id] or 0, `{id}: lights`)
+		t.truthy(Themes.MAX_EMITTERS >= (if set.emitter then 1 else 0), `{id}: at most one emitter`)
+		for _, piece in set.pieces do
+			if (piece.lights or 0) > 0 then
+				t.truthy(piece.glow ~= nil and #piece.glow == 3, `{id} {piece.kind}: light colour`)
+				t.truthy(
+					(piece.range or 0) >= Themes.MIN_RANGE and (piece.range or 0) <= Themes.MAX_RANGE,
+					`{id} {piece.kind}: light range 8 to 12`
+				)
+			end
+		end
+		if set.emitter then
+			t.truthy(#set.emitter.color == 3 and set.emitter.life > 0 and set.emitter.size > 0, `{id}: emitter data`)
+		end
 	end
 end
