@@ -1,5 +1,5 @@
 --!strict
--- The cosmetics of a plot (Core/Cosmetics flags): Neon Plants (a glowing disc and light under every plant, in the chosen
+-- The cosmetics of a plot (Core/Cosmetics flags): Neon Plants (a glowing outline and light under every plant, in the chosen
 -- colour), Plot Themes (ground strip, fence and name sign in the chosen design) and the Upgrade Fireworks. Parts are
 -- created on the server, so every player sees them; none of them changes what the plot does. Called once a second.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared:WaitForChild("Config"):WaitForChild("Assets") :: ModuleScript) :: any
 local Cosmetics = require(Shared:WaitForChild("Core"):WaitForChild("Cosmetics") :: ModuleScript) :: any
 local Cable = require(Shared:WaitForChild("Core"):WaitForChild("Cable") :: ModuleScript) :: any
+local GlowPattern = require(Shared:WaitForChild("Core"):WaitForChild("GlowPattern") :: ModuleScript) :: any
 local ThemeProps = require(script.Parent.ThemeProps)
 
 local PlotStyle = {}
@@ -37,35 +38,52 @@ local function part(parent: Instance, name: string, size: Vector3, at: Vector3, 
 	return p
 end
 
--- A glowing disc under one plant unit with a point light; the colour is changed in place.
-local function glow(unit: Instance, origin: Vector3, tint: Color3)
-	local disc = unit:FindFirstChild("NeonGlow")
-	if disc == nil and unit:IsA("Model") then
-		local box, size = unit:GetBoundingBox()
-		local across = math.max(2, math.min(size.X, size.Z))
-		local p = part(
-			unit,
-			"NeonGlow",
-			Vector3.new(GLOW_HEIGHT, across, across),
-			Vector3.new(box.Position.X, origin.Y + GLOW_HEIGHT, box.Position.Z),
-			tint,
-			Enum.Material.Neon
-		)
-		p.Shape = Enum.PartType.Cylinder
-		p.CFrame = CFrame.new(p.Position) * CFrame.Angles(0, 0, math.rad(90))
-		local light = Instance.new("PointLight")
-		light.Range = 10
-		light.Brightness = 1
-		light.Shadows = false
-		light.Color = tint
-		light.Parent = p
-		disc = p
+-- The glow of one plant unit: flat bars on the ground in the pattern of the plant (Core/GlowPattern: frame, ring or rotor
+-- blades), all named NeonGlow, the first with a point light; the colour is changed in place.
+local function glow(unit: Instance, origin: Vector3, tint: Color3, plantId: number)
+	local bars = {}
+	for _, child in unit:GetChildren() do
+		if child.Name == "NeonGlow" and child:IsA("BasePart") then
+			table.insert(bars, child)
+		end
 	end
-	if disc ~= nil and disc:IsA("BasePart") and disc.Color ~= tint then
-		disc.Color = tint
-		local light = disc:FindFirstChildOfClass("PointLight")
-		if light ~= nil then
-			light.Color = tint
+	if #bars == 0 and unit:IsA("Model") then
+		local box, size = unit:GetBoundingBox()
+		-- A plant on a foundation stands on top of its two steps (PlotService), the glow with it, inside the upper step.
+		local foundation = Assets.foundations[plantId]
+		local lift = if foundation ~= nil then 2 * Assets.FOUNDATION_STEP - 0.15 else 0
+		local centre = Vector3.new(box.Position.X, origin.Y + lift + GLOW_HEIGHT, box.Position.Z)
+		local kind = GlowPattern.kind(plantId)
+		local width, depth =
+			GlowPattern.footprint(kind, size.X, size.Z, if foundation ~= nil then foundation.radius * 4 / 3 else nil)
+		for i, bar in GlowPattern.bars(kind, width, depth) do
+			local p = part(
+				unit,
+				"NeonGlow",
+				Vector3.new(bar.sx, GLOW_HEIGHT, bar.sz),
+				centre + Vector3.new(bar.x, 0, bar.z),
+				tint,
+				Enum.Material.Neon
+			)
+			p.CFrame = CFrame.new(p.Position) * CFrame.Angles(0, math.rad(bar.turn), 0)
+			if i == 1 then
+				local light = Instance.new("PointLight")
+				light.Range = 10
+				light.Brightness = 1
+				light.Shadows = false
+				light.Color = tint
+				light.Parent = p
+			end
+			table.insert(bars, p)
+		end
+	end
+	for _, bar in bars do
+		if bar.Color ~= tint then
+			bar.Color = tint
+			local light = bar:FindFirstChildOfClass("PointLight")
+			if light ~= nil then
+				light.Color = tint
+			end
 		end
 	end
 end
@@ -73,15 +91,16 @@ end
 -- Neon Plants: every unit and column of the plot glows in `neon`; nil removes the glow.
 function PlotStyle.neon(origin: Vector3, copies: { { Instance } }, columns: { [number]: BasePart }, neon: string?)
 	local tint = if neon ~= nil then colour(Cosmetics.neonRgb(neon)) else nil
-	for _, units in copies do
+	for plantId, units in copies do
 		for _, unit in units do
 			if unit.Name ~= "Rails" then
 				if tint ~= nil then
-					glow(unit, origin, tint)
+					glow(unit, origin, tint, plantId)
 				else
-					local disc = unit:FindFirstChild("NeonGlow")
-					if disc ~= nil then
-						disc:Destroy()
+					for _, child in unit:GetChildren() do
+						if child.Name == "NeonGlow" then
+							child:Destroy()
+						end
 					end
 				end
 			end
