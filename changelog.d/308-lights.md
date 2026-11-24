@@ -1,0 +1,2 @@
+- Die Plot-Themen leuchten und rieseln jetzt: Weihnachten schneit, im Herbst fallen Blätter, im Frühling Blütenblätter, bei Halloween steigen Irrlichter auf und in der Nacht tanzen Glühwürmchen; Laternen, Kürbisse und der Weihnachtsbaum geben warmes Licht.
+- internal: Licht- und Partikeldaten in Config/Themes und ihr Bau in ThemeProps (Schritt 6 von docs/themes-design.md).
