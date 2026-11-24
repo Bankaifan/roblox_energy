@@ -25,6 +25,8 @@ local DIMMED_TEXT = 0.3
 local DIMMED_BACKGROUND = 0.6
 -- The panel is at most this wide; on a narrow screen it shrinks to the screen width instead.
 local PANEL_MAX_WIDTH = 220
+-- Studs of the bottom left strip kept free for the Leaderboard button (44) and the Style row (Controllers/Style) above it.
+local BOTTOM_RESERVE = 120
 -- Every row and button uses the same fixed text size. Long text wraps onto a second line and the row grows with it.
 local ROW_TEXT = 16
 local ROW_MIN_HEIGHT = 22
@@ -115,8 +117,9 @@ function Hud.build(net: Instance)
 		return Locale.t(key, lang, args)
 	end
 	local frame = Instance.new("ScrollingFrame")
-	-- Fills the screen minus the margin, at most PANEL_MAX_WIDTH wide; the list scrolls.
-	frame.Size = UDim2.new(1, -32, 1, -32)
+	-- Fills the screen minus the margin, at most PANEL_MAX_WIDTH wide; the list scrolls. The bottom strip stays free for the
+	-- Leaderboard and Style buttons, so a long list (German text wraps) scrolls instead of running under them.
+	frame.Size = UDim2.new(1, -32, 1, -32 - BOTTOM_RESERVE)
 	frame.Position = UDim2.fromOffset(16, 16)
 	frame.BackgroundTransparency = 1
 	frame.CanvasSize = UDim2.new()
