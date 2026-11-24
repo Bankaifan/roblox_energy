@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Boost = require(Config:WaitForChild("Boost") :: ModuleScript) :: any
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Theme = require(script.Parent.Parent.Theme)
 
 local BoostView = {}
 
@@ -41,10 +42,14 @@ function BoostView.build(frame: GuiObject, nextOrder: () -> number, lang: () -> 
 	local banner = Instance.new("TextLabel")
 	banner.AnchorPoint = Vector2.new(0.5, 0)
 	banner.Position = UDim2.new(0.5, 0, 0, 8)
-	banner.Size = UDim2.new(0.6, 0, 0, 56)
-	banner.BackgroundColor3 = GOLDEN
-	banner.BackgroundTransparency = 0.2
-	banner.TextColor3 = Color3.new(0, 0, 0)
+	banner.Size = UDim2.new(0.5, 0, 0, 56) -- stays clear of the rate text at the right edge
+	-- The banner is a dark panel with a yellow border, like the tutorial box of the HUD.
+	banner.BackgroundColor3 = Theme.colors.window
+	banner.BackgroundTransparency = 0.1
+	banner.Font = Theme.fonts.bold
+	banner.TextColor3 = Theme.colors.accent
+	Theme.round(banner)
+	Theme.outline(banner, Theme.colors.accent, 2)
 	banner.TextSize = BANNER_TEXT
 	banner.TextWrapped = true
 	banner.Visible = false
@@ -53,6 +58,10 @@ function BoostView.build(frame: GuiObject, nextOrder: () -> number, lang: () -> 
 	-- The purchase button is hidden until a product ID is set in Config (Milestone 3): nothing is offered before that.
 	local button = Instance.new("TextButton")
 	button.TextSize = BUTTON_TEXT
+	button.Font = Theme.fonts.bold
+	button.TextColor3 = Theme.colors.textDark
+	button.BackgroundColor3 = Theme.colors.accent
+	Theme.round(button)
 	button.TextWrapped = true
 	button.LayoutOrder = nextOrder()
 	button.Size = UDim2.new(1, 0, 0, BUTTON_HEIGHT)
