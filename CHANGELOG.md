@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.19] - 2026-11-24
+- Der Stil „Jahreszeit“ zeigt jetzt das Thema des aktuellen Monats (Boden, Dekoration, Lichter und Partikel) und wechselt mit dem Datum.
+- Der Dispatcher wiederholt einen kurzzeitig fehlgeschlagenen gh-Aufruf und überspringt den Lauf mit Logzeile, statt abzustürzen.
+- Der Arbeitszähler der Orchestrierung wiederholt einen fehlgeschlagenen GitHub-Aufruf bis zu dreimal.
+
 ## [0.18] - 2026-11-24
 - Neben der Uhr zeigt ein Pfeil das nächste Wetter, sobald der Börsenzugang gekauft ist.
 - Die Plot-Themen Weihnachten und Halloween bringen ihre Deko auf das Grundstück: Schneemänner, Geschenke und Tannen bzw. Kürbisse, Grabsteine, Spinnweben und Laternen.
