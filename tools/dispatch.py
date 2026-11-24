@@ -17,6 +17,7 @@ into a comment. Needs the gh CLI (GH_TOKEN, GH_REPO).
 import json
 import subprocess
 import sys
+import time
 
 import budget
 import overlap
@@ -105,6 +106,21 @@ def after_merge(pr, gh=prefilter.gh):
     return done
 
 
+def load_state(state_fn=None, tries=3, pause=5, sleep=time.sleep):
+    """`prefilter.start_state()` with retries: a transient gh failure is retried, then skipped with a log line
+    (the next dispatch run starts the issues). Returns the state or None."""
+    state_fn = state_fn or prefilter.start_state
+    for attempt in range(1, tries + 1):
+        try:
+            return state_fn()
+        except (subprocess.CalledProcessError, OSError, ValueError) as e:
+            print(f"start state failed ({type(e).__name__}), attempt {attempt}/{tries}", file=sys.stderr)
+            if attempt < tries:
+                sleep(pause * attempt)
+    print("start state unavailable, nothing started this run")
+    return None
+
+
 def main(argv) -> int:
     if not argv or argv[0] not in ("start", "after-merge") or (argv[0] == "after-merge" and len(argv) != 2):
         print(__doc__, file=sys.stderr)
@@ -114,7 +130,9 @@ def main(argv) -> int:
     if reason := budget.low(budget.START):
         print(reason)
         return 0
-    state = prefilter.start_state()
+    state = load_state()
+    if state is None:
+        return 0
     restart_waiting(state)
     start(state)
     return 0
