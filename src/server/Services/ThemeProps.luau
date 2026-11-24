@@ -1,6 +1,6 @@
 --!strict
 -- Builds the decoration of a plot theme (docs/themes-design.md, section 4.2): the sites of Core/ThemeDecor become plain
--- anchored parts, one Model per site, in the Theme folder of the plot. Lights and particles come with step 6.
+-- anchored parts, one Model per site, in the Theme folder of the plot. Lights and the one emitter come with step 6.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -529,6 +529,61 @@ local function layout(seed: number): (any, { any })
 	return { low = ThemeDecor.keepOut(input, 1.5), tall = ThemeDecor.keepOut(input, Assets.CLEARANCE) }, lines
 end
 
+local function rgb(c: { number }): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+
+-- The part of each piece that carries its PointLight.
+local GLOW_PART: { [string]: string } = {
+	tree = "Star",
+	giant = "Mouth",
+	jack = "Mouth",
+	lamp = "Head",
+	tiki = "Flame",
+	lantern = "Lantern",
+}
+
+local function addLight(model: Model, piece: any)
+	local part = model:FindFirstChild(GLOW_PART[piece.kind] or "")
+	if part == nil or piece.glow == nil then
+		return
+	end
+	local light = Instance.new("PointLight")
+	light.Color = rgb(piece.glow)
+	light.Range = math.clamp(piece.range or Themes.MIN_RANGE, Themes.MIN_RANGE, Themes.MAX_RANGE)
+	light.Brightness = 1
+	light.Shadows = false
+	light.Parent = part
+end
+
+-- The one emitter of a theme: an invisible anchored box over the plot, the engine runs the particles.
+local function addEmitter(folder: Folder, emitter: any, origin: Vector3)
+	local box = Instance.new("Part")
+	box.Name = "Emitter"
+	box.Anchored = true
+	box.CanCollide = false
+	box.CanQuery = false
+	box.CanTouch = false
+	box.CastShadow = false
+	box.Transparency = 1
+	box.Size = Vector3.new(2 * Themes.FENCE, emitter.depth, 2 * Themes.FENCE)
+	box.Position = origin + Vector3.new(0, emitter.height, 0)
+	local particles = Instance.new("ParticleEmitter")
+	particles.Name = emitter.kind
+	particles.Shape = Enum.ParticleEmitterShape.Box
+	particles.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	particles.EmissionDirection = if emitter.rising then Enum.NormalId.Top else Enum.NormalId.Bottom
+	particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Rate = math.min(emitter.rate, Themes.MAX_RATE)
+	particles.Color = ColorSequence.new(rgb(emitter.color))
+	particles.Lifetime = NumberRange.new(emitter.life)
+	particles.Speed = NumberRange.new(emitter.speed)
+	particles.Size = NumberSequence.new(emitter.size)
+	particles.LightEmission = if emitter.rising then 1 else 0
+	particles.Parent = box
+	box.Parent = folder
+end
+
 -- Builds the decoration of `theme` into `folder` (the Theme folder of the plot, plot-relative `origin` on the ground, `facing`
 -- mirrors z). `seed` is the plot slot: each plot gets its own layout. Themes without builders show no decoration.
 function ThemeProps.add(folder: Folder, theme: string, origin: Vector3, facing: number, seed: number)
@@ -539,6 +594,10 @@ function ThemeProps.add(folder: Folder, theme: string, origin: Vector3, facing: 
 	local keep, lines = layout(seed)
 	local flip = Vector3.new(1, 1, facing)
 	local counts: { [string]: number } = {}
+	local lightsLeft: { [number]: number } = {}
+	for index, piece in set.pieces do
+		lightsLeft[index] = piece.lights or 0
+	end
 	for _, site in ThemeDecor.sites(set, keep, lines, seed, Themes.FENCE) do
 		local builder = BUILDERS[site.kind]
 		if builder ~= nil then
@@ -555,6 +614,10 @@ function ThemeProps.add(folder: Folder, theme: string, origin: Vector3, facing: 
 				scale = site.scale,
 				n = n,
 			})
+			if lightsLeft[site.piece] > 0 then
+				lightsLeft[site.piece] -= 1
+				addLight(model, set.pieces[site.piece])
+			end
 			model.Parent = folder
 		end
 	end
@@ -568,6 +631,9 @@ function ThemeProps.add(folder: Folder, theme: string, origin: Vector3, facing: 
 			end
 			model.Parent = folder
 		end
+	end
+	if set.emitter ~= nil then
+		addEmitter(folder, set.emitter, origin)
 	end
 end
 
