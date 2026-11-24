@@ -200,3 +200,25 @@ def test_no_restart_while_a_run_is_in_progress_or_without_closed_blocker():
     gh = RunGh()
     assert dispatch.restart_waiting({"restart": {}}, gh) == [] and dispatch.restart_waiting({}, gh) == []
     assert gh.calls == []  # an open blocker puts nothing into "restart"
+
+
+def test_load_state_retries_a_transient_gh_failure():
+    calls = []
+
+    def state_fn():
+        calls.append(1)
+        if len(calls) < 3:
+            raise subprocess.CalledProcessError(1, ["gh"])
+        return {"startable": [], "limit": 0}
+
+    pauses = []
+    assert dispatch.load_state(state_fn, sleep=pauses.append) == {"startable": [], "limit": 0}
+    assert len(calls) == 3 and len(pauses) == 2
+
+
+def test_load_state_gives_up_without_raising(capsys):
+    def state_fn():
+        raise subprocess.CalledProcessError(1, ["gh"])
+
+    assert dispatch.load_state(state_fn, sleep=lambda s: None) is None
+    assert "nothing started" in capsys.readouterr().out
