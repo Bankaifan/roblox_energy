@@ -44,6 +44,14 @@ return function(t, load)
 		t.equal(ThemeDecor.season(month), id, `month {month}: {id}`)
 		t.truthy(Themes.sets[id] ~= nil, `month {month}: the theme has a set`)
 	end
+	for month, id in byMonth do
+		t.equal(ThemeDecor.resolve("season", month), id, `month {month}: season resolves to {id}`)
+	end
+	for _, id in Cosmetics.THEMES do
+		if id ~= "season" then
+			t.equal(ThemeDecor.resolve(id, 10), id, `{id} stays itself`)
+		end
+	end
 	local flags = Cosmetics.flags({ themes = true }, { [Cosmetics.SLOT_THEME] = "season" })
 	t.equal(flags.theme, "season", "a saved season choice is kept")
 	local chosen = Cosmetics.choose({ themes = true }, {}, Cosmetics.SLOT_THEME, "season")

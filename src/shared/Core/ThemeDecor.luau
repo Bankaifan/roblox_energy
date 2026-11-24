@@ -48,6 +48,14 @@ function ThemeDecor.season(month: number): string
 	return "classic"
 end
 
+-- The theme a chosen style item shows in a month: `season` follows the date, every other item is itself.
+function ThemeDecor.resolve(item: string, month: number): string
+	if item == "season" then
+		return ThemeDecor.season(month)
+	end
+	return item
+end
+
 -- The keep-out boxes of the site map. `input`: cells = { { x, z, size } } (every cell of every field, centre and side),
 -- furniture = { { x, z, w, d } } (largest size, with crank, founder sign, spawn pad and name sign), lanes = { Box } (walk lanes),
 -- furnitureGap = studs added round furniture, fence = fence line. `gap` is added round the cells (1.5 for low pieces, the
