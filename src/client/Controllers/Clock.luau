@@ -2,8 +2,7 @@
 -- The day clock card (issue 288, docs/weather-sky-design.md, step 2): a dial of 24 hour segments that turns with the server time
 -- of day (DayCycle.clockAt) under a fixed pointer, the phase and clock time, the countdown to the next change, the day and night
 -- lengths, and the current weather as a chip. Everything it shows comes from Core/ClockView (pure, tested), Config/Phases and the
--- Env message; no clock or weather of its own. Below WIDE_MIN px the card is a row of the HUD list, wider it floats at the top
--- right, under the income rate. Labels come from Locale.
+-- Env message; no clock or weather of its own. The card floats at the top right, under the income rate. Labels come from Locale.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -19,16 +18,16 @@ local Theme = require(script.Parent.Parent.Theme)
 local Clock = {}
 
 -- The same fixed text size as the HUD rows.
-local ROW_TEXT = 16
+local ROW_TEXT = 14
 local CARD_PADDING = 6
 local GAP = 8
--- Dial sizes in px: narrow (inside the HUD list) and wide (floating).
-local DIAL_NARROW = 72
-local DIAL_WIDE = 88
--- From this viewport width on the card floats at the top right (it then clears the tutorial box at the top centre).
-local WIDE_MIN = 768
-local WIDE_WIDTH = 168
-local WIDE_TOP = 76
+local DIAL = 72
+local CARD_WIDTH = 150
+-- The card hangs under the rate (Controllers/Hud, top row): the rate block is about RATE_BLOCK px high at full size and shrinks
+-- with the screen fit. A phone (fit below SMALL_FIT) drops the day and night lengths line to stay compact.
+local TOP_ROW_Y = 8
+local RATE_BLOCK = 60
+local SMALL_FIT = 0.8
 local DAY_COLOR = Color3.fromRGB(255, 200, 0)
 local NIGHT_COLOR = Color3.fromRGB(34, 52, 120)
 
@@ -60,12 +59,12 @@ local function listLayout(parent: Instance, direction: Enum.FillDirection): UILi
 	return layout
 end
 
--- Builds the card. `frame` is the HUD list and `nextOrder` gives the next layout order, so the card sits where the weather line
--- was. `lang` gives the language in use. Returns `env` (the Env message handler) and `relabel` (repaint after a language change).
-function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> string)
+-- Builds the card. `lang` gives the language in use. Returns `env` (the Env message handler) and `relabel` (repaint after a language change).
+function Clock.build(lang: () -> string)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Clock"
 	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true -- the card is placed from the screen top, like the rate it hangs under
 	gui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
 	Theme.fitScreen(gui)
 
@@ -74,7 +73,6 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.BackgroundColor3 = Theme.colors.window
 	card.BorderSizePixel = 0
-	card.LayoutOrder = nextOrder()
 	Theme.round(card)
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, CARD_PADDING)
@@ -84,7 +82,7 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 	padding.Parent = card
 	listLayout(card, Enum.FillDirection.Vertical)
 
-	-- The dial and the text beside it (narrow) or under it (wide).
+	-- The dial with the text under it.
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.Size = UDim2.fromScale(1, 0)
@@ -172,45 +170,30 @@ function Clock.build(frame: GuiObject, nextOrder: () -> number, lang: () -> stri
 	forecastChip.Visible = false
 	forecastChip.Parent = card
 
-	-- Narrow: a row of the HUD list, dial beside the text. Wide: floating at the top right, dial above the text.
-	local wide: boolean? = nil
-	local function layoutFor(width: number)
-		local isWide = width >= WIDE_MIN
-		if isWide == wide then
-			return
-		end
-		wide = isWide
-		local size = if isWide then DIAL_WIDE else DIAL_NARROW
-		dial.Size = UDim2.fromOffset(size, size)
-		for _, bar in segments do
-			bar.Size = UDim2.fromOffset(math.floor(size * 0.12), math.floor(size * 0.16))
-		end
-		if isWide then
-			rowLayout.FillDirection = Enum.FillDirection.Vertical
-			rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-			info.Size = UDim2.fromScale(1, 0)
-			card.AnchorPoint = Vector2.new(1, 0)
-			card.Position = UDim2.new(1, -16, 0, WIDE_TOP)
-			card.Size = UDim2.fromOffset(WIDE_WIDTH, 0)
-			card.Parent = gui
-		else
-			rowLayout.FillDirection = Enum.FillDirection.Horizontal
-			rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-			info.Size = UDim2.new(1, -(size + GAP), 0, 0)
-			card.AnchorPoint = Vector2.new(0, 0)
-			card.Position = UDim2.new()
-			card.Size = UDim2.fromScale(1, 0)
-			card.Parent = frame
-		end
+	-- Floating at the top right under the rate, dial above the text.
+	dial.Size = UDim2.fromOffset(DIAL, DIAL)
+	for _, bar in segments do
+		bar.Size = UDim2.fromOffset(math.floor(DIAL * 0.12), math.floor(DIAL * 0.16))
+	end
+	rowLayout.FillDirection = Enum.FillDirection.Vertical
+	rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	info.Size = UDim2.fromScale(1, 0)
+	card.AnchorPoint = Vector2.new(1, 0)
+	card.Size = UDim2.fromOffset(CARD_WIDTH, 0)
+	card.Parent = gui
+	local function layoutFor(viewport: Vector2)
+		local fit = Theme.fitFactor(viewport)
+		card.Position = UDim2.new(1, -12, 0, TOP_ROW_Y + math.floor(RATE_BLOCK * fit))
+		lengthsLine.Visible = fit >= SMALL_FIT
 	end
 	local camera = workspace.CurrentCamera
 	if camera ~= nil then
-		layoutFor(camera.ViewportSize.X)
+		layoutFor(camera.ViewportSize)
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-			layoutFor(camera.ViewportSize.X)
+			layoutFor(camera.ViewportSize)
 		end)
 	else
-		layoutFor(0)
+		layoutFor(Vector2.new(800, 600))
 	end
 
 	local env: any = nil
