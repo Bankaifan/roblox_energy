@@ -17,7 +17,7 @@ def test_no_per_row_text_scaling():
 
 
 def test_one_fixed_text_size_for_rows_and_buttons():
-    assert re.search(r"local ROW_TEXT = 16\b", HUD)
+    assert re.search(r"local ROW_TEXT = 14\b", HUD)
     assert len(re.findall(r"TextSize = ROW_TEXT\b", HUD)) >= 2
 
 
@@ -46,7 +46,7 @@ def test_shop_is_not_in_the_hud():
 def test_crank_is_not_a_hud_button_and_buttons_keep_touch_size():
     code = "\n".join(code_lines())
     assert 'send("Crank")' not in code
-    assert re.search(r"local BUTTON_MIN_HEIGHT = 44\b", HUD)
+    assert re.search(r"local BUTTON_MIN_HEIGHT = 38\b", HUD)
 
 
 MARKET = (ROOT / "src" / "client" / "Controllers" / "Market.luau").read_text(encoding="utf-8")
@@ -74,31 +74,29 @@ CLOCK = (ROOT / "src" / "client" / "Controllers" / "Clock.luau").read_text(encod
 def test_clock_card_replaces_the_weather_text_row():
     # Step 2 of docs/weather-sky-design.md: the card is built by the Clock controller and the old text row is gone.
     code = "\n".join(code_lines())
-    assert "Clock.build(frame, nextOrder" in code
+    assert "Clock.build(function" in code
     assert 't("weather." .. change.weather)' not in code
 
 
 def test_clock_card_fits_360_px():
-    # The HUD panel is at most 220 px wide (328 px at 360 px is the design limit); the dial beside the text leaves room.
-    panel = int(re.search(r"local PANEL_MAX_WIDTH = (\d+)", HUD).group(1))
-    dial = int(re.search(r"local DIAL_NARROW = (\d+)", CLOCK).group(1))
-    gap = int(re.search(r"local GAP = (\d+)", CLOCK).group(1))
+    # The card floats at the top right under the rate: its width plus margin must fit the screen at the fit factor.
+    card = int(re.search(r"local CARD_WIDTH = (\d+)", CLOCK).group(1))
+    dial = int(re.search(r"local DIAL = (\d+)", CLOCK).group(1))
     pad = int(re.search(r"local CARD_PADDING = (\d+)", CLOCK).group(1))
-    assert min(360 - 32, panel) <= 328
     assert dial <= 72
-    # At least 100 px for the wrapped text beside the dial.
-    assert min(360 - 32, panel) - 2 * pad - dial - gap >= 100
-    assert re.search(r"local ROW_TEXT = 16\b", CLOCK)
+    assert dial + 2 * pad <= card
+    assert re.search(r"local ROW_TEXT = 14\b", CLOCK)
     assert "TextWrapped = true" in CLOCK
-    assert "AutomaticSize = Enum.AutomaticSize.Y" in CLOCK or "AutomaticSize.Y" in CLOCK
+    assert "AutomaticSize.Y" in CLOCK
 
 
-def test_clock_card_floats_only_when_it_cannot_meet_the_tutorial_box():
-    # The tutorial box is at most half the width, centred; the floating card must start right of its right edge.
-    wide_min = int(re.search(r"local WIDE_MIN = (\d+)", CLOCK).group(1))
-    card = int(re.search(r"local WIDE_WIDTH = (\d+)", CLOCK).group(1))
-    assert wide_min >= 480
-    assert wide_min - 16 - card >= wide_min * 0.75
+def test_clock_card_stays_right_of_the_tutorial_box():
+    # The tutorial box is at most half the width, centred, so its right edge is at 75 % of the width. The card shrinks with the
+    # fit factor (about width / 800 on a phone), and its right edge sits 12 px from the screen edge.
+    card = int(re.search(r"local CARD_WIDTH = (\d+)", CLOCK).group(1))
+    for width in (480, 640, 740, 800, 1280):
+        fit = min(width / 800, 1)
+        assert width - 12 - card * fit >= width * 0.75
 
 
 def test_expand_question_is_green_yes_and_red_cancel():

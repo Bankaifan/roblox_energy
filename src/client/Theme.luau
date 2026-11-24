@@ -81,4 +81,76 @@ function Theme.outline(control: GuiObject, color: Color3, thickness: number?): U
 	return stroke
 end
 
+local ScreenFit = require(
+	game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("ScreenFit") :: ModuleScript
+) :: any
+
+function Theme.fitFactor(viewport: Vector2): number
+	return ScreenFit.factor(viewport.X, viewport.Y)
+end
+
+-- Gives every top-level control of `gui` a UIScale that follows the viewport. A UIScale only scales the size (positions
+-- and anchors stay), so a size that is relative to the screen (scale part) is divided by the factor and keeps its screen
+-- share: a full-screen backdrop still covers the screen. Do not use it on a gui that scales itself (Market).
+-- `base` is the unscaled Size the owner set, `written` the Size `apply` last wrote. The owner may set Size after the control
+-- has its Parent, or resize it later, so a Size that is not `written` is taken as the new base (see `track`) at once,
+-- not only at the next viewport change; otherwise that change would reset the control to its older Size.
+type Entry = { control: GuiObject, base: UDim2, written: UDim2, scale: UIScale }
+
+-- Gives every top-level control of `gui` a UIScale that follows the viewport. A UIScale only scales the size (positions
+-- and anchors stay), so a size that is relative to the screen (scale part) is divided by the factor and keeps its screen
+-- share: a full-screen backdrop still covers the screen. Do not use it on a gui that scales itself (Market).
+function Theme.fitScreen(gui: ScreenGui)
+	local camera = workspace.CurrentCamera :: Camera
+	local tracked: { Entry } = {}
+	local function apply(entry: Entry)
+		local factor = Theme.fitFactor(camera.ViewportSize)
+		local base = entry.base
+		local function axis(part: UDim): UDim
+			if part.Scale == 0 then
+				return part
+			end
+			return UDim.new(part.Scale / factor, part.Offset / factor)
+		end
+		entry.scale.Scale = factor
+		if base.X.Scale ~= 0 or base.Y.Scale ~= 0 then
+			local size = UDim2.new(axis(base.X), axis(base.Y))
+			-- Stored before the write: the Size signal fires on it and must see it as our own write.
+			entry.written = size
+			entry.control.Size = size
+		else
+			entry.written = base
+		end
+	end
+	local function track(entry: Entry)
+		entry.control:GetPropertyChangedSignal("Size"):Connect(function()
+			if entry.control.Size ~= entry.written then
+				entry.base = entry.control.Size
+				apply(entry)
+			end
+		end)
+	end
+	local function attach(child: Instance)
+		if not child:IsA("GuiObject") or child:FindFirstChildOfClass("UIScale") ~= nil then
+			return
+		end
+		local scale = Instance.new("UIScale")
+		scale.Name = "FitScale"
+		scale.Parent = child
+		local entry: Entry = { control = child, base = child.Size, written = child.Size, scale = scale }
+		table.insert(tracked, entry)
+		apply(entry)
+		track(entry)
+	end
+	for _, child in gui:GetChildren() do
+		attach(child)
+	end
+	gui.ChildAdded:Connect(attach)
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+		for _, entry in tracked do
+			apply(entry)
+		end
+	end)
+end
+
 return Theme

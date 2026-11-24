@@ -24,12 +24,18 @@ local Hud = {}
 local DIMMED_TEXT = 0.3
 local DIMMED_BACKGROUND = 0.6
 -- The panel is at most this wide; on a narrow screen it shrinks to the screen width instead.
-local PANEL_MAX_WIDTH = 220
+local PANEL_MAX_WIDTH = 190
+-- The top row shares the height of the Roblox buttons (top left): the skip button starts right of them, the rate sits top right.
+local TOP_ROW_LEFT = 200
+local TOP_ROW_Y = 8
+local SKIP_WIDTH = 150
+-- Studs of the bottom left strip kept free for the Leaderboard button (44) and the Style row (Controllers/Style) above it.
+local BOTTOM_RESERVE = 120
 -- Every row and button uses the same fixed text size. Long text wraps onto a second line and the row grows with it.
-local ROW_TEXT = 16
-local ROW_MIN_HEIGHT = 22
+local ROW_TEXT = 14
+local ROW_MIN_HEIGHT = 20
 -- A button keeps a finger-sized height on a phone.
-local BUTTON_MIN_HEIGHT = 44
+local BUTTON_MIN_HEIGHT = 38
 -- Inner padding: left and right it keeps text off the edge and off the scrollbar; top and bottom it gives wrapped lines air.
 local ROW_SIDE_PADDING = 8
 local ROW_VERTICAL_PADDING = 2
@@ -108,14 +114,23 @@ function Hud.build(net: Instance)
 	gui.Name = "Hud"
 	gui.ResetOnSpawn = false
 	gui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
+	-- The top row (skip button, rate) reaches up into the strip of the Roblox buttons, so it ignores the top inset.
+	local top = Instance.new("ScreenGui")
+	top.Name = "HudTop"
+	top.ResetOnSpawn = false
+	top.IgnoreGuiInset = true
+	top.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
+	Theme.fitScreen(top)
 	-- The language of every label: the player's locale at the start, then whatever the Language button chose.
 	local lang: string = Locale.resolve((Players.LocalPlayer :: Player).LocaleId)
 	local function t(key: string, args: { [string]: any }?): string
 		return Locale.t(key, lang, args)
 	end
 	local frame = Instance.new("ScrollingFrame")
-	-- Fills the screen minus the margin, at most PANEL_MAX_WIDTH wide; the list scrolls.
-	frame.Size = UDim2.new(1, -32, 1, -32)
+	-- Fills the screen minus the margin, at most PANEL_MAX_WIDTH wide; the list scrolls. The bottom strip stays free for the
+	-- Leaderboard and Style buttons, so a long list (German text wraps) scrolls instead of running under them.
+	frame.Size = UDim2.new(1, -32, 1, -32 - BOTTOM_RESERVE)
 	frame.Position = UDim2.fromOffset(16, 16)
 	frame.BackgroundTransparency = 1
 	frame.CanvasSize = UDim2.new()
@@ -148,7 +163,7 @@ function Hud.build(net: Instance)
 	local coins = label(frame, nextOrder())
 	local rate = Instance.new("TextLabel")
 	rate.AnchorPoint = Vector2.new(1, 0)
-	rate.Position = UDim2.new(1, -16, 0, 16)
+	rate.Position = UDim2.new(1, -12, 0, TOP_ROW_Y)
 	rate.Size = UDim2.fromOffset(0, 0)
 	rate.AutomaticSize = Enum.AutomaticSize.XY
 	rate.BackgroundTransparency = 1
@@ -158,18 +173,18 @@ function Hud.build(net: Instance)
 	rate.TextXAlignment = Enum.TextXAlignment.Right
 	rate.TextStrokeTransparency = 0.2
 	rate.TextStrokeColor3 = Theme.colors.backdrop
-	rate.Parent = gui
+	rate.Parent = top
 	-- The electricity price: a plain row, like the others. The control board popup (#115) can take it over: its text
 	-- comes from ShopView.priceText(view.price, t), the same line the rule section of the Storage tab shows.
 	local price = label(frame, nextOrder())
 	local storage = label(frame, nextOrder())
 	local storageHint = label(frame, nextOrder())
 	local grid = label(frame, nextOrder())
-	-- The day clock card with the current weather (Controllers/Clock) replaces the old weather text row.
-	local clock = Clock.build(frame, nextOrder, function(): string
+	-- The day clock card with the current weather (Controllers/Clock) floats at the top right under the rate.
+	local clock = Clock.build(function(): string
 		return lang
 	end)
-	-- The Sunshine Hour button and banner, right under the clock card.
+	-- The Sunshine Hour button and banner.
 	local boost = BoostView.build(frame, nextOrder, function(): string
 		return lang
 	end)
@@ -215,7 +230,7 @@ function Hud.build(net: Instance)
 	local skipArmedAt = -math.huge
 	local tutorialForced = false -- the closing line shows after the tutorial is done
 	local tutorialSkip: TextButton
-	tutorialSkip = button(frame, "", 0, function()
+	tutorialSkip = button(top, "", 0, function()
 		-- Two taps within three seconds skip for good; the first one only asks again.
 		if os.clock() - skipArmedAt <= 3 then
 			skipArmedAt = -math.huge
@@ -232,6 +247,9 @@ function Hud.build(net: Instance)
 		end
 	end)
 	tutorialSkip.Visible = false
+	-- In the top row, right of the Roblox buttons.
+	tutorialSkip.Position = UDim2.fromOffset(TOP_ROW_LEFT, TOP_ROW_Y)
+	tutorialSkip.Size = UDim2.fromOffset(SKIP_WIDTH, BUTTON_MIN_HEIGHT)
 	local function paintTutorialLine()
 		local args: { [string]: any } = {}
 		for key, value in tutorialArgs or {} do

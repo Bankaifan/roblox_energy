@@ -71,6 +71,7 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 	gui.DisplayOrder = 10
 	gui.Enabled = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
