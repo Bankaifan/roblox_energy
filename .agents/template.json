@@ -1,7 +1,7 @@
 {
   "template": "Bankaifan/agent-template",
-  "synced_sha": "5ad40a0d7dc68e0ed10e7dbe1ebae0eff243d682",
-  "synced_version": "1.109",
+  "synced_sha": "2884b0095458aaf505d777652ded7c98e4b16c0e",
+  "synced_version": "1.111",
   "managed": [
     ".github/workflows/",
     ".github/claude-judge-settings.json",

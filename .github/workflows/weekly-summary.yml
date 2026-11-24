@@ -22,7 +22,7 @@ jobs:
             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
           done
       - id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
           private-key: ${{ secrets.AUTHOR_APP_KEY }}
@@ -41,6 +41,7 @@ jobs:
           # same defaults as orchestrator.yml (queue section and proposal thresholds); read-only use
           MAX_DEV: ${{ vars.MAX_DEV || '4' }}
           MAX_PRS: ${{ vars.MAX_PRS || '5' }}
+          REPORT_ISSUES: ${{ vars.REPORT_ISSUES }}  # "off": no summary or proposal issue, the text goes to the run summary
         run: python3 tools/weekly_summary.py
       - name: Open a PR for the new metrics row
         env:

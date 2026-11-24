@@ -127,35 +127,35 @@ def workflow_stats(runs, jobs_of, log_of, days=7, now=None):
             "median_min": round(statistics.median(durations) / 60, 1) if durations else None}
 
 
-ERROR_RE = re.compile(r"error|exception|failed", re.IGNORECASE)
-STAMP_RE = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z\s*")
-ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
-ECHO = "\x1b[36;1m"  # the runner prints the script of a `run:` step in this colour before it runs it
-GENERIC_RE = re.compile(r"^##\[error\]Process completed with exit code \d+\.?$")
+STAMP_RE = re.compile(r"^\ufeff?\d{4}-\d\d-\d\dT[\d:.]+Z\s*")
+ANSI_RE = re.compile(r"(?:\x1b|\^\[)\[[0-9;]*m")  # the escape itself, or its caret form in a captured log
+ERROR_MARK = "##[error]"
+GENERIC_RE = re.compile(r"^Process completed with exit code \d+\.?$")
 
 
 def failure_class(log):
-    """Normalized first error line of a failed model run (digits become #), or None. Limit or rate errors are not a
-    role failure and give None. Heuristic (design 0015): same text = same class.
-    Not an error line: the script text the runner echoes before a step (it holds every `echo "::error::..."` of the
-    step, so 21 unrelated failures became one class, #749) and the bare `Process completed with exit code N`."""
+    """Normalized first error annotation of a failed model run (digits become #), or None. Limit or rate errors are
+    not a role failure and give None. Heuristic (design 0015): same text = same class.
+    Only a line the runner marks `##[error]` counts. `gh run view --log-failed` returns the whole job log, with every
+    step script and the model prompt echoed in it; any line that merely contains "error" or "failed" made unrelated
+    failures one class (#749, #762). The bare `Process completed with exit code N` is no class either."""
     if LIMIT_RE.search(log):
         return None
     for line in log.splitlines():
-        raw = STAMP_RE.sub("", line.rsplit("\t", 1)[-1])
-        text = ANSI_RE.sub("", raw).strip()
-        if raw.lstrip().startswith(ECHO) or GENERIC_RE.match(text):
+        text = ANSI_RE.sub("", STAMP_RE.sub("", line.rsplit("\t", 1)[-1])).strip()
+        if not text.startswith(ERROR_MARK):
             continue
-        if ERROR_RE.search(text):
+        text = text[len(ERROR_MARK):].strip()
+        if text and not GENERIC_RE.match(text):
             return re.sub(r"\d+", "#", text.lower())[:120]
     return None
 
 
-def failure_classes(runs, jobs_of, log_of, days=28, now=None):
-    """{failure class: number of failed model runs in the last `days` days}; runs: {workflow file: run list}."""
+def failure_class_runs(runs, jobs_of, log_of, days=28, now=None):
+    """{failure class: [failed model runs of the last `days` days, as listed]}; runs: {workflow file: run list}."""
     now = now or datetime.datetime.now(datetime.UTC)
     cutoff = now - datetime.timedelta(days=days)
-    counts = {}
+    found = {}
     for file_runs in runs.values():
         for run in file_runs:
             if parse_time(run["createdAt"]) < cutoff or run.get("conclusion") != "failure":
@@ -164,8 +164,13 @@ def failure_classes(runs, jobs_of, log_of, days=28, now=None):
                 continue
             cls = failure_class(log_of(run["databaseId"]))
             if cls:
-                counts[cls] = counts.get(cls, 0) + 1
-    return counts
+                found.setdefault(cls, []).append(run)
+    return found
+
+
+def failure_classes(runs, jobs_of, log_of, days=28, now=None):
+    """{failure class: number of failed model runs in the last `days` days}; runs: {workflow file: run list}."""
+    return {cls: len(hit) for cls, hit in failure_class_runs(runs, jobs_of, log_of, days, now).items()}
 
 
 def execution_entries(directory):
