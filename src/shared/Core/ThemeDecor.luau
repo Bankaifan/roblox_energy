@@ -31,6 +31,23 @@ ThemeDecor.YARD = { 60, 90 } -- z range of the yard zone
 ThemeDecor.CORNER = { 60, 90 } -- x and z range of the corner zone (the east yard corner)
 ThemeDecor.FENCE_START = 90 -- fenceRoad pieces start at x = -FENCE_START
 
+-- The theme the style item `season` shows for a month (1 to 12): spring Mar-May, summer Jun-Aug, autumn Sep-Nov but
+-- halloween in October, christmas in December, classic in January and February.
+function ThemeDecor.season(month: number): string
+	if month == 10 then
+		return "halloween"
+	elseif month >= 3 and month <= 5 then
+		return "spring"
+	elseif month >= 6 and month <= 8 then
+		return "summer"
+	elseif month >= 9 and month <= 11 then
+		return "autumn"
+	elseif month == 12 then
+		return "christmas"
+	end
+	return "classic"
+end
+
 -- The keep-out boxes of the site map. `input`: cells = { { x, z, size } } (every cell of every field, centre and side),
 -- furniture = { { x, z, w, d } } (largest size, with crank, founder sign, spawn pad and name sign), lanes = { Box } (walk lanes),
 -- furnitureGap = studs added round furniture, fence = fence line. `gap` is added round the cells (1.5 for low pieces, the
