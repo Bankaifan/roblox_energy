@@ -13,13 +13,43 @@ return function(t, load)
 
 	local materials = { Grass = true, LeafyGrass = true, Sand = true, Ground = true, Snow = true }
 	for _, id in Cosmetics.THEMES do
-		t.truthy(Themes.sets[id] ~= nil, `{id}: a decoration set`)
-		t.truthy(materials[Cosmetics.themeLook(id).material], `{id}: a known ground material`)
 		t.truthy(Locale.tables.en[`style.theme.{id}`] ~= nil, `{id}: English text`)
 		t.truthy(Locale.tables.de[`style.theme.{id}`] ~= nil, `{id}: German text`)
+		if id == "season" then
+			continue
+		end
+		t.truthy(Themes.sets[id] ~= nil, `{id}: a decoration set`)
+		t.truthy(materials[Cosmetics.themeLook(id).material], `{id}: a known ground material`)
 	end
-	t.equal(#Cosmetics.THEMES, 8, "eight themes")
+	t.equal(#Cosmetics.THEMES, 9, "eight themes and the season item")
 	t.equal(Cosmetics.THEMES[1], "classic", "classic stays the default")
+	t.equal(Cosmetics.THEMES[9], "season", "season is the ninth item")
+	t.equal(Locale.tables.en["style.theme.season"], "Season", "English season text")
+	t.equal(Locale.tables.de["style.theme.season"], "Jahreszeit", "German season text")
+	local byMonth = {
+		"classic",
+		"classic",
+		"spring",
+		"spring",
+		"spring",
+		"summer",
+		"summer",
+		"summer",
+		"autumn",
+		"halloween",
+		"autumn",
+		"christmas",
+	}
+	for month, id in byMonth do
+		t.equal(ThemeDecor.season(month), id, `month {month}: {id}`)
+		t.truthy(Themes.sets[id] ~= nil, `month {month}: the theme has a set`)
+	end
+	local flags = Cosmetics.flags({ themes = true }, { [Cosmetics.SLOT_THEME] = "season" })
+	t.equal(flags.theme, "season", "a saved season choice is kept")
+	local chosen = Cosmetics.choose({ themes = true }, {}, Cosmetics.SLOT_THEME, "season")
+	t.equal(chosen ~= nil and chosen["2"], "season", "season can be chosen")
+	t.equal(Cosmetics.nextItem(Cosmetics.SLOT_THEME, "christmas"), "season", "season follows christmas")
+	t.equal(Cosmetics.nextItem(Cosmetics.SLOT_THEME, "season"), "classic", "the list wraps to classic")
 	t.equal(#Themes.sets.classic.pieces, 0, "classic has no decoration")
 
 	-- The real site map.
