@@ -1,0 +1,2 @@
+- Der Stil-Knopf bietet jetzt ein neuntes Thema "Jahreszeit" (englisch "Season"); die Zuordnung Monat zu Thema steht bereit, das Grundstück zeigt sie aber noch nicht.
+- internal: ThemeDecor.season(month) und Cosmetics-Liste mit neun Einträgen, Schritt 8 von docs/themes-design.md.
