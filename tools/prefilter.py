@@ -245,6 +245,17 @@ def waiting_for_owner(owner, approver):
     return issues, n
 
 
+def pipeline_prs(owner=None):
+    """Open PRs that hold a slot of MAX_PRS: same-repo `agent/` PRs the agents opened. Not counted: the owner's own
+    PRs (also on an `agent/` branch), the train's batch and release PRs, template sync and dependabot PRs. Seven PRs
+    opened by hand filled the cap and the dispatcher started nothing for a night."""
+    owner = os.environ.get("OWNER", "Bankaifan") if owner is None else owner
+    prs = json.loads(gh("pr", "list", "--state", "open", "--limit", "200", "--json",
+                        "number,headRefName,isCrossRepository,author"))
+    return sum(1 for p in prs if train.status.is_agent_pr(p)
+               and not train.status.same_login((p.get("author") or {}).get("login"), owner))
+
+
 def count(*args):
     return len(json.loads(gh(*args, "--limit", "200", "--json", "number")))
 
@@ -328,8 +339,7 @@ def start_state():
     w_issues, w_prs = waiting_for_owner(os.environ.get("OWNER", "Bankaifan"), os.environ.get("APPROVER_BOT", ""))
     parked, restart = parked_waiting(dev)
     stuck = stuck_slots(dev) | parked  # an issue waiting for an open blocker holds no slot
-    free_dev, free_prs = free_slots({i["number"] for i in dev}, w_issues, stuck,
-                                    count("pr", "list", "--state", "open"), w_prs)
+    free_dev, free_prs = free_slots({i["number"] for i in dev}, w_issues, stuck, pipeline_prs(), w_prs)
     trusted = json.loads(os.environ.get("TRUSTED") or subprocess.run(
         [sys.executable, "tools/trusted_issues.py"], check=True, capture_output=True, text=True).stdout)
     issues = json.loads(gh("issue", "list", "--state", "open", "--limit", "200", "--json", "number,body,title,labels"))

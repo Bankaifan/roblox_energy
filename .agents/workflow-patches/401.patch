@@ -1,0 +1,602 @@
+diff --git a/.github/workflows/agent-dev.yml b/.github/workflows/agent-dev.yml
+index 28586b3..2ac9c72 100644
+--- a/.github/workflows/agent-dev.yml
++++ b/.github/workflows/agent-dev.yml
+@@ -70,14 +70,14 @@ jobs:
+         run: echo "is=$([ -n "$(python3 tools/ci/template_fetch.py)" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+       - id: app
+         if: steps.tpl.outputs.repo != '' && steps.sync.outputs.is == 'false'
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+           permission-issues: write
+       - id: tpl-app
+         if: steps.tpl.outputs.repo != '' && steps.sync.outputs.is == 'false'
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -125,7 +125,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -178,7 +178,7 @@ jobs:
+           # Nothing from an earlier run may be read as this run's note; the folder is kept out of git.
+           rm -rf .agent-out && mkdir .agent-out && echo ".agent-out/" >> .git/info/exclude
+       - id: claude
+-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         env:
+           GH_TOKEN: ${{ steps.app.outputs.token }}
+         with:
+@@ -284,7 +284,7 @@ jobs:
+       # The CI trigger needs `actions: write`, which the model token no longer has: this short-lived token goes to that step only.
+       - id: ci-app
+         if: ${{ !cancelled() && steps.pr.outputs.num != '' }}
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/agent-fix.yml b/.github/workflows/agent-fix.yml
+index 7851980..9903548 100644
+--- a/.github/workflows/agent-fix.yml
++++ b/.github/workflows/agent-fix.yml
+@@ -72,7 +72,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.APPROVER_CLIENT_ID }}
+           private-key: ${{ secrets.APPROVER_APP_KEY }}
+@@ -209,7 +209,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -232,7 +232,7 @@ jobs:
+       # is used by these script steps only, never by the model step.
+       - id: ci-app
+         if: steps.open.outputs.open == 'true'
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -278,7 +278,7 @@ jobs:
+           gh run view "$RUN_ID" --log-failed | tail -n 400 > ci-failure.log || echo "log not available" > ci-failure.log
+       - id: claude
+         if: steps.open.outputs.open == 'true'
+-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         env:
+           GH_TOKEN: ${{ steps.app.outputs.token }}
+         with:
+@@ -461,4 +461,11 @@ jobs:
+         run: |
+           # Rule: the guard comes from main, this call from the PR branch. `silent` ignores extra trailing args and a
+           # usage error escalates ("guard error"); only ever append args, never reorder or remove them.
++          # A PR that was merged or closed while this run worked has nothing left to fix: not a silent run
++          # (roblox_energy #387: merged a minute before the repeated run ended, the guard still opened a stuck issue).
++          # An unreadable state is not "closed": the guard then runs as before.
++          state="$(gh pr view "$PR" --json state --jq .state || true)"
++          if [ "$state" = MERGED ] || [ "$state" = CLOSED ]; then
++            echo "PR #$PR is $state: nothing to escalate"; exit 0
++          fi
+           python3 "$RUNNER_TEMP/guard/tools/agent_guard.py" silent fix "$PR" "$HEAD_BEFORE" "$RUNNER_TEMP/body-before.txt"
+diff --git a/.github/workflows/agent-review.yml b/.github/workflows/agent-review.yml
+index b5084ef..40716ab 100644
+--- a/.github/workflows/agent-review.yml
++++ b/.github/workflows/agent-review.yml
+@@ -42,7 +42,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.APPROVER_CLIENT_ID }}
+           private-key: ${{ secrets.APPROVER_APP_KEY }}
+@@ -130,7 +130,7 @@ jobs:
+           PR: ${{ steps.round.outputs.pr }}
+         run: python3 tools/review_delta.py "$PR" "$SHA"
+       - id: claude
+-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         if: steps.round.outputs.skip != 'true' && steps.reapprove.outputs.approved != 'true' && env.BRANCH != 'agent/batch'
+         env:
+           GH_TOKEN: ${{ steps.app.outputs.token }}
+@@ -208,7 +208,7 @@ jobs:
+       # the review again. Used by the next step only.
+       - id: ci-app
+         if: ${{ !cancelled() && steps.again.outputs.retry == 'true' }}
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/agent-security-review.yml b/.github/workflows/agent-security-review.yml
+index de9d4a4..2dc52eb 100644
+--- a/.github/workflows/agent-security-review.yml
++++ b/.github/workflows/agent-security-review.yml
+@@ -43,7 +43,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.APPROVER_CLIENT_ID }}
+           private-key: ${{ secrets.APPROVER_APP_KEY }}
+@@ -94,7 +94,7 @@ jobs:
+           gh pr diff "$PR" | python3 tools/ci/stage_review.py .review >> "$GITHUB_OUTPUT"
+           wc -l .review/pr.diff .review/skipped.txt
+       - id: claude
+-        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         if: steps.pr.outputs.skip != 'true'
+         env:
+           GH_TOKEN: ${{ steps.app.outputs.token }}
+diff --git a/.github/workflows/automerge.yml b/.github/workflows/automerge.yml
+index 35718f8..767256c 100644
+--- a/.github/workflows/automerge.yml
++++ b/.github/workflows/automerge.yml
+@@ -37,7 +37,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/branch-cleanup.yml b/.github/workflows/branch-cleanup.yml
+index ca4b0b2..59f2944 100644
+--- a/.github/workflows/branch-cleanup.yml
++++ b/.github/workflows/branch-cleanup.yml
+@@ -29,7 +29,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/canary.yml b/.github/workflows/canary.yml
+index 97a0b3e..5252ecb 100644
+--- a/.github/workflows/canary.yml
++++ b/.github/workflows/canary.yml
+@@ -31,7 +31,7 @@ jobs:
+           persist-credentials: false
+           ref: ${{ github.event.repository.default_branch }}
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/cleaner.yml b/.github/workflows/cleaner.yml
+index 3d2e592..cc1b52d 100644
+--- a/.github/workflows/cleaner.yml
++++ b/.github/workflows/cleaner.yml
+@@ -25,7 +25,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -60,7 +60,7 @@ jobs:
+         env:
+           EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
+         run: bash tools/ci/install_tools.sh
+-      - uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
++      - uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         if: steps.branch.outputs.go == 'true'
+         env:
+           GH_TOKEN: ${{ steps.app.outputs.token }}
+diff --git a/.github/workflows/dependabot-automerge.yml b/.github/workflows/dependabot-automerge.yml
+index bb913e2..adbbd48 100644
+--- a/.github/workflows/dependabot-automerge.yml
++++ b/.github/workflows/dependabot-automerge.yml
+@@ -42,13 +42,13 @@ jobs:
+           persist-credentials: false
+           ref: ${{ github.event.repository.default_branch }}
+       - id: approver
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.APPROVER_CLIENT_ID }}
+           private-key: ${{ secrets.APPROVER_APP_KEY }}
+           permission-pull-requests: write
+       - id: author
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/design-split.yml b/.github/workflows/design-split.yml
+index 0b2171d..89948f1 100644
+--- a/.github/workflows/design-split.yml
++++ b/.github/workflows/design-split.yml
+@@ -22,7 +22,7 @@ jobs:
+         run: |
+           [ -n "$AUTHOR_CLIENT_ID" ] || { echo "::error::Repo variable AUTHOR_CLIENT_ID is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/dispatch.yml b/.github/workflows/dispatch.yml
+index 8b8fda2..a7ac78c 100644
+--- a/.github/workflows/dispatch.yml
++++ b/.github/workflows/dispatch.yml
+@@ -48,7 +48,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/intake.yml b/.github/workflows/intake.yml
+index 3df4ef1..348bab2 100644
+--- a/.github/workflows/intake.yml
++++ b/.github/workflows/intake.yml
+@@ -36,7 +36,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: reader
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -77,7 +77,7 @@ jobs:
+     steps:
+       # Read-only token: gate and fetch only.
+       - id: reader
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -100,7 +100,7 @@ jobs:
+       # requires instead of its OIDC exchange; nothing here can write to GitHub. The run may be started by an outsider's
+       # issue or comment, so the action's write-permission check on the actor is off: the step has nothing to protect.
+       - id: claude
+-        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         if: steps.gate.outputs.ok == 'true'
+         with:
+           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+@@ -140,7 +140,7 @@ jobs:
+       # Write token: created only now, after the model step and the validation.
+       - id: writer
+         if: ${{ always() && steps.gate.outputs.ok == 'true' }}
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/orchestrator.yml b/.github/workflows/orchestrator.yml
+index 2458f61..d71dbba 100644
+--- a/.github/workflows/orchestrator.yml
++++ b/.github/workflows/orchestrator.yml
+@@ -67,7 +67,7 @@ jobs:
+         if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_run'
+         run: sleep 60
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -177,7 +177,7 @@ jobs:
+         if: steps.gate.outputs.skip != 'true' && steps.pre.outputs.work == 'true'
+         run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+       - id: claude
+-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         if: steps.gate.outputs.skip != 'true' && steps.pre.outputs.work == 'true'
+         continue-on-error: true  # a transient API error (is_error after one turn) is tolerated by `Fail a silent run`
+         env:
+@@ -319,7 +319,7 @@ jobs:
+           echo "branch=$branch" >> "$GITHUB_OUTPUT"
+       - id: handover-app
+         if: ${{ !cancelled() && steps.handover-commit.outputs.branch != '' }}
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/rule-keeper.yml b/.github/workflows/rule-keeper.yml
+index a85a4d8..ec43997 100644
+--- a/.github/workflows/rule-keeper.yml
++++ b/.github/workflows/rule-keeper.yml
+@@ -30,7 +30,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -66,7 +66,7 @@ jobs:
+           EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
+         run: bash tools/ci/install_tools.sh
+       - id: claude
+-        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         env:
+           GH_TOKEN: ${{ steps.app.outputs.token }}
+         with:
+diff --git a/.github/workflows/scout.yml b/.github/workflows/scout.yml
+index a5b0ef9..f666d34 100644
+--- a/.github/workflows/scout.yml
++++ b/.github/workflows/scout.yml
+@@ -36,7 +36,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -76,7 +76,7 @@ jobs:
+           GH_REPO: ${{ github.repository }}
+         run: python3 tools/scout_titles.py
+       - id: claude
+-        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         if: steps.pre.outputs.work == 'true'
+         env:
+           GH_TOKEN: ${{ steps.app.outputs.token }}
+@@ -129,7 +129,7 @@ jobs:
+         run: python3 tools/run_report.py scout  # the scout has no Edit/Write tool: the checkout is unchanged
+       - id: tpl-app
+         if: always() && steps.pre.outputs.work == 'true' && steps.tpl.outputs.repo != ''
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/setup.yml b/.github/workflows/setup.yml
+index 71d16e8..4e17e64 100644
+--- a/.github/workflows/setup.yml
++++ b/.github/workflows/setup.yml
+@@ -69,7 +69,7 @@ jobs:
+           } | tee -a "$GITHUB_STEP_SUMMARY"
+       - id: app
+         if: steps.check.outputs.author == 'true'
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/status.yml b/.github/workflows/status.yml
+index a8cbe87..da664d5 100644
+--- a/.github/workflows/status.yml
++++ b/.github/workflows/status.yml
+@@ -42,7 +42,7 @@ jobs:
+         run: python3 tools/status.py gate
+       - id: app
+         if: steps.gate.outputs.run == 'true'
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -59,6 +59,7 @@ jobs:
+           AUTHOR_BOT: ${{ vars.AUTHOR_BOT }}
+           APPROVER_BOT: ${{ vars.APPROVER_BOT }}  # reads the security verdict comment for the head
+           FAILURE_WATCH: ${{ vars.FAILURE_WATCH }}  # "off" skips the failure watch
++          REPORT_ISSUES: ${{ vars.REPORT_ISSUES }}  # "off": no status issue, the text goes to the run summary
+           GUARD_KEY: ${{ secrets.GUARD_KEY }}  # signs the overdue-run and failure issues; script step only, never a model step
+           FLOW_CSV: ${{ runner.temp }}/flow.csv  # one row per merged PR (tools/flow.py), uploaded below, never committed
+         run: python3 tools/status.py
+diff --git a/.github/workflows/strip-attribution.yml b/.github/workflows/strip-attribution.yml
+index 32483a9..d2a83bd 100644
+--- a/.github/workflows/strip-attribution.yml
++++ b/.github/workflows/strip-attribution.yml
+@@ -25,7 +25,7 @@ jobs:
+         run: |
+           [ -n "$AUTHOR_CLIENT_ID" ] || { echo "::error::Repo variable AUTHOR_CLIENT_ID is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+       - id: author
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/template-sync.yml b/.github/workflows/template-sync.yml
+index 4c877dd..b722f2d 100644
+--- a/.github/workflows/template-sync.yml
++++ b/.github/workflows/template-sync.yml
+@@ -30,7 +30,7 @@ jobs:
+       conflict: ${{ steps.collect.outputs.conflict }}
+     steps:
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -148,7 +148,7 @@ jobs:
+     timeout-minutes: 10
+     steps:
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -208,7 +208,7 @@ jobs:
+     timeout-minutes: 10
+     steps:
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/train.yml b/.github/workflows/train.yml
+index 10e0861..9071ccf 100644
+--- a/.github/workflows/train.yml
++++ b/.github/workflows/train.yml
+@@ -1,11 +1,16 @@
+ name: train
+ # No model: tools/train.py rebases the oldest approved agent PR that is BEHIND main and starts the conflict fix round
+-# (design docs/design/0003-merge-train.md, 4.3). Runs right after every push to main, every 30 min as a fallback, and by hand.
++# (design docs/design/0003-merge-train.md, 4.3). Runs right after every push to main, right after a review run ends
++# (a PR that was just approved while behind main is rebased at once, not at the next half hour), every 30 min as a
++# fallback, and by hand.
+ # Two or more ready PRs land as one batch PR on agent/batch (decision 0018; TRAIN_BATCH=off keeps the serial train).
+ # Repo variable TRAIN=off disables it. Checkout is main only; PR data is read through gh as data, never executed.
+ on:
+   push:
+     branches: [main]
++  workflow_run:  # zizmor: ignore[dangerous-triggers] only the fact that a review run ended is used; the checkout is main, PR code is never checked out or run
++    workflows: [agent-review, agent-security-review]
++    types: [completed]
+   schedule:
+     - cron: "17,47 * * * *"
+   workflow_dispatch:
+@@ -16,7 +21,9 @@ concurrency:
+   cancel-in-progress: false
+ jobs:
+   train:
+-    if: (vars.TRAIN || 'on') != 'off'
++    if: >-
++      (vars.TRAIN || 'on') != 'off' &&
++      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     steps:
+@@ -35,7 +42,7 @@ jobs:
+           ref: ${{ github.event.repository.default_branch }}
+       # Author app token, not GITHUB_TOKEN: pushes made with GITHUB_TOKEN do not start validate.
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/unblocker.yml b/.github/workflows/unblocker.yml
+index f961acb..f947757 100644
+--- a/.github/workflows/unblocker.yml
++++ b/.github/workflows/unblocker.yml
+@@ -39,7 +39,7 @@ jobs:
+           done
+       # Read-only token: gate and fetch only.
+       - id: reader
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -73,7 +73,7 @@ jobs:
+       # No app token, no GH_TOKEN, no Bash, no Edit. github_token is the job token (contents: read), which the action
+       # requires instead of its OIDC exchange; nothing here can write to GitHub.
+       - id: claude
+-        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
++        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+         if: steps.gate.outputs.ok == 'true' && steps.landed.outputs.landed != 'true'
+         with:
+           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+@@ -109,7 +109,7 @@ jobs:
+       # Write token: created only now, after the model step and the validation.
+       - id: writer
+         if: ${{ always() && steps.gate.outputs.ok == 'true' }}
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index b81b0c1..6e43574 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -128,13 +128,13 @@ jobs:
+             exit 1
+           fi
+       - id: author
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+           permission-metadata: read
+       - id: approver
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.APPROVER_CLIENT_ID }}
+           private-key: ${{ secrets.APPROVER_APP_KEY }}
+diff --git a/.github/workflows/watch.yml b/.github/workflows/watch.yml
+index 7707d11..d2f8d7e 100644
+--- a/.github/workflows/watch.yml
++++ b/.github/workflows/watch.yml
+@@ -74,7 +74,7 @@ jobs:
+           persist-credentials: false
+           ref: ${{ github.event.repository.default_branch }}
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+diff --git a/.github/workflows/weekly-summary.yml b/.github/workflows/weekly-summary.yml
+index 226e4c6..b213d2a 100644
+--- a/.github/workflows/weekly-summary.yml
++++ b/.github/workflows/weekly-summary.yml
+@@ -22,7 +22,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
+@@ -41,6 +41,7 @@ jobs:
+           # same defaults as orchestrator.yml (queue section and proposal thresholds); read-only use
+           MAX_DEV: ${{ vars.MAX_DEV || '4' }}
+           MAX_PRS: ${{ vars.MAX_PRS || '5' }}
++          REPORT_ISSUES: ${{ vars.REPORT_ISSUES }}  # "off": no summary or proposal issue, the text goes to the run summary
+         run: python3 tools/weekly_summary.py
+       - name: Open a PR for the new metrics row
+         env:
+diff --git a/.github/workflows/workflow-apply.yml b/.github/workflows/workflow-apply.yml
+index c8f88b0..b190f45 100644
+--- a/.github/workflows/workflow-apply.yml
++++ b/.github/workflows/workflow-apply.yml
+@@ -33,7 +33,7 @@ jobs:
+             [ -n "${!n}" ] || { echo "::error::Repo variable $n is not set (Settings > Secrets and variables > Actions > Variables)."; exit 1; }
+           done
+       - id: app
+-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
++        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+         with:
+           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
+           private-key: ${{ secrets.AUTHOR_APP_KEY }}
