@@ -164,8 +164,19 @@ def scout_work(open_ideas, ideas_per_run):
     return ideas_per_run > 0 and open_ideas < MAX_OPEN_IDEAS
 
 
+GH_TRIES = 3
+
+
 def gh(*args):
-    return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
+    for attempt in range(GH_TRIES):
+        try:
+            return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
+        except subprocess.CalledProcessError as e:
+            print(f"gh {' '.join(args[:2])} failed (try {attempt + 1}/{GH_TRIES}): {(e.stderr or '').strip()[:300]}",
+                  file=sys.stderr)
+            if attempt == GH_TRIES - 1:
+                raise
+            time.sleep(2 * (attempt + 1))
 
 
 def git(*args):
