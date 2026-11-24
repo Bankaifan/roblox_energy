@@ -10,6 +10,7 @@ local PlotLayout = require(Core:WaitForChild("PlotLayout") :: ModuleScript) :: a
 local River = require(Core:WaitForChild("River") :: ModuleScript) :: any
 local Cosmetics = require(Core:WaitForChild("Cosmetics") :: ModuleScript) :: any
 local Cable = require(Core:WaitForChild("Cable") :: ModuleScript) :: any
+local ThemeDecor = require(Core:WaitForChild("ThemeDecor") :: ModuleScript) :: any
 local Formulas = require(Core:WaitForChild("Formulas") :: ModuleScript) :: any
 local ShopView = require(Core:WaitForChild("ShopView") :: ModuleScript) :: any
 local Meadow = require(Core:WaitForChild("Meadow") :: ModuleScript) :: any
@@ -1008,10 +1009,11 @@ function PlotService.style(player: Player, flags: any)
 		flags.vip == true,
 		sitePoint(record, Assets.furniture.control) + Vector3.new(0, 1, 0)
 	)
-	local key = if flags.themed then flags.theme else ""
+	local resolved = if flags.themed then ThemeDecor.resolve(flags.theme, tonumber(os.date("!%m")) :: number) else nil
+	local key = resolved or ""
 	if record.themeKey ~= key then
 		record.themeKey = key
-		local theme = if flags.themed then flags.theme else nil
+		local theme = resolved
 		PlotStyle.theme(record.model, record.origin, record.facing, theme, record.slot)
 		PlotGround.meadow(record.slot, record.facing, if theme ~= nil then Themes.meadow[theme] else nil)
 	end
