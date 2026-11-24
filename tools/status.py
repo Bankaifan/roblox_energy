@@ -9,7 +9,7 @@
 4. Merge conflicts: an agent PR with mergeStateStatus DIRTY gets one fix run per head (marker conflict:<sha7>, then
    agent-fix is dispatched with the PR number). A conflict is no review round. A parked PR that is green and
    approved at its head and touches no CODEOWNERS path loses the label.
-5. Exhausted rounds: an open agent PR with `review:3`, not approved, not parked, no agent job running and an
+5. Exhausted rounds: an open agent PR with `review:stop` or 8 rounds (`review:8`), not approved, not parked, no agent job running and an
    idle head for more than 30 min was never handed over (the limit step failed): restart.py limit hands it over
    (issue restart once, else parked). A failure parks the PR.
 6. Red main: an own agent PR (one commit, author OWNER, behind main) whose last validate failed while main was red
@@ -52,10 +52,13 @@ import risk
 import ruleset
 import stalled_dev
 from agent_guard import (
+    MAX_ROUNDS,
     PARK_MARK,
     STATUS_TITLE,
+    STOP,
     add_labels,
     park,
+    round_no,
     same_login,
     status_issue,
     tail_text,
@@ -269,21 +272,16 @@ def held_run_ids(held, prs, author_bot):
     return ids
 
 
-def fix_round(labels):
-    """Mirror of agent-fix: (new round label or None, limit reached)."""
-    if "review:3" in labels:
-        return None, True
-    if "review:2" in labels:
-        return "review:3", True
-    return ("review:2" if "review:1" in labels else "review:1"), False
+def at_limit(labels):
+    return STOP in labels or round_no(labels) >= MAX_ROUNDS
 
 
 def limit_prs(prs, runs, now, approver=""):
-    """Agent PRs at review:3 that nobody took over: open, not effectively approved (a security `changes` verdict for
+    """Agent PRs at the round limit (`review:stop`, or MAX_ROUNDS rounds) that nobody took over: open, not effectively approved (a security `changes` verdict for
     the head counts as not approved), not parked, no agent job, idle head."""
     if any(r["workflowName"] in ("agent-fix", "agent-review") for r in runs):
         return []
-    return [p for p in prs if is_agent_pr(p) and "review:3" in names(p) and PARKED not in names(p)
+    return [p for p in prs if is_agent_pr(p) and at_limit(names(p)) and PARKED not in names(p)
             and not effective_approval(p.get("reviewDecision"), names(p), p.get("comments"), p.get("headRefOid"), approver)
             and minutes_since(head_date(p), now) > LIMIT_IDLE_MIN]
 
@@ -293,7 +291,7 @@ def handle_stuck_limit(pr, run=gh):
     try:
         return f"handed over ({handle_limit(str(pr['number']), run)})"
     except (subprocess.CalledProcessError, KeyError, ValueError, OSError):
-        escalate("pr", pr["number"], "the PR is at review:3 and the hand-over failed.", run)
+        escalate("pr", pr["number"], "the PR is at the round limit and the hand-over failed.", run)
         return "escalated"
 
 
@@ -416,7 +414,7 @@ def release_settled(prs, approver, owner, run=gh):
 # --- un-park ----------------------------------------------------------------------------------
 
 COOL_H, COOL_MAX_H = 24, 7 * 24
-COUNTER = re.compile(r"review:[123]|round:.*|formfix|conflict:.*|silent:.*|restart:1|stalled:1|status:retriggered")
+COUNTER = re.compile(r"review:(?:\d+|stop)|ci-red:\d+|red:.*|round:.*|formfix|conflict:.*|silent:.*|restart:1|stalled:1|status:retriggered")
 
 
 def cool_down_hours(n):
@@ -702,7 +700,7 @@ def run_status(env, now, run=gh):
         if p not in stuck_p:
             clear_retrigger("pr", p, run)
     for p in limit_prs(prs, runs, now, env.get("APPROVER_BOT", "")):
-        actions.append(f"review:3 PR #{p['number']}: {handle_stuck_limit(p, run)}")
+        actions.append(f"round limit PR #{p['number']}: {handle_stuck_limit(p, run)}")
     actions += release_settled(prs, env.get("APPROVER_BOT", ""), owner, run)
     actions += safe(un_park, prs, repo, [b for b in (bot, env.get("APPROVER_BOT", "")) if b], now, run) or []
     if not any(r["workflowName"] == "agent-fix" for r in runs):  # one fix job at a time
