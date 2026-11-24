@@ -16,5 +16,14 @@
     "Makefile",
     "docs/design/README.md"
   ],
-  "overrides": []
+  "overrides": [
+    {
+      "path": "tools/prefilter.py",
+      "reason": "retry a failed gh call up to three times (issue 408); until the template carries it"
+    },
+    {
+      "path": "tests/agent/test_prefilter_gh_retry.py",
+      "reason": "test for the gh retry in tools/prefilter.py (issue 408)"
+    }
+  ]
 }
