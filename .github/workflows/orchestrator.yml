@@ -67,7 +67,7 @@ jobs:
         if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_run'
         run: sleep 60
       - id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
           private-key: ${{ secrets.AUTHOR_APP_KEY }}
@@ -177,7 +177,7 @@ jobs:
         if: steps.gate.outputs.skip != 'true' && steps.pre.outputs.work == 'true'
         run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - id: claude
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         if: steps.gate.outputs.skip != 'true' && steps.pre.outputs.work == 'true'
         continue-on-error: true  # a transient API error (is_error after one turn) is tolerated by `Fail a silent run`
         env:
@@ -319,7 +319,7 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
       - id: handover-app
         if: ${{ !cancelled() && steps.handover-commit.outputs.branch != '' }}
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           client-id: ${{ vars.AUTHOR_CLIENT_ID }}
           private-key: ${{ secrets.AUTHOR_APP_KEY }}

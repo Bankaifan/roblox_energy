@@ -28,7 +28,8 @@ CLI: status.py gate   write run=true|false to $GITHUB_OUTPUT (schedule ticks hon
 10. Un-park: an open issue or agent PR whose `parked` label is older than its cool-down (24 h, doubled per park
    comment, at most 7 days) gets a fresh start: `parked` and every counter label removed; an issue gets agent:dev
    again, an agent PR is closed and its issue restarted from current main. Nobody is asked, ever.
-Environment: OWNER (default Bankaifan), AUTHOR_BOT, FAILURE_WATCH (off = skip the failure watch), STATUS_INTERVAL (minutes, default 30 public / 60 private repos;
+Environment: REPORT_ISSUES (off = no status issue: the text goes to the run summary, an open issue is closed; the
+failure watch then anchors on the last successful status run), OWNER (default Bankaifan), AUTHOR_BOT, FAILURE_WATCH (off = skip the failure watch), STATUS_INTERVAL (minutes, default 30 public / 60 private repos;
 rounded up to a multiple of 30), EVENT, PRIVATE ("true" for a private repo).
 Prints numbers and titles, never tokens.
 """
@@ -597,7 +598,13 @@ def previous_since(run, now, bot=""):
                 return min(max(parse_ts(m.group(1)), oldest), now)
             except (ValueError, TypeError):
                 break
-    return oldest
+    # No status issue (REPORT_ISSUES=off, or the first run): the start of the last successful status run is the
+    # anchor, so a failed run is not counted again on every tick.
+    last = safe(liveness.last_success, SELF_WORKFLOW, run)
+    try:
+        return min(max(parse_ts(last["createdAt"]), oldest), now) if last else oldest
+    except (ValueError, TypeError, KeyError):
+        return oldest
 
 
 def watch_failures(env, now, successes, added, actions, run):
@@ -714,9 +721,15 @@ def run_status(env, now, run=gh):
     merged = safe(jlist, run, "pr", "list", "--state", "merged", "--limit", "30", "--json",
                   "number,title,mergedAt,labels")
     flow_lines = flow_lines_for(env, repo, now, run)
-    number = update_issue(build_body(runs, prs, issues, ages, orch, ideas, actions, now, owner, successes, added,
-                                     merged, watch_since, required_contexts(), flow_lines), run, bot)
-    print(f"status issue #{number}; actions: {len(actions)}")
+    body = build_body(runs, prs, issues, ages, orch, ideas, actions, now, owner, successes, added,
+                      merged, watch_since, required_contexts(), flow_lines)
+    if liveness.reports_off(env):
+        liveness.write_summary(TITLE, body, env)
+        closed = liveness.retire_issue(TITLE, run, bot)
+        print(f"status in the run summary{f', closed issue #{closed}' if closed else ''}; actions: {len(actions)}")
+    else:
+        number = update_issue(body, run, bot)
+        print(f"status issue #{number}; actions: {len(actions)}")
     for a in actions:
         print(a)
     return 0
