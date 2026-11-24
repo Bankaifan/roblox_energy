@@ -4,9 +4,9 @@
 -- Roblox. This module only knows ids; the client draws the colours, and the server sends PlotPublic built here.
 local Cosmetics = {}
 
--- The glow colours of the Neon Plants and the eight plot themes, by id. The first of each is the default.
+-- The glow colours of the Neon Plants and the plot themes (eight designs and `season`, which follows the date), by id. The first of each is the default.
 Cosmetics.NEON_COLOURS = { "green", "cyan", "magenta", "gold", "off" } -- "off" switches the glow off
-Cosmetics.THEMES = { "classic", "desert", "night", "spring", "summer", "autumn", "halloween", "christmas" }
+Cosmetics.THEMES = { "classic", "desert", "night", "spring", "summer", "autumn", "halloween", "christmas", "season" }
 -- The slots of SetCosmetic: the glow colour and the theme.
 Cosmetics.SLOT_NEON = 1
 Cosmetics.SLOT_THEME = 2
