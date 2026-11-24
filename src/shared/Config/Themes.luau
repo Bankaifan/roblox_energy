@@ -13,8 +13,23 @@ export type Piece = {
 	tall: boolean?,
 	lights: number?,
 	every: number?,
+	glow: { number }?,
+	range: number?,
 }
-export type Set = { pieces: { Piece }, emitter: { kind: string, rate: number }? }
+-- `color` is rgb 0..255, `height` the centre of the emitting box above the plot, `depth` its thickness, `speed` and `life` in
+-- studs per second and seconds, `size` in studs; `rising` emitters float up, the others fall.
+export type Emitter = {
+	kind: string,
+	rate: number,
+	color: { number },
+	height: number,
+	depth: number,
+	speed: number,
+	life: number,
+	size: number,
+	rising: boolean,
+}
+export type Set = { pieces: { Piece }, emitter: Emitter? }
 
 local Themes = {}
 
@@ -24,6 +39,8 @@ Themes.THEME_PARTS = 210
 Themes.MAX_LIGHTS = 6
 Themes.MAX_EMITTERS = 1
 Themes.MAX_RATE = 10
+Themes.MIN_RANGE = 8
+Themes.MAX_RANGE = 12
 -- The fence line (plot-relative studs) that decoration stays inside.
 Themes.FENCE = 93
 
@@ -44,7 +61,17 @@ Themes.sets = {
 	},
 	night = {
 		pieces = {
-			{ kind = "lamp", count = 2, footprint = 1.5, parts = 3, zone = "yard", tall = true, lights = 2 },
+			{
+				kind = "lamp",
+				count = 2,
+				footprint = 1.5,
+				parts = 3,
+				zone = "yard",
+				tall = true,
+				lights = 2,
+				glow = { 255, 220, 120 },
+				range = 12,
+			},
 			{
 				kind = "lamp",
 				count = 2,
@@ -54,10 +81,22 @@ Themes.sets = {
 				every = 60,
 				tall = true,
 				lights = 2,
+				glow = { 255, 220, 120 },
+				range = 12,
 			},
 			{ kind = "bench", count = 2, footprint = 4, parts = 3, zone = "yard" },
 		},
-		emitter = { kind = "fireflies", rate = 3 },
+		emitter = {
+			kind = "fireflies",
+			rate = 3,
+			color = { 255, 235, 80 },
+			height = 4,
+			depth = 6,
+			speed = 1,
+			life = 5,
+			size = 0.3,
+			rising = true,
+		},
 	},
 	spring = {
 		pieces = {
@@ -67,7 +106,17 @@ Themes.sets = {
 			{ kind = "egg", count = 10, footprint = 1.5, parts = 1, zone = "open" },
 			{ kind = "birdhouse", count = 2, footprint = 1.5, parts = 3, zone = "yard", tall = true },
 		},
-		emitter = { kind = "petals", rate = 3 },
+		emitter = {
+			kind = "petals",
+			rate = 3,
+			color = { 250, 170, 200 },
+			height = 24,
+			depth = 4,
+			speed = 3,
+			life = 8,
+			size = 0.5,
+			rising = false,
+		},
 	},
 	summer = {
 		pieces = {
@@ -84,6 +133,8 @@ Themes.sets = {
 				every = 40,
 				tall = true,
 				lights = 2,
+				glow = { 255, 150, 50 },
+				range = 8,
 			},
 		},
 	},
@@ -98,12 +149,41 @@ Themes.sets = {
 			{ kind = "pumpkin", count = 4, footprint = 2, parts = 2, zone = "near:hay" },
 			{ kind = "crate", count = 3, footprint = 3, parts = 2, zone = "yard" },
 		},
-		emitter = { kind = "leaves", rate = 4 },
+		emitter = {
+			kind = "leaves",
+			rate = 4,
+			color = { 230, 120, 30 },
+			height = 24,
+			depth = 4,
+			speed = 3,
+			life = 8,
+			size = 0.6,
+			rising = false,
+		},
 	},
 	halloween = {
 		pieces = {
-			{ kind = "giant", count = 1, footprint = 7, parts = 6, zone = "corner", tall = true, lights = 1 },
-			{ kind = "jack", count = 8, footprint = 3, parts = 5, zone = "rim", lights = 3 },
+			{
+				kind = "giant",
+				count = 1,
+				footprint = 7,
+				parts = 6,
+				zone = "corner",
+				tall = true,
+				lights = 1,
+				glow = { 255, 140, 40 },
+				range = 12,
+			},
+			{
+				kind = "jack",
+				count = 8,
+				footprint = 3,
+				parts = 5,
+				zone = "rim",
+				lights = 3,
+				glow = { 255, 170, 50 },
+				range = 8,
+			},
 			{ kind = "pumpkin", count = 6, footprint = 2, parts = 2, zone = "near:giant" },
 			{ kind = "tombstone", count = 6, footprint = 3, parts = 2, zone = "rim" },
 			{ kind = "cobweb", count = 4, footprint = 2, parts = 4, zone = "corners" },
@@ -117,13 +197,35 @@ Themes.sets = {
 				every = 32,
 				tall = true,
 				lights = 2,
+				glow = { 255, 150, 40 },
+				range = 8,
 			},
 		},
-		emitter = { kind = "wisps", rate = 2 },
+		emitter = {
+			kind = "wisps",
+			rate = 2,
+			color = { 170, 240, 170 },
+			height = 3,
+			depth = 4,
+			speed = 1,
+			life = 6,
+			size = 0.8,
+			rising = true,
+		},
 	},
 	christmas = {
 		pieces = {
-			{ kind = "tree", count = 1, footprint = 12, parts = 22, zone = "corner", tall = true, lights = 1 },
+			{
+				kind = "tree",
+				count = 1,
+				footprint = 12,
+				parts = 22,
+				zone = "corner",
+				tall = true,
+				lights = 1,
+				glow = { 255, 220, 140 },
+				range = 12,
+			},
 			{ kind = "snowman", count = 2, footprint = 4, parts = 8, zone = "open", tall = true },
 			{ kind = "gift", count = 4, footprint = 3, parts = 3, zone = "near:tree" },
 			{ kind = "gift", count = 2, footprint = 3, parts = 3, zone = "yard" },
@@ -131,7 +233,17 @@ Themes.sets = {
 			{ kind = "pine", count = 6, footprint = 6, parts = 5, zone = "open", tall = true },
 			{ kind = "railsnow", count = 4, footprint = 0, parts = 1, zone = "fixed" },
 		},
-		emitter = { kind = "snow", rate = 8 },
+		emitter = {
+			kind = "snow",
+			rate = 8,
+			color = { 255, 255, 255 },
+			height = 24,
+			depth = 4,
+			speed = 4,
+			life = 6,
+			size = 0.4,
+			rising = false,
+		},
 	},
 } :: { [string]: Set }
 
@@ -141,6 +253,9 @@ function Themes.budget(set: Set): { parts: number, lights: number, rate: number 
 	for _, piece in set.pieces do
 		parts += piece.parts * piece.count
 		lights += piece.lights or 0
+	end
+	if set.emitter then
+		parts += 1
 	end
 	return { parts = parts, lights = lights, rate = if set.emitter then set.emitter.rate else 0 }
 end
