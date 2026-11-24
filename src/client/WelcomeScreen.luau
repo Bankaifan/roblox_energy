@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Locale = require(Config:WaitForChild("Locale") :: ModuleScript) :: any
+local Theme = require(script.Parent.Theme)
 local Digits =
 	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Digits") :: ModuleScript) :: any
 
@@ -42,6 +43,8 @@ end
 local function row(parent: Instance, order: number, size: number): TextLabel
 	local text = Instance.new("TextLabel")
 	text.BackgroundTransparency = 1
+	text.Font = if size > ROW_TEXT then Theme.fonts.title else Theme.fonts.body
+	text.TextColor3 = if size > ROW_TEXT then Theme.colors.accent else Theme.colors.text
 	text.TextSize = size
 	text.TextWrapped = true
 	text.LayoutOrder = order
@@ -68,6 +71,7 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 	gui.DisplayOrder = 10
 	gui.Enabled = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -75,7 +79,11 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 	-- Fills the screen minus the margin, at most PANEL_MAX_WIDTH wide; its height follows the rows.
 	panel.Size = UDim2.new(1, -2 * PANEL_MARGIN, 0, 0)
 	panel.AutomaticSize = Enum.AutomaticSize.Y
-	panel.BackgroundTransparency = 0.1
+	-- A dark panel with a yellow border, like the tutorial box of the HUD.
+	panel.BackgroundColor3 = Theme.colors.window
+	panel.BackgroundTransparency = 0.05
+	Theme.round(panel)
+	Theme.outline(panel, Theme.colors.accent, 3)
 	local widthLimit = Instance.new("UISizeConstraint")
 	widthLimit.MaxSize = Vector2.new(PANEL_MAX_WIDTH, math.huge)
 	widthLimit.Parent = panel
@@ -101,6 +109,10 @@ function WelcomeScreen.build(language: () -> string): (any) -> ()
 
 	local collect = Instance.new("TextButton")
 	collect.TextSize = ROW_TEXT
+	collect.Font = Theme.fonts.bold
+	collect.TextColor3 = Theme.colors.textDark
+	collect.BackgroundColor3 = Theme.colors.good
+	Theme.round(collect)
 	collect.TextWrapped = true
 	collect.LayoutOrder = 5
 	fitRow(collect, BUTTON_MIN_HEIGHT)

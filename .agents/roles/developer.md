@@ -19,6 +19,7 @@ Implements one task slip as one PR.
   Port files with Read/Write/Edit or one plain `cp <src> <dst>` per file.
 - Update a branch only with `git rebase origin/main`: never `git merge`, `git pull` without `--rebase` or `gh pr update-branch`.
 - A measured-tolerance check (balance report) fails after your intended change: act as `balancer.md` in the same PR.
+- Nothing to build (the slip is done on main, or the cause is outside this repo): no PR; write one line why to `.agent-out/nothing-to-build.md` (`complete:` first if the whole issue is done).
 - If a needed action is denied and there is no other way, `gh issue comment` once which call was denied and why you need it.
 - If the slip turns out bigger than ~400 changed lines, do its first part and name the rest in the PR body (`Refs`).
 - PR: title `V<major>-<NAME>: <summary>`, the start of the issue title (`check_pr_form` checks title and commit subjects); English ASCII; body max 5 lines, `Closes #<issue>` only if the PR completes the whole issue; partial work, follow-ups and design PRs use `Refs #<issue>`, never `Closes`.

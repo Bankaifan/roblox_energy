@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.18] - 2026-11-24
+- Neben der Uhr zeigt ein Pfeil das nächste Wetter, sobald der Börsenzugang gekauft ist.
+- Die Plot-Themen Weihnachten und Halloween bringen ihre Deko auf das Grundstück: Schneemänner, Geschenke und Tannen bzw. Kürbisse, Grabsteine, Spinnweben und Laternen.
+- ThemeProps-Builder für Schritt 3 von docs/themes-design.md (Lichter und Partikel folgen in Schritt 6).
+
 ## [0.17] - 2026-11-23
 - Netz-Ausbau: Das Land beginnt wieder bei null (nur Sense, nichts vorbereitet, kein Container, keine Verkabelung, keine Schienen, Werkzeuge müssen neu gekauft werden). Stamm-Anlagen und das Start-Set (S1) stehen auf frisch vorbereitetem Boden. Funken-Upgrades bleiben.
 - Netz-Ausbau setzt das Land zurück (GameCore.prestige, Container-Modell in PlotService)

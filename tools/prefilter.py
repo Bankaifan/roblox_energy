@@ -265,9 +265,22 @@ def slip_time(issue, authors):
     return max(times) if times else issue.get("createdAt", "")
 
 
+NOTHING_MARK = "<!-- nothing-to-build -->"  # tools/no_build.py: a developer run found the slip already done
+
+
+def nothing_to_build(issue, authors):
+    """A trusted `nothing-to-build` comment is newer than the newest slip: that slip leads to an empty run."""
+    since = slip_time(issue, authors)
+    return any(NOTHING_MARK in (c.get("body") or "") and overlap.trusted(c, authors) and c.get("createdAt", "") > since
+               for c in issue.get("comments", []))
+
+
 def step_landed(n, issue, authors, gh=None):
-    """True when a same-repo `agent/` PR naming issue N merged after its newest slip (issue #661): the slip's step is
-    done and a restart from it would only produce an empty run."""
+    """True when a same-repo `agent/` PR naming issue N merged after its newest slip (issue #661), or a developer
+    run said after that slip that there is nothing to build (`nothing_to_build`): the slip's step is done and a
+    restart from it would only produce an empty run."""
+    if nothing_to_build(issue, authors):
+        return True
     run = gh or globals()["gh"]  # the module's gh at call time, so a test can replace it
     out = run("pr", "list", "--state", "merged", "--search", f"#{n} in:body", "--limit", "20",
               "--json", "body,headRefName,isCrossRepository,mergedAt")

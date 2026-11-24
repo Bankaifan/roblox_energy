@@ -28,6 +28,7 @@ function Style.build(net: Instance, language: () -> string)
 	gui.ResetOnSpawn = false
 	gui.Enabled = false
 	gui.Parent = player:WaitForChild("PlayerGui")
+	Theme.fitScreen(gui)
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.AnchorPoint = Vector2.new(0, 1)
