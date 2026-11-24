@@ -3,6 +3,10 @@
 -- Writes docs/balance/report.md. Status uses the ranges of docs/balance/tolerances.md (median of each figure);
 -- tests/test_balance_report.py fails in make check when a committed value leaves its range.
 local fs = require("@lune/fs")
+local process = require("@lune/process")
+local serde = require("@lune/serde")
+local stdio = require("@lune/stdio")
+local task = require("@lune/task")
 local Sim = require("../sim/Sim")
 
 local SEEDS = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
@@ -98,12 +102,116 @@ local function megaGain(state: any, buy: any): number?
 	return (mega / plain - 1) * 100
 end
 
+-- The campaign is 7 bots x 3 start times x 9 seeds of Sim.run, about 14 minutes on one core. Each (bot, start time)
+-- block runs in a worker process of its own, as many at once as the machine has cores. A worker is this script started
+-- with the environment variable BALANCE_WORKER=<bot>/<start index>: it prints its 9 records as JSON and exits. A
+-- process that has the variable never starts a worker, so workers cannot multiply. `pack` keeps number keys and
+-- special floats, which plain JSON would lose. Every record takes this path, also when a block is computed in this
+-- process (no worker could be started), so the report does not depend on how the work was split.
+local function packValue(value: any): any
+	local kind = type(value)
+	if kind == "table" then
+		local entries = {}
+		for key, item in value do
+			local keyKind = type(key)
+			assert(
+				keyKind == "number" or keyKind == "string" or keyKind == "boolean",
+				"balance: cannot pack a " .. keyKind .. " key"
+			)
+			table.insert(entries, { k = packValue(key), v = packValue(item) })
+		end
+		return { t = entries }
+	elseif kind == "number" then
+		if value ~= value or value == math.huge or value == -math.huge then
+			return { f = tostring(value) }
+		end
+		return { n = string.format("%.17g", value) }
+	elseif kind == "string" or kind == "boolean" then
+		return { s = value }
+	end
+	error("balance: cannot pack a " .. kind)
+end
+
+local function unpackValue(packed: any): any
+	if packed.t ~= nil then
+		local result = {}
+		for _, entry in packed.t do
+			result[unpackValue(entry.k)] = unpackValue(entry.v)
+		end
+		return result
+	elseif packed.n ~= nil then
+		return tonumber(packed.n)
+	elseif packed.f ~= nil then
+		return if packed.f == "inf" then math.huge elseif packed.f == "-inf" then -math.huge else 0 / 0
+	end
+	return packed.s
+end
+
+local BOT_NAMES = { "optimal", "occasional", "child", "premium", "turbo", "skips", "permanent" }
+
+-- The 9 records of one bot and one start time, in seed order.
+local function block(name: string, startIndex: number): { any }
+	local records = {}
+	for _, seed in SEEDS do
+		table.insert(records, Sim.run(Sim.BOTS[name], seed, STARTS[startIndex].time))
+	end
+	return records
+end
+
+local workerJob = process.env.BALANCE_WORKER
+if workerJob ~= nil then
+	local name, index = string.match(workerJob, "^(%a+)/(%d+)$")
+	local startIndex = tonumber(index)
+	if name == nil or Sim.BOTS[name] == nil or startIndex == nil or STARTS[startIndex] == nil then
+		error("balance: bad BALANCE_WORKER value")
+	end
+	stdio.write(serde.encode("json", packValue(block(name, startIndex))))
+	process.exit(0)
+end
+
+local function cores(): number
+	local ok, result = pcall(process.exec, "nproc", {})
+	local count = if ok and result.ok then tonumber((string.gsub(result.stdout, "%s", ""))) else nil
+	return if count ~= nil and count >= 1 then math.min(count, 8) else 1
+end
+
+local blocks: { [string]: { any } } = {}
+local queue: { { name: string, startIndex: number } } = {}
+for _, name in BOT_NAMES do
+	for startIndex in STARTS do
+		table.insert(queue, { name = name, startIndex = startIndex })
+	end
+end
+local nextJob, finished = 1, 0
+local function work()
+	while nextJob <= #queue do
+		local job = queue[nextJob]
+		nextJob += 1
+		local id = job.name .. "/" .. job.startIndex
+		local ok, result = pcall(process.exec, "lune", { "run", "scripts/balance" }, { env = { BALANCE_WORKER = id } })
+		local encoded: string
+		if ok and result.ok then
+			encoded = result.stdout
+		else -- no worker: compute the block here, through the same pack and JSON path
+			encoded = serde.encode("json", packValue(block(job.name, job.startIndex)))
+		end
+		blocks[id] = unpackValue(serde.decode("json", encoded))
+	end
+	finished += 1
+end
+local workers = cores()
+for _ = 1, workers do
+	task.spawn(work)
+end
+while finished < workers do
+	task.wait(0.05)
+end
+
 local runs: { [string]: { any } } = {}
-for _, name in { "optimal", "occasional", "child", "premium", "turbo", "skips", "permanent" } do
+for _, name in BOT_NAMES do
 	runs[name] = {}
-	for _, start in STARTS do
-		for _, seed in SEEDS do
-			local record = Sim.run(Sim.BOTS[name], seed, start.time)
+	for startIndex, start in STARTS do
+		for _, record in blocks[name .. "/" .. startIndex] do
 			record.start = start.name
 			table.insert(runs[name], record)
 		end
