@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.20] - 2026-11-25
+- Luau-Werkzeuge ohne GitHub-API laden (Template-Sync-Build, Issue 373)
+- Vorlagen-Sync auf Template 1.113 (Review-Runden, Review-Auswahl, neue Prüf-Rollen)
+
 ## [0.19] - 2026-11-24
 - Der Stil „Jahreszeit“ zeigt jetzt das Thema des aktuellen Monats (Boden, Dekoration, Lichter und Partikel) und wechselt mit dem Datum.
 - Der Dispatcher wiederholt einen kurzzeitig fehlgeschlagenen gh-Aufruf und überspringt den Lauf mit Logzeile, statt abzustürzen.
