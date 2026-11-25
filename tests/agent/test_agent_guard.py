@@ -593,6 +593,27 @@ def test_park_labels_and_comments_with_the_marker_and_asks_nobody():
     assert not any("--add-reviewer" in c or "--add-assignee" in c for c in r.calls) and "@" not in r.posted[0]["body"]
 
 
+def test_park_of_a_parked_item_is_a_no_op(capsys):
+    r = Recorder(replies={("pr", "view"): "agent:dev\nparked\n"})
+    g.park("pr", 5, "again", r)
+    assert r.posted == [] and not any("--add-label" in c for c in r.calls)
+    assert "already parked" in capsys.readouterr().out
+
+
+def test_park_parks_once_and_logs_when_the_label_read_fails(capsys):
+    class FailingView(Recorder):
+        def __call__(self, *args):
+            if args[:2] == ("pr", "view") and "labels" in args:
+                self.calls.append(args)
+                raise subprocess.CalledProcessError(1, "gh")
+            return super().__call__(*args)
+
+    r = FailingView()
+    g.park("pr", 5, "read failed", r)
+    assert ("pr", "edit", "5", "--add-label", "parked") in r.calls and len(r.posted) == 1
+    assert "label read failed" in capsys.readouterr().out
+
+
 # --- upstream issue for an allow-list miss (#416 goal 2, security requirements 3 to 5) ---
 
 GKEY = "k" * 40

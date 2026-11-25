@@ -17,7 +17,9 @@ def block(name):
 @pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_job_names_are_exactly_the_required_ones():
     jobs = TEXT[TEXT.index("\njobs:\n"):]
-    assert re.findall(r"^  ([a-z-]+):$", jobs, re.MULTILINE) == ["validate", "scope", "changes", "agent-smoke"]
+    assert re.findall(r"^  ([a-z-]+):$", jobs, re.MULTILINE) == [
+        "validate", "secrets", "text", "check-lint", "check-tests", "check-workflows", "check-repo", "scope", "changes",
+        "agent-smoke"]
 
 
 @pytest.mark.template_only  # checks the template's own files, not a downstream project
@@ -37,28 +39,39 @@ def test_agent_smoke_waits_for_changes_and_reports_on_skip():
     assert "needs.changes.outputs.agents == 'true'" in job
 
 
-def test_validate_runs_make_check():
-    assert "run: make check\n" in block("validate")
+def test_each_check_job_runs_its_own_make_target():
+    for name in ("check-lint", "check-tests", "check-workflows", "check-repo"):
+        assert f"run: make {name}\n" in block(name), name
+        assert "needs.scope.outputs.text_only != 'true'" in block(name), name
 
 
+def test_validate_is_the_gate_over_every_job():
+    job = block("validate")
+    assert "needs: [scope, secrets, text, check-lint, check-tests, check-workflows, check-repo]" in job
+    assert "if: ${{ always() }}" in job
+    assert 'select(.value.result != "success" and .value.result != "skipped")' in job
+    assert "actions/checkout" not in job and "make " not in job
+
+
+@pytest.mark.template_only  # checks the template's own files, not a downstream project
 def test_a_text_edit_runs_only_the_text_checks_when_the_head_is_already_green():
     """A PR title or body edit (scripts do that) started the whole suite again although the code did not change."""
-    scope, job = block("scope"), block("validate")
+    scope, job = block("scope"), block("text")
     assert "github.event.action == 'edited' && github.event.changes.base == null" in scope
     assert "validate.yml/runs?head_sha=$SHA&status=success" in scope and '"${n:-0}" -gt 0' in scope
     assert "permissions:\n      actions: read\n" in scope
     assert "actions/checkout" not in scope and "make " not in scope  # no PR code where the token can read runs
-    assert "needs: scope" in job and "if: ${{ !cancelled() }}" in job  # a skipped or failed scope means the full run
-    text = job[job.index("Text checks only"):job.index("- name: Checks (ruff")]
-    full = job[job.index("- name: Checks (ruff"):]
-    assert "needs.scope.outputs.text_only == 'true'" in text and "run: make check-text" in text
-    assert "needs.scope.outputs.text_only != 'true'" in full and "run: make check\n" in full
+    assert "needs: scope" in job and "!cancelled()" in job  # a skipped or failed scope means the full run
+    assert "if: ${{ !cancelled() && needs.scope.outputs.text_only != 'true' }}" in block("check-repo")
+    assert "needs.scope.outputs.text_only == 'true'" in job and "run: make check-text" in job
+    assert "gitleaks" in block("secrets")
 
 
 def test_the_workflow_token_of_the_job_that_runs_pr_code_cannot_read_runs():
     head = TEXT[:TEXT.index("\njobs:\n")]
     assert head.endswith("permissions:\n  contents: read\n  pull-requests: read") and "actions:" not in head
-    assert "actions:" not in block("validate")
+    for name in ("validate", "text", "check-lint", "check-tests", "check-workflows", "check-repo"):
+        assert "actions:" not in block(name)
 
 
 def test_check_text_holds_every_check_that_reads_the_pr_text():

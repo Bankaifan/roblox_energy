@@ -10,10 +10,75 @@ permissions:
   contents: read
   pull-requests: read
 jobs:
+  # The required check `validate`: green only when every job below succeeded or was deliberately skipped (the text-only
+  # path skips the four check jobs, a full run skips `text`). `scope` may fail or be skipped: that means the full run.
   validate:
+    needs: [scope, secrets, text, check-lint, check-tests, check-workflows, check-repo]
+    if: ${{ always() }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    steps:
+      - name: Every job succeeded or was skipped
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          bad=$(printf '%s' "$NEEDS" | jq -r 'to_entries[] | select(.key != "scope") | select(.value.result != "success" and .value.result != "skipped") | "\(.key): \(.value.result)"')
+          if [ -n "$bad" ]; then echo "::error::not green: $bad"; exit 1; fi
+          echo "all jobs green or skipped"
+
+  secrets:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  # Title or body edited and the head commit already has a green run: only the checks that read that text.
+  text:
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.text_only == 'true' }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: ${{ fromJSON(vars.VALIDATE_TIMEOUT || '15') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ vars.PYTHON_VERSION || '3.x' }}
+      - name: Install pinned tools
+        env:
+          EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
+        run: bash tools/ci/install_tools.sh
+      - name: Apply pending workflow patches for the checks
+        run: |
+          for p in .agents/workflow-patches/*.patch; do
+            [ -e "$p" ] || continue
+            git apply --index "$p" || { echo "::error::$p does not apply"; exit 1; }
+            echo "applied $p for the checks"
+          done
+      - name: Text checks only (PR form, managed guard, test evidence)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: make check-text
+
+  check-lint:
     needs: scope
     # `scope` is skipped for every event but a text edit; a skipped or failed `scope` means the full run.
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.scope.outputs.text_only != 'true' }}
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     # A run cut off by this limit is `cancelled`: no review starts (it needs success) and no fix round (it needs
     # failure), so the PR just sits. A project whose `make check` takes longer sets VALIDATE_TIMEOUT (minutes).
@@ -30,10 +95,6 @@ jobs:
         env:
           EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
         run: bash tools/ci/install_tools.sh
-      - name: Secret scan
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
       # An agent PR carries its workflow changes as .agents/workflow-patches/*.patch until workflow-apply applies them
       # after the security review; check the tree as it will be after that (working tree only, nothing is pushed).
       - name: Apply pending workflow patches for the checks
@@ -44,20 +105,100 @@ jobs:
             git apply --index "$p" || { echo "::error::$p does not apply"; exit 1; }
             echo "applied $p for the checks"
           done
-      # Title or body edited and the head commit already has a green run: only the checks that read that text.
-      - name: Text checks only (PR form, managed guard, test evidence)
-        if: needs.scope.outputs.text_only == 'true'
+      - name: Lint (ruff, mypy)
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: make check-lint
+
+  check-tests:
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.text_only != 'true' }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: ${{ fromJSON(vars.VALIDATE_TIMEOUT || '15') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ vars.PYTHON_VERSION || '3.x' }}
+      - name: Install pinned tools
+        env:
+          EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
+        run: bash tools/ci/install_tools.sh
+      - name: Apply pending workflow patches for the checks
+        run: |
+          for p in .agents/workflow-patches/*.patch; do
+            [ -e "$p" ] || continue
+            git apply --index "$p" || { echo "::error::$p does not apply"; exit 1; }
+            echo "applied $p for the checks"
+          done
+      - name: Tests (pytest, coverage)
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          # "true" deselects slow tests (they run nightly); unset means false (design 0009)
+          NIGHTLY_HEAVY_TESTS: ${{ vars.NIGHTLY_HEAVY_TESTS || 'false' }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: make check-text
-      - name: Checks (ruff, pytest, actionlint, zizmor, repo checks)
-        if: needs.scope.outputs.text_only != 'true'
+        run: make check-tests
+
+  check-workflows:
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.text_only != 'true' }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: ${{ fromJSON(vars.VALIDATE_TIMEOUT || '15') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ vars.PYTHON_VERSION || '3.x' }}
+      - name: Install pinned tools
+        env:
+          EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
+        run: bash tools/ci/install_tools.sh
+      - name: Apply pending workflow patches for the checks
+        run: |
+          for p in .agents/workflow-patches/*.patch; do
+            [ -e "$p" ] || continue
+            git apply --index "$p" || { echo "::error::$p does not apply"; exit 1; }
+            echo "applied $p for the checks"
+          done
+      - name: Workflow security (actionlint, zizmor)
+        run: make check-workflows
+
+  check-repo:
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.text_only != 'true' }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: ${{ fromJSON(vars.VALIDATE_TIMEOUT || '15') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ vars.PYTHON_VERSION || '3.x' }}
+      - name: Install pinned tools
+        env:
+          EXTRA_INSTALL: ${{ vars.EXTRA_INSTALL }}
+        run: bash tools/ci/install_tools.sh
+      - name: Apply pending workflow patches for the checks
+        run: |
+          for p in .agents/workflow-patches/*.patch; do
+            [ -e "$p" ] || continue
+            git apply --index "$p" || { echo "::error::$p does not apply"; exit 1; }
+            echo "applied $p for the checks"
+          done
+      - name: Repo rules (version, PR form, managed guard, drift, evidence, project)
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
@@ -65,12 +206,10 @@ jobs:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           # check_test_evidence: empty outside pull_request, then the check is skipped
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          # "true" deselects slow tests (they run nightly); unset means false (design 0009)
-          NIGHTLY_HEAVY_TESTS: ${{ vars.NIGHTLY_HEAVY_TESTS || 'false' }}
           # workflow_dispatch: check_pr_form reads title/body with `gh pr view`
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: make check
+        run: make check-repo
 
   # A PR whose title or body was edited (scripts do that: attribution strip, task ID in the title) started the whole
   # suite again although the code did not change. When the head commit already has a green validate run, `validate`
