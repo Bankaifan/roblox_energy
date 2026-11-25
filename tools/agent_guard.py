@@ -372,7 +372,16 @@ def protected_hit(exec_text):
 
 def park(kind, number, reason, run=gh):
     """Set an item aside: label `parked` and one comment with the hidden marker. No mention, no review request, no
-    question: status.py gives it a fresh start after the cool-down."""
+    question: status.py gives it a fresh start after the cool-down. An item that is still parked is left alone: one
+    park comment per park, so the cool-down does not double on every repeated call."""
+    try:
+        have = run(kind, "view", str(number), "--json", "labels", "--jq", ".labels[].name").split()
+    except (subprocess.CalledProcessError, OSError) as exc:
+        print(f"{kind} {number}: label read failed ({type(exc).__name__}): parking anyway")
+        have = []
+    if PARKED in have:
+        print(f"{kind} {number} is already parked: no new comment")
+        return
     add_labels(kind, number, [PARKED], run)
     liveness.post_comment(kind, number, f"Parked: {reason}\n{PARK_MARK}", run)
 

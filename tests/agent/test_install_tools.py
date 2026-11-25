@@ -60,6 +60,14 @@ def test_pins_override_the_three_tools(tmp_path):
     assert "v1.8.0/" in _curl(calls)
 
 
+def test_mypy_pin_overrides_the_script_version(tmp_path):
+    r, calls = _run(tmp_path, pins="MYPY=9.8.7\n")
+    assert r.returncode == 0, r.stderr
+    assert "mypy==9.8.7" in calls[0]
+    assert "mypy==1.18.2" not in calls[0]
+    assert "ruff==0.17.4" in calls[0]
+
+
 REFUSED = [
     "PYTEST=8.0.0",
     "ruff=0.17.4",
