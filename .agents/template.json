@@ -1,7 +1,7 @@
 {
   "template": "Bankaifan/agent-template",
-  "synced_sha": "159da075e3b117bf2d61dfcd1838a49c1a28127b",
-  "synced_version": "1.115",
+  "synced_sha": "05a92288cf1563633dc664b17e1ecee70e9c26f9",
+  "synced_version": "1.116",
   "managed": [
     ".github/workflows/",
     ".github/claude-judge-settings.json",
@@ -14,7 +14,8 @@
     "AGENTS.md",
     "CLAUDE.md",
     "Makefile",
-    "docs/design/README.md"
+    "docs/design/README.md",
+    "mypy.ini"
   ],
   "overrides": [
     {
