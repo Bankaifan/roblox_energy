@@ -53,7 +53,7 @@ def test_runs_are_serialised_per_pr_without_cancelling():
 
 def test_already_merging_or_merged_is_success():
     text = _text()
-    for phrase in ("Merge already in progress", "already merged", "not open"):
+    for phrase in ("Merge already in progress", "already merged", "not open", "in unstable status"):
         assert phrase in text, phrase
     assert "exit 0" in text
 
@@ -80,6 +80,7 @@ def test_other_merge_errors_still_fail():
         # Known phrase: success even if the state read failed.
         (1, "Merge already in progress", 1, "", 0),
         (1, "Pull request is already merged", 1, "", 0),
+        (1, "GraphQL: Pull request Pull request is in unstable status (enablePullRequestAutoMerge)", 0, "OPEN", 0),
     ],
 )
 def test_merge_step_exit_code(tmp_path, merge_rc, merge_out, view_rc, view_state, expected_rc):
