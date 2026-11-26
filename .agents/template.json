@@ -33,6 +33,10 @@
     {
       "path": "tests/agent/test_dispatch.py",
       "reason": "issue 370: tests for the dispatch retry and give-up path"
+    },
+    {
+      "path": "tests/agent/test_automerge_workflow.py",
+      "reason": "issue 389: automerge also on unstable merge state; to be proposed to the template"
     }
   ]
 }
