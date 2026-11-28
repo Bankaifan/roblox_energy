@@ -13,7 +13,7 @@ jobs:
   # The required check `validate`: green only when every job below succeeded or was deliberately skipped (the text-only
   # path skips the four check jobs, a full run skips `text`). `scope` may fail or be skipped: that means the full run.
   validate:
-    needs: [scope, secrets, text, check-lint, check-tests, check-workflows, check-repo]
+    needs: [scope, secrets, text, check-lint, check-tests, check-workflows, check-repo, downstream-compat]
     if: ${{ always() }}
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
@@ -146,6 +146,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: make check-tests
+
+  # A project syncs a new release with the tools of its older release (#839): the last releases' parsers must read
+  # install_tools.sh, and its pins must install as wheels both on the runner's own Python (an older template-sync
+  # without setup-python) and on the one template-sync sets up. Skipped outside the template.
+  downstream-compat:
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.text_only != 'true' }}
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [runner, workflow]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: matrix.python == 'workflow'
+        with:
+          python-version: ${{ vars.PYTHON_VERSION || '3.x' }}
+      - name: Older releases read the tool pins, and they install as wheels
+        run: |
+          set -euo pipefail
+          python3 --version
+          reqs="$RUNNER_TEMP/compat-reqs.txt"
+          python3 tools/check/check_downstream_compat.py --out "$reqs"
+          if [ -f "$reqs" ]; then pip install --only-binary=:all: -r "$reqs"; fi
 
   check-workflows:
     needs: scope

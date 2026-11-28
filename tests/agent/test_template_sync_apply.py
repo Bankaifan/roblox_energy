@@ -6,6 +6,7 @@ commit with the five, leaves synced_sha alone and names the sixth file in the PR
 import importlib.util
 import json
 import pathlib
+import re
 import subprocess
 
 import pytest
@@ -226,16 +227,42 @@ def test_apply_writes_the_files_of_a_prefix_that_is_new_in_this_sync(tmp_path):
     assert json.loads((root / ".agents" / "template.json").read_text())["managed"] == ["tools/", "AGENTS.md", "mypy.ini"]
 
 
-THEIRS_SCRIPT = (_TOOLS / "ci" / "install_tools.sh").read_text()
+THEIRS_SCRIPT = """#!/usr/bin/env bash
+set -euo pipefail
+RUFF=0.17.4
+MYPY=1.18.2
+ZIZMOR=1.32.0
+ACTIONLINT=1.7.7
+COVERAGE=7.6.10
+pins=".agents/tool-pins.env"
+pip install "ruff==$RUFF" "mypy==$MYPY" types-PyYAML "zizmor==$ZIZMOR" pytest pytest-timeout "coverage==$COVERAGE" pyyaml==6.0.2
+for f in requirements.txt requirements_test.txt; do
+  if [ -f "$f" ]; then pip install -r "$f"; fi
+done
+"""
 BASE_SCRIPT = "RUFF=0.17.4\npip install \"ruff==$RUFF\" pytest\n"
 
 
 def test_tool_requirements_read_the_template_script_as_data():
+    """THEIRS_SCRIPT is a fixed copy, not the real install_tools.sh: a pin bump does not change this test, and a project
+    that overrides this file (its own install_tools.sh) merges the next template version cleanly."""
     reqs = ts.tool_requirements(THEIRS_SCRIPT)
     assert "mypy==1.18.2" in reqs and "types-PyYAML" in reqs and "ruff==0.17.4" in reqs
     assert sorted(reqs) == sorted(
         ["ruff==0.17.4", "mypy==1.18.2", "types-PyYAML", "zizmor==1.32.0", "pytest", "pytest-timeout",
          "coverage==7.6.10", "pyyaml==6.0.2"])
+
+
+@pytest.mark.template_only  # a project may keep its own install_tools.sh (another install line)
+def test_the_template_script_uses_only_exact_pins_older_downstream_parsers_read():
+    # A downstream sync parses this script with its previous release's template_sync.py, which accepts only
+    # `name` and `name==version`; a `>=` here broke every downstream sync of 1.118.
+    for token in ts.tool_requirements((_TOOLS / "ci" / "install_tools.sh").read_text()):
+        assert re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]*(==[0-9][0-9A-Za-z.]*)?", token), token
+
+
+def test_tool_requirements_accept_a_floor():
+    assert ts.tool_requirements('COVERAGE=7.6\npip install "coverage>=$COVERAGE" pytest\n') == ["coverage>=7.6", "pytest"]
 
 
 def test_tool_requirements_a_base_lacking_the_tool_gets_it_from_the_synced_script():
@@ -261,6 +288,8 @@ def test_tool_requirements_an_invalid_own_pin_line_fails(own):
     ('pip install ruff -e .\n', "unusable"),
     ('pip install ruff http://a/b\n', "unusable"),
     ('pip install "ruff==$RUFF"\n', "unusable"),  # unresolved pin
+    ('pip install "ruff<1"\n', "unusable"),  # only == and >= are accepted
+    ('pip install "ruff~=1.0"\n', "unusable"),
     ('echo nothing to install\n', "no `pip install`"),
     ('', "no `pip install`"),
     ('pip install  \n', "empty"),
