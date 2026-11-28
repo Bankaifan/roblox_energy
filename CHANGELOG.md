@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+## [0.21] - 2026-11-28
+- Vorlagen-Sync auf Version 1.115: Prüfungen, Werkzeuge und Workflows der Vorlage übernommen, dazu Typprüfung mit mypy und Abdeckungsprüfung.
+
 ## [0.20] - 2026-11-25
 - Luau-Werkzeuge ohne GitHub-API laden (Template-Sync-Build, Issue 373)
 - Vorlagen-Sync auf Template 1.113 (Review-Runden, Review-Auswahl, neue Prüf-Rollen)
