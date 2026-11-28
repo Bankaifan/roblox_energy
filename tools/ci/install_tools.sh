@@ -6,7 +6,9 @@ RUFF=0.17.4
 MYPY=1.18.2
 ZIZMOR=1.32.0
 ACTIONLINT=1.7.7
-COVERAGE=7.6.10
+# Exact pins only (`name==version`): downstream syncs read the pip line below with the parser of their previous
+# release, which knows no other specifier. Pick releases with wheels for the Python the workflows set up.
+COVERAGE=7.17.5
 # Optional project pins (design 0016): `.agents/tool-pins.env` may override RUFF, MYPY, ZIZMOR and ACTIONLINT, one `NAME=version`
 # line each. The file is read as data, never sourced; any other name or line fails the step.
 pins=".agents/tool-pins.env"
@@ -17,7 +19,7 @@ if [ -f "$pins" ]; then
     printf -v "${line%%=*}" '%s' "${line#*=}"
   done < "$pins"
 fi
-pip install "ruff==$RUFF" "mypy==$MYPY" types-PyYAML "zizmor==$ZIZMOR" pytest pytest-timeout "coverage==$COVERAGE" pyyaml==6.0.2
+pip install "ruff==$RUFF" "mypy==$MYPY" types-PyYAML "zizmor==$ZIZMOR" pytest pytest-timeout "coverage==$COVERAGE" pyyaml==6.0.4
 for f in requirements.txt requirements_test.txt; do
   if [ -f "$f" ]; then pip install -r "$f"; fi
 done

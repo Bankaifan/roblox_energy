@@ -18,8 +18,8 @@ def block(name):
 def test_job_names_are_exactly_the_required_ones():
     jobs = TEXT[TEXT.index("\njobs:\n"):]
     assert re.findall(r"^  ([a-z-]+):$", jobs, re.MULTILINE) == [
-        "validate", "secrets", "text", "check-lint", "check-tests", "check-workflows", "check-repo", "scope", "changes",
-        "agent-smoke"]
+        "validate", "secrets", "text", "check-lint", "check-tests", "downstream-compat", "check-workflows", "check-repo",
+        "scope", "changes", "agent-smoke"]
 
 
 @pytest.mark.template_only  # checks the template's own files, not a downstream project
@@ -47,7 +47,7 @@ def test_each_check_job_runs_its_own_make_target():
 
 def test_validate_is_the_gate_over_every_job():
     job = block("validate")
-    assert "needs: [scope, secrets, text, check-lint, check-tests, check-workflows, check-repo]" in job
+    assert "needs: [scope, secrets, text, check-lint, check-tests, check-workflows, check-repo, downstream-compat]" in job
     assert "if: ${{ always() }}" in job
     assert 'select(.value.result != "success" and .value.result != "skipped")' in job
     assert "actions/checkout" not in job and "make " not in job
